@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, session } from '../api';
 
 export default function Dashboard() {
   const [students, setStudents] = useState<any[]>([]); const [batches, setBatches] = useState<any[]>([]);
@@ -8,6 +8,12 @@ export default function Dashboard() {
   const active = students.filter((s) => s.active).length;
   return (
     <div>
+      {session.user?.subscriptionStatus && ['grace', 'suspended', 'trial'].includes(session.user.subscriptionStatus) && (
+        <div className={`card p-3 mb-4 text-sm ${session.user.subscriptionStatus === 'suspended' ? 'border-brick' : 'border-marigold-500 bg-marigold-100'}`}>
+          {session.user.subscriptionStatus === 'suspended' ? 'Your subscription is suspended — the centre is read-only until renewed. ' : session.user.subscriptionStatus === 'grace' ? 'Your subscription has expired — renew within the grace period to avoid suspension. ' : 'You are on a free trial. '}
+          <a className="underline font-semibold" href="/subscription">Subscription</a>
+        </div>
+      )}
       <h1 className="text-2xl font-bold">Today</h1>
       <p className="text-slate-600 mt-1">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
       <div className="grid grid-cols-3 gap-4 mt-6">

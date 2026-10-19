@@ -19,6 +19,8 @@ import Staff from './pages/Staff';
 import Enquiries from './pages/Enquiries';
 import Inbox from './pages/Inbox';
 import Wishes from './pages/Wishes';
+import Platform from './pages/Platform';
+import Subscription from './pages/Subscription';
 
 function Private({ children }: { children: JSX.Element }) { return session.token ? children : <Navigate to="/login" replace />; }
 
@@ -44,6 +46,8 @@ export default function App() {
         <Route path="enquiries" element={<Enquiries />} />
         <Route path="inbox" element={<Inbox />} />
         <Route path="wishes" element={<Wishes />} />
+        <Route path="platform" element={<Platform />} />
+        <Route path="subscription" element={<Subscription />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
