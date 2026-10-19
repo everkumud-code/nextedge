@@ -55,6 +55,12 @@ Super-admin for this (and every) project: ever.kumud@gmail.com — seeded as SUP
 
 - [x] Announcements: notice types ANNOUNCEMENT/GREETING, `pinned` banner (top of app home), `imageUrl`, `expiresAt`; Wishes page: festival greetings (templates) + auto birthday wish 07:00 IST from `students.dob` + owner-editable template; in-app notification feed (`/notifications/mine`, bell with unread in admin + app)
 
+## Platform (super-admin) — done
+- [x] Per-centre feature flags (`centre_settings.features`), plan presets (starter ₹25 / standard ₹40 / pro ₹60 per student), min students, monthly/annual
+- [x] Subscription invoices (students × rate), Razorpay pay link + webhook, manual mark-paid, `paidUntil`; renewal reminders 7/3/1 days, expiry → grace 7 days → suspended (writes blocked); owner sees /subscription
+- [x] Live providers per centre: jitsi (default) | zoom (S2S OAuth, auto meeting) | meet | teams | custom (standing link); owner sets on /subscription, super-admin on /platform
+- Admin pages: Platform (super-admin), Subscription (owner). Guard enforces flags + suspension.
+
 ## Phase 3 — Scale
 
 White-label build pipeline (config → app name/icon/package id), OMR scan worker (OpenCV), enquiry CRM, multi-branch, Tally/Excel exports. Launch 20 Apr 2027.
