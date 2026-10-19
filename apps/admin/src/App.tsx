@@ -8,6 +8,9 @@ import Batches from './pages/Batches';
 import Attendance from './pages/Attendance';
 import Fees from './pages/Fees';
 import Notices from './pages/Notices';
+import Study from './pages/Study';
+import Timetable from './pages/Timetable';
+import Centres from './pages/Centres';
 
 function Private({ children }: { children: JSX.Element }) { return session.token ? children : <Navigate to="/login" replace />; }
 
@@ -22,6 +25,9 @@ export default function App() {
         <Route path="attendance" element={<Attendance />} />
         <Route path="fees" element={<Fees />} />
         <Route path="notices" element={<Notices />} />
+        <Route path="study" element={<Study />} />
+        <Route path="timetable" element={<Timetable />} />
+        <Route path="centres" element={<Centres />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
