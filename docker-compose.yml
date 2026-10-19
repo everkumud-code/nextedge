@@ -1,0 +1,49 @@
+# Full stack on one VPS: Postgres + Redis + API + admin panel + Caddy (auto HTTPS).
+# Set DOMAIN, API_DOMAIN and secrets in .env (copy from deploy/.env.example).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: coaching_connect
+      POSTGRES_USER: coaching
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ["CMD-SHELL", "pg_isready -U coaching"], interval: 5s, retries: 10 }
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes: [redisdata:/data]
+
+  api:
+    build: ./apps/api
+    restart: unless-stopped
+    depends_on: { db: { condition: service_healthy }, redis: { condition: service_started } }
+    environment:
+      DATABASE_URL: postgres://coaching:${DB_PASSWORD}@db:5432/coaching_connect
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET}
+      OTP_MODE: ${OTP_MODE:-dev}
+      MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-}
+      MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID:-}
+      CORS_ORIGIN: https://${DOMAIN}
+      PORT: "3000"
+
+  admin:
+    build:
+      context: ./apps/admin
+      args: { VITE_API_URL: "https://${API_DOMAIN}" }
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment: { DOMAIN: ${DOMAIN}, API_DOMAIN: ${API_DOMAIN} }
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+    depends_on: [api, admin]
+
+volumes: { pgdata: {}, redisdata: {}, caddydata: {} }
