@@ -5,7 +5,7 @@ import { DbService } from '../db/db.service';
 import { centres, students, users } from '../db/schema';
 import { Roles } from '../common/auth.guard';
 
-class CentreDto { @IsString() name: string; @IsOptional() @IsString() city?: string; @IsOptional() @IsString() plan?: string; @IsString() adminName: string; @IsString() @Length(10, 10) adminMobile: string; }
+class CentreDto { @IsString() name: string; @IsOptional() @IsString() city?: string; @IsOptional() @IsString() plan?: string; @IsString() adminName: string; @IsString() @Length(10, 10) adminMobile: string; @IsOptional() @IsString() adminEmail?: string; }
 
 @Controller('centres')
 @Roles('SUPER_ADMIN')
@@ -19,7 +19,7 @@ export class CentresController {
   /** Onboard a centre with its first admin in one call. */
   @Post() async create(@Body() dto: CentreDto) {
     const [c] = await this.dbs.db.insert(centres).values({ name: dto.name, city: dto.city, plan: dto.plan || 'starter' }).returning();
-    const [admin] = await this.dbs.db.insert(users).values({ centreId: c.id, name: dto.adminName, mobile: dto.adminMobile, role: 'ADMIN' }).returning();
+    const [admin] = await this.dbs.db.insert(users).values({ centreId: c.id, name: dto.adminName, mobile: dto.adminMobile, email: dto.adminEmail?.trim().toLowerCase(), role: 'ADMIN' }).returning();
     return { centre: c, admin };
   }
 }

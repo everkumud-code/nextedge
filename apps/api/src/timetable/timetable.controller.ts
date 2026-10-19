@@ -8,7 +8,7 @@ import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 
 class SlotDto { @IsString() batchId: string; @IsInt() @Min(0) @Max(6) weekday: number; @Matches(/^\d\d:\d\d$/) startTime: string; @Matches(/^\d\d:\d\d$/) endTime: string; @IsString() subject: string; @IsOptional() @IsString() facultyId?: string; @IsOptional() @IsString() room?: string; }
-class FacultyDto { @IsString() name: string; @IsString() mobile: string; }
+class FacultyDto { @IsString() name: string; @IsString() mobile: string; @IsOptional() @IsString() email?: string; }
 class FacultyBatchDto { @IsString() facultyId: string; @IsString() batchId: string; @IsOptional() @IsString() subject?: string; }
 
 @Controller('timetable')
@@ -35,7 +35,7 @@ export class TimetableController {
     return this.dbs.db.select({ id: users.id, name: users.name, mobile: users.mobile }).from(users).where(and(eq(users.centreId, centreOf(u, c)), eq(users.role, 'FACULTY')));
   }
   @Post('faculty') @Roles('SUPER_ADMIN', 'ADMIN') async addFaculty(@CurrentUser() u: JwtUser, @Body() dto: FacultyDto, @Query('centreId') c?: string) {
-    const [row] = await this.dbs.db.insert(users).values({ centreId: centreOf(u, c), name: dto.name, mobile: dto.mobile, role: 'FACULTY' }).returning(); return row;
+    const [row] = await this.dbs.db.insert(users).values({ centreId: centreOf(u, c), name: dto.name, mobile: dto.mobile, email: dto.email?.trim().toLowerCase(), role: 'FACULTY' }).returning(); return row;
   }
   @Post('faculty-batch') @Roles('SUPER_ADMIN', 'ADMIN') async link(@CurrentUser() u: JwtUser, @Body() dto: FacultyBatchDto, @Query('centreId') c?: string) {
     const [row] = await this.dbs.db.insert(facultyBatches).values({ ...dto, centreId: centreOf(u, c) }).returning(); return row;

@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { students, users } from '../db/schema';
 
-export type StudentInput = { name: string; parentMobile: string; parentName?: string; mobile?: string; className?: string; rollNo?: string; batchId?: string | null };
+export type StudentInput = { name: string; parentMobile: string; parentName?: string; parentEmail?: string; mobile?: string; email?: string; className?: string; rollNo?: string; batchId?: string | null };
 
 @Injectable()
 export class StudentsService {
@@ -12,8 +12,8 @@ export class StudentsService {
   /** Creates the student row and makes sure a PARENT login (and STUDENT login if the student has a mobile) exists. */
   async create(centreId: string, dto: StudentInput) {
     const db = this.dbs.db;
-    const parent = await this.ensureUser(centreId, dto.parentMobile, dto.parentName || `Parent of ${dto.name}`, 'PARENT');
-    const studentUser = dto.mobile && dto.mobile.length === 10 ? await this.ensureUser(centreId, dto.mobile, dto.name, 'STUDENT') : null;
+    const parent = await this.ensureUser(centreId, dto.parentMobile, dto.parentName || `Parent of ${dto.name}`, 'PARENT', dto.parentEmail);
+    const studentUser = dto.mobile && dto.mobile.length === 10 ? await this.ensureUser(centreId, dto.mobile, dto.name, 'STUDENT', dto.email) : null;
     const [row] = await db.insert(students).values({
       centreId, name: dto.name, parentMobile: dto.parentMobile, parentName: dto.parentName, mobile: dto.mobile,
       className: dto.className, rollNo: dto.rollNo, batchId: dto.batchId || null, userId: studentUser?.id ?? null,
@@ -35,17 +35,17 @@ export class StudentsService {
       const roll = (r.rollNo || '').toString().trim();
       if (roll && seenRoll.has(roll.toLowerCase())) { skipped.push({ row: i + 2, reason: `Roll no ${roll} already exists` }); continue; }
       if (seenPair.has(`${r.name.trim().toLowerCase()}|${mob}`)) { skipped.push({ row: i + 2, reason: 'Same student already exists' }); continue; }
-      await this.create(centreId, { ...r, name: r.name.trim(), parentMobile: mob, rollNo: roll || undefined, mobile: r.mobile ? String(r.mobile).replace(/\D/g, '').slice(-10) : undefined, batchId: r.batchId || batchId || null });
+      await this.create(centreId, { ...r, name: r.name.trim(), parentMobile: mob, rollNo: roll || undefined, mobile: r.mobile ? String(r.mobile).replace(/\D/g, '').slice(-10) : undefined, parentEmail: r.parentEmail || undefined, batchId: r.batchId || batchId || null });
       if (roll) seenRoll.add(roll.toLowerCase()); seenPair.add(`${r.name.trim().toLowerCase()}|${mob}`); created.push(r.name);
     }
     return { created: created.length, skipped };
   }
 
-  private async ensureUser(centreId: string, mobile: string, name: string, role: 'PARENT' | 'STUDENT') {
-    const db = this.dbs.db;
+  private async ensureUser(centreId: string, mobile: string, name: string, role: 'PARENT' | 'STUDENT', email?: string) {
+    const db = this.dbs.db; const em = email?.trim().toLowerCase() || undefined;
     const found = await db.query.users.findFirst({ where: and(eq(users.mobile, mobile), eq(users.centreId, centreId)) });
-    if (found) return found;
-    const [u] = await db.insert(users).values({ centreId, mobile, name, role }).returning();
+    if (found) { if (em && !found.email) await db.update(users).set({ email: em }).where(eq(users.id, found.id)); return found; }
+    const [u] = await db.insert(users).values({ centreId, mobile, name, role, email: em }).returning();
     return u;
   }
 }

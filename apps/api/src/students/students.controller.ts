@@ -15,6 +15,8 @@ class StudentDto {
   @IsString() name: string;
   @IsString() @Length(10, 10) parentMobile: string;
   @IsOptional() @IsString() parentName?: string;
+  @IsOptional() @IsString() parentEmail?: string;
+  @IsOptional() @IsString() email?: string;
   @IsOptional() @IsString() mobile?: string;
   @IsOptional() @IsString() className?: string;
   @IsOptional() @IsString() rollNo?: string;

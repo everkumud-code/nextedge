@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import * as XLSX from 'xlsx';
-const empty = { name: '', className: '', rollNo: '', parentName: '', parentMobile: '', batchId: '' };
+const empty = { name: '', className: '', rollNo: '', parentName: '', parentMobile: '', parentEmail: '', batchId: '' };
 export default function Students() {
   const [rows, setRows] = useState<any[]>([]); const [batches, setBatches] = useState<any[]>([]); const [form, setForm] = useState(empty); const [err, setErr] = useState(''); const [q, setQ] = useState('');
   const [preview, setPreview] = useState<any[]>([]); const [impBatch, setImpBatch] = useState(''); const [impMsg, setImpMsg] = useState('');
@@ -14,7 +14,7 @@ export default function Students() {
       const wb = XLSX.read(r.result, { type: 'array' }); const ws = wb.Sheets[wb.SheetNames[0]];
       const raw: any[] = XLSX.utils.sheet_to_json(ws, { defval: '' });
       const pick = (row: any, ...keys: string[]) => { const k = Object.keys(row).find((h) => keys.some((x) => h.toLowerCase().replace(/[^a-z]/g, '').includes(x))); return k ? String(row[k]).trim() : ''; };
-      setPreview(raw.map((row) => ({ name: pick(row, 'studentname', 'name'), rollNo: pick(row, 'roll'), className: pick(row, 'class', 'std'), parentName: pick(row, 'parentname', 'father', 'guardian'), parentMobile: pick(row, 'parentmobile', 'mobile', 'phone', 'contact').replace(/\D/g, '').slice(-10), mobile: pick(row, 'studentmobile') })));
+      setPreview(raw.map((row) => ({ name: pick(row, 'studentname', 'name'), rollNo: pick(row, 'roll'), className: pick(row, 'class', 'std'), parentName: pick(row, 'parentname', 'father', 'guardian'), parentMobile: pick(row, 'parentmobile', 'mobile', 'phone', 'contact').replace(/\D/g, '').slice(-10), mobile: pick(row, 'studentmobile'), parentEmail: pick(row, 'email') })));
       setImpMsg('');
     };
     r.readAsArrayBuffer(f);
@@ -36,12 +36,13 @@ export default function Students() {
         <F label="Roll no"><input className="input" value={form.rollNo} onChange={(e) => setForm({ ...form, rollNo: e.target.value })} /></F>
         <F label="Parent name"><input className="input" value={form.parentName} onChange={(e) => setForm({ ...form, parentName: e.target.value })} /></F>
         <F label="Parent mobile"><input className="input" maxLength={10} value={form.parentMobile} onChange={(e) => setForm({ ...form, parentMobile: e.target.value.replace(/\D/g, '') })} /></F>
+        <F label="Parent email (for email OTP)"><input className="input" type="email" value={form.parentEmail} onChange={(e) => setForm({ ...form, parentEmail: e.target.value })} /></F>
         <F label="Batch"><select className="input" value={form.batchId} onChange={(e) => setForm({ ...form, batchId: e.target.value })}><option value="">Not assigned</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></F>
         <div className="col-span-6"><button className="btn" disabled={!form.name || form.parentMobile.length !== 10} onClick={add}>Add student</button>{err && <span className="text-brick text-sm ml-4">{err}</span>}</div>
       </div>
       <div className="card p-4 mt-6">
         <div className="flex items-center gap-4 flex-wrap">
-          <div><div className="font-semibold">Import from Excel</div><div className="text-sm text-slate-600">Columns: Name, Roll No, Class, Parent Name, Parent Mobile (any order; extra columns ignored)</div></div>
+          <div><div className="font-semibold">Import from Excel</div><div className="text-sm text-slate-600">Columns: Name, Roll No, Class, Parent Name, Parent Mobile, Email (any order; extra columns ignored)</div></div>
           <input type="file" accept=".xlsx,.xls,.csv" onChange={onFile} className="text-sm" />
           <select className="input w-56" value={impBatch} onChange={(e) => setImpBatch(e.target.value)}><option value="">Batch: not assigned</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
         </div>

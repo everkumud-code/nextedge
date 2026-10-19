@@ -14,7 +14,7 @@ Super-admin for this (and every) project: ever.kumud@gmail.com — seeded as SUP
 
 ## Rules (never break)
 1. **Tenant isolation**: every table with centre data has `centre_id`. Every query filters by `centreOf(user)` from `src/common/tenant.ts`. SUPER_ADMIN passes `?centreId=`. Never return another centre's rows.
-2. **Auth**: `AuthGuard` is global. Public routes use `@Public()`. Restrict with `@Roles('ADMIN', ...)`. Roles: SUPER_ADMIN, ADMIN, FACULTY, STUDENT, PARENT.
+2. **Auth**: login is coaching → mobile → OTP by SMS (MSG91) or email (SMTP, free via Gmail App Password). `GET /auth/centres` is public. `AuthGuard` is global. Public routes use `@Public()`. Restrict with `@Roles('ADMIN', ...)`. Roles: SUPER_ADMIN, ADMIN, FACULTY, STUDENT, PARENT.
 3. **Schema changes** go in `apps/api/src/db/schema.ts`, then `npm run db:push`. Keep enums in schema.ts.
 4. **Validation**: class-validator DTOs on every POST/PUT. `whitelist: true` strips unknown fields.
 5. **Vendors behind adapters**: SMS/OTP (MSG91), push (FCM), WhatsApp, Razorpay, Agora — each in `src/integrations/<name>.ts` with an interface, env-switchable. OTP_MODE=dev means OTP is 123456.
