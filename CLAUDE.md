@@ -9,6 +9,9 @@ Full spec: docs/SOW.md (sections 1–15). This file is the short version you mus
 - `apps/mobile` — Flutter skeleton: OTP login + notices list. Needs `flutter create .` once to generate platform folders.
 - `render.yaml` — Blueprint: API + static admin + Postgres + Redis (Singapore region).
 
+## Owner
+Super-admin for this (and every) project: ever.kumud@gmail.com — seeded as SUPER_ADMIN (mobile 9090770070). Project notifications: boombitesindia@gmail.com.
+
 ## Rules (never break)
 1. **Tenant isolation**: every table with centre data has `centre_id`. Every query filters by `centreOf(user)` from `src/common/tenant.ts`. SUPER_ADMIN passes `?centreId=`. Never return another centre's rows.
 2. **Auth**: `AuthGuard` is global. Public routes use `@Public()`. Restrict with `@Roles('ADMIN', ...)`. Roles: SUPER_ADMIN, ADMIN, FACULTY, STUDENT, PARENT.

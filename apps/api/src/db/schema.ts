@@ -19,6 +19,7 @@ export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
   centreId: uuid('centre_id').references(() => centres.id),
   mobile: text('mobile').notNull(),
+  email: text('email'),
   name: text('name').notNull(),
   role: roleEnum('role').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),

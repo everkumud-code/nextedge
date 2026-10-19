@@ -8,7 +8,7 @@ async function main() {
   const client = postgres(process.env.DATABASE_URL!); const db = drizzle(client, { schema: s });
   if ((await db.select().from(s.centres).where(eq(s.centres.name, 'Demo Coaching Centre'))).length) { console.log('Demo centre already exists'); await client.end(); return; }
   const [centre] = await db.insert(s.centres).values({ name: 'Demo Coaching Centre', city: 'Ranchi', plan: 'standard' }).returning();
-  if (!(await db.select().from(s.users).where(eq(s.users.mobile, '9090770070'))).length) await db.insert(s.users).values({ centreId: null, mobile: '9090770070', name: 'Kumud Ranjan', role: 'SUPER_ADMIN' });
+  if (!(await db.select().from(s.users).where(eq(s.users.mobile, '9090770070'))).length) await db.insert(s.users).values({ centreId: null, mobile: '9090770070', email: 'ever.kumud@gmail.com', name: 'Kumud Ranjan', role: 'SUPER_ADMIN' });
   const [, fac] = await db.insert(s.users).values([{ centreId: centre.id, mobile: '9999900001', name: 'Centre Admin', role: 'ADMIN' }, { centreId: centre.id, mobile: '9999900002', name: 'Sharma Sir', role: 'FACULTY' }]).returning();
   const [batch] = await db.insert(s.batches).values({ centreId: centre.id, name: 'Class 12 PCM - Morning', course: 'JEE Foundation', capacity: 60 }).returning();
   await db.insert(s.facultyBatches).values({ centreId: centre.id, facultyId: fac.id, batchId: batch.id, subject: 'Physics' });
