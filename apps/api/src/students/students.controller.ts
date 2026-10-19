@@ -6,6 +6,10 @@ import { students } from '../db/schema';
 import { Roles } from '../common/auth.guard';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
+import { StudentsService } from './students.service';
+import { IsArray } from 'class-validator';
+
+class ImportDto { @IsArray() rows: any[]; @IsOptional() @IsString() batchId?: string; }
 
 class StudentDto {
   @IsString() name: string;
@@ -20,7 +24,7 @@ class StudentDto {
 @Controller('students')
 @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY')
 export class StudentsController {
-  constructor(private dbs: DbService) {}
+  constructor(private dbs: DbService, private svc: StudentsService) {}
 
   @Get() list(@CurrentUser() u: JwtUser, @Query('centreId') c?: string, @Query('batchId') batchId?: string) {
     const centreId = centreOf(u, c);
@@ -29,9 +33,14 @@ export class StudentsController {
   }
 
   @Post() @Roles('SUPER_ADMIN', 'ADMIN')
-  async create(@CurrentUser() u: JwtUser, @Body() dto: StudentDto, @Query('centreId') c?: string) {
-    const [row] = await this.dbs.db.insert(students).values({ ...dto, centreId: centreOf(u, c) }).returning();
-    return row;
+  create(@CurrentUser() u: JwtUser, @Body() dto: StudentDto, @Query('centreId') c?: string) {
+    return this.svc.create(centreOf(u, c), dto);
+  }
+
+  /** Bulk import: body.rows = [{name, rollNo, className, parentName, parentMobile, mobile, batchId?}] parsed from Excel by the admin panel. */
+  @Post('import') @Roles('SUPER_ADMIN', 'ADMIN')
+  import(@CurrentUser() u: JwtUser, @Body() dto: ImportDto, @Query('centreId') c?: string) {
+    return this.svc.import(centreOf(u, c), dto.rows, dto.batchId);
   }
 
   @Put(':id') @Roles('SUPER_ADMIN', 'ADMIN')

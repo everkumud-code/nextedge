@@ -4,6 +4,7 @@ import { DbModule } from './db/db.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard, Public } from './common/auth.guard';
 import { StudentsController } from './students/students.controller';
+import { StudentsService } from './students/students.service';
 import { BatchesController } from './batches/batches.controller';
 import { AttendanceController } from './attendance/attendance.controller';
 import { FeesController } from './fees/fees.controller';
@@ -15,6 +16,6 @@ class HealthController { @Public() @Get('health') health() { return { ok: true, 
 @Module({
   imports: [DbModule, AuthModule],
   controllers: [HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController],
-  providers: [{ provide: APP_GUARD, useClass: AuthGuard }],
+  providers: [StudentsService, { provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AppModule {}

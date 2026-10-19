@@ -23,7 +23,7 @@ Full spec: docs/SOW.md (sections 1–15). This file is the short version you mus
 
 ## Phase 1 — MVP backlog (do in this order)
 - [x] Redis-backed OTP + rate limit (5 OTP/hour/number) — done; BullMQ queue for notifications pending
-- [ ] Students: bulk import from Excel (xlsx upload → preview → confirm), parent user auto-created on add, printable ID card with QR
+- [x] Students: bulk import from Excel (preview → confirm) and parent/student login auto-created — done; printable ID card with QR pending
 - [ ] Attendance: QR scan endpoint (`POST /attendance/scan`), parent push on PRESENT/ABSENT, monthly % per student, <75% flag
 - [ ] Fees: fee plans assigned to students, due calculation per cycle, Razorpay payment link + webhook, PDF receipt, defaulter list, reminders at −7/−1/0/+7 days
 - [ ] Notices: FCM push to audience, seen-by tracking (`notice_reads` table), WhatsApp template fallback after 2h unread
