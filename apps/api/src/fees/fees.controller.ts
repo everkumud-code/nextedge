@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, Post, Query, Req, Res, NotFoundException } from '@nestjs/common';
+import { receiptPdf } from './receipt';
+import { batches, centres } from '../db/schema';
 import { IsIn, IsNumberString, IsOptional, IsString } from 'class-validator';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
@@ -104,6 +106,18 @@ export class FeesController {
     if (dup.length) return { ok: true, duplicate: true };
     await this.insertPayment(notes.centreId, notes.studentId, pay.amount / 100, 'UPI', today(), pay.id, null);
     return { ok: true };
+  }
+
+  /** PDF receipt (admin, or the parent/student it belongs to). */
+  @Get('receipt/:id.pdf') async receipt(@CurrentUser() u: JwtUser, @Param('id') id: string, @Res() res: any, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); const db = this.dbs.db;
+    const [p] = await db.select().from(feePayments).where(and(eq(feePayments.id, id), eq(feePayments.centreId, centreId))); if (!p) throw new NotFoundException();
+    const [st] = await db.select().from(students).where(eq(students.id, p.studentId)); const [ce] = await db.select().from(centres).where(eq(centres.id, centreId));
+    const batch = st.batchId ? (await db.select().from(batches).where(eq(batches.id, st.batchId)))[0]?.name : undefined;
+    if (!['SUPER_ADMIN', 'ADMIN'].includes(u.role)) { const ok = (await this.ledger(u, c)).some((r) => r.studentId === st.id); if (!ok) throw new NotFoundException(); }
+    const bal = (await this.ledger({ ...u, role: 'ADMIN', centreId } as any, centreId)).find((r) => r.studentId === st.id)?.balance ?? 0;
+    const pdf = await receiptPdf({ centre: ce.name, city: ce.city, receiptNo: p.receiptNo || '', student: st.name, rollNo: st.rollNo, batch, parent: st.parentName, amount: Number(p.amount), mode: p.mode, paidOn: p.paidOn, reference: p.reference, balance: bal });
+    res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', `inline; filename="${p.receiptNo}.pdf"`); res.end(pdf);
   }
 
   @Get('summary') @Roles('SUPER_ADMIN', 'ADMIN') async summary(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {

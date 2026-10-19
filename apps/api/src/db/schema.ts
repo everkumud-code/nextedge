@@ -176,3 +176,84 @@ export const deviceTokens = pgTable('device_tokens', {
   platform: text('platform').default('android').notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// ---------- Phase 2: tests, homework, live classes ----------
+export const tests = pgTable('tests', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  batchId: uuid('batch_id').notNull().references(() => batches.id),
+  title: text('title').notNull(),
+  subject: text('subject'),
+  mode: text('mode').default('online').notNull(), // online (MCQ auto-check) | offline (marks entry)
+  date: date('date').notNull(),
+  durationMin: integer('duration_min').default(60),
+  maxMarks: integer('max_marks').default(100).notNull(),
+  negative: numeric('negative', { precision: 4, scale: 2 }).default('0').notNull(), // marks deducted per wrong answer (online)
+  questions: text('questions').default('[]').notNull(), // JSON: [{q, opts:[4], ans:'A'|'B'|'C'|'D', chapter, marks}]
+  published: boolean('published').default(false).notNull(),
+  resultsPublished: boolean('results_published').default(false).notNull(),
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const testAttempts = pgTable('test_attempts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  testId: uuid('test_id').notNull().references(() => tests.id),
+  studentId: uuid('student_id').notNull().references(() => students.id),
+  answers: text('answers').default('{}').notNull(), // JSON {qIndex: 'A'}
+  marks: numeric('marks', { precision: 7, scale: 2 }),
+  chapterScores: text('chapter_scores').default('{}').notNull(), // JSON {chapter: {got, total}}
+  tabSwitches: integer('tab_switches').default(0).notNull(),
+  startedAt: timestamp('started_at').defaultNow().notNull(),
+  submittedAt: timestamp('submitted_at'),
+});
+
+export const homework = pgTable('homework', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  batchId: uuid('batch_id').notNull().references(() => batches.id),
+  title: text('title').notNull(),
+  description: text('description'),
+  subject: text('subject'),
+  dueAt: timestamp('due_at').notNull(),
+  attachmentUrl: text('attachment_url'),
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const homeworkSubmissions = pgTable('homework_submissions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  homeworkId: uuid('homework_id').notNull().references(() => homework.id),
+  studentId: uuid('student_id').notNull().references(() => students.id),
+  text: text('text'),
+  fileKeys: text('file_keys').default('[]').notNull(), // JSON array of storage keys
+  submittedAt: timestamp('submitted_at').defaultNow().notNull(),
+  grade: text('grade'),
+  remark: text('remark'),
+  checkedBy: uuid('checked_by').references(() => users.id),
+  checkedAt: timestamp('checked_at'),
+});
+
+export const liveClasses = pgTable('live_classes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  batchId: uuid('batch_id').notNull().references(() => batches.id),
+  title: text('title').notNull(),
+  startAt: timestamp('start_at').notNull(),
+  durationMin: integer('duration_min').default(60).notNull(),
+  provider: text('provider').default('jitsi').notNull(), // jitsi | agora | external
+  joinUrl: text('join_url').notNull(),
+  recordingUrl: text('recording_url'),
+  status: text('status').default('scheduled').notNull(), // scheduled | live | ended | cancelled
+  createdBy: uuid('created_by').references(() => users.id),
+});
+
+export const liveAttendance = pgTable('live_attendance', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  liveClassId: uuid('live_class_id').notNull().references(() => liveClasses.id),
+  studentId: uuid('student_id').notNull().references(() => students.id),
+  joinedAt: timestamp('joined_at').defaultNow().notNull(),
+  leftAt: timestamp('left_at'),
+  minutes: integer('minutes').default(0).notNull(),
+});

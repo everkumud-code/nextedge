@@ -36,6 +36,9 @@ export class NoticesController {
     const [row] = await this.dbs.db.insert(notices).values({ ...dto, centreId, createdBy: u.id }).returning();
     const audience = await this.notify.audienceForBatch(centreId, dto.batchId || null);
     this.notify.notifyUsers(centreId, audience, `${dto.type === 'URGENT' ? '🔴 ' : ''}${dto.title}`, dto.body, { urgent: dto.type === 'URGENT', data: { type: 'notice', id: row.id } });
+    // After 2 hours, anyone who still has not opened the notice gets the WhatsApp/SMS fallback. (In-process timer; survives until restart — move to BullMQ when Redis queues land.)
+    const delay = Number(process.env.NOTICE_FALLBACK_MINUTES || 120) * 60_000;
+    setTimeout(async () => { try { const r = await this.reads(u, row.id, c); const ids = r.unread.map((p: any) => p.id); if (ids.length) this.notify.notifyUsers(centreId, ids, dto.title, dto.body, { urgent: dto.type === 'URGENT', waTemplate: process.env.WA_TEMPLATE_NOTICE, data: { type: 'notice', id: row.id } }); } catch {} }, delay).unref();
     return row;
   }
 

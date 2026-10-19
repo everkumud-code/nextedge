@@ -1,9 +1,9 @@
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket, OnGatewayConnection } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { JwtService } from '@nestjs/jwt';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { messages, students, users } from '../db/schema';
+import { facultyBatches, messages, students, users } from '../db/schema';
 
 type U = { id: string; role: string; centreId: string | null; name: string };
 const BANNED = (process.env.CHAT_BANNED_WORDS || '').split(',').map((w) => w.trim().toLowerCase()).filter(Boolean);
@@ -36,9 +36,14 @@ export class ChatGateway implements OnGatewayConnection {
     if (u.role === 'ADMIN' || u.role === 'FACULTY') {
       const parents = await db.select({ id: users.id }).from(users).where(and(eq(users.centreId, u.centreId!), eq(users.role, 'PARENT')));
       const bs = await db.selectDistinct({ batchId: students.batchId }).from(students).where(eq(students.centreId, u.centreId!));
-      return [...bs.map((b) => b.batchId).filter(Boolean).map((b) => `batch:${b}`), ...parents.map((p) => `parent:${p.id}`), `staff:${u.centreId}`];
+      const dms = u.role === 'FACULTY' ? (await db.select({ userId: students.userId }).from(students).innerJoin(facultyBatches, and(eq(facultyBatches.batchId, students.batchId), eq(facultyBatches.facultyId, u.id))).where(eq(students.centreId, u.centreId!))).map((s) => s.userId).filter((x): x is string => !!x).map((sid) => `dm:${sid}_${u.id}`) : [];
+      return [...bs.map((b) => b.batchId).filter(Boolean).map((b) => `batch:${b}`), ...parents.map((p) => `parent:${p.id}`), ...dms, `staff:${u.centreId}`];
     }
-    if (u.role === 'STUDENT') { const kids = await db.select({ batchId: students.batchId }).from(students).where(eq(students.userId, u.id)); return kids.map((k) => k.batchId).filter(Boolean).map((b) => `batch:${b}`); }
+    if (u.role === 'STUDENT') {
+      const kids = await db.select({ batchId: students.batchId }).from(students).where(eq(students.userId, u.id)); const bids = kids.map((k) => k.batchId).filter((x): x is string => !!x);
+      const fac = bids.length ? await db.select({ facultyId: facultyBatches.facultyId }).from(facultyBatches).where(and(eq(facultyBatches.centreId, u.centreId!), inArray(facultyBatches.batchId, bids))) : [];
+      return [...bids.map((b) => `batch:${b}`), ...[...new Set(fac.map((f) => f.facultyId))].map((f) => `dm:${u.id}_${f}`)];
+    }
     if (u.role === 'PARENT') return [`parent:${u.id}`];
     return [];
   }

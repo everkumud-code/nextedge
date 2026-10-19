@@ -16,13 +16,16 @@ import { ChatController } from './chat/chat.controller';
 import { ContentController } from './content/content.controller';
 import { TimetableController } from './timetable/timetable.controller';
 import { CentresController } from './centres/centres.controller';
+import { TestsController } from './tests/tests.controller';
+import { HomeworkController } from './homework/homework.controller';
+import { LiveController } from './live/live.controller';
 
 @Controller()
 class HealthController { @Public() @Get('health') health() { return { ok: true, service: 'coaching-connect-api', time: new Date().toISOString() }; } }
 
 @Module({
   imports: [DbModule, AuthModule],
-  controllers: [HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController, NotificationsController, ChatController, ContentController, TimetableController, CentresController],
+  controllers: [HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController, NotificationsController, ChatController, ContentController, TimetableController, CentresController, TestsController, HomeworkController, LiveController],
   providers: [StudentsService, NotificationsService, ChatGateway, { provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AppModule {}

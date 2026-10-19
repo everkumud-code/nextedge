@@ -32,6 +32,11 @@ export class StudentsController {
     return this.dbs.db.select().from(students).where(where).orderBy(students.name);
   }
 
+  /** Data for printable ID cards (QR = student id, scanned at the gate). */
+  @Get('id-cards') @Roles('SUPER_ADMIN', 'ADMIN') async idCards(@CurrentUser() u: JwtUser, @Query('batchId') batchId?: string, @Query('centreId') c?: string) {
+    const rows = await this.list(u, c, batchId); return rows.filter((r) => r.active).map((r) => ({ id: r.id, name: r.name, rollNo: r.rollNo, className: r.className, batchId: r.batchId, parentMobile: r.parentMobile, qr: r.id }));
+  }
+
   @Post() @Roles('SUPER_ADMIN', 'ADMIN')
   create(@CurrentUser() u: JwtUser, @Body() dto: StudentDto, @Query('centreId') c?: string) {
     return this.svc.create(centreOf(u, c), dto);
