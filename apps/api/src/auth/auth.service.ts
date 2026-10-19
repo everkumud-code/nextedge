@@ -23,18 +23,31 @@ export class AuthService {
     return rows;
   }
 
-  /** Finds the account for this mobile in this centre (centreId 'platform' = super admin). */
-  private async account(centreId: string | undefined, mobile: string): Promise<Account | null> {
-    const where = centreId === 'platform' ? and(eq(users.mobile, mobile), isNull(users.centreId)) : centreId ? and(eq(users.mobile, mobile), eq(users.centreId, centreId)) : eq(users.mobile, mobile);
+  /** Resolves a typed coaching name to a centre id ('platform' for the super-admin). Exact match first, then a unique partial match. */
+  async resolveCentre(name?: string, centreId?: string): Promise<string | undefined> {
+    if (centreId) return centreId; if (!name) return undefined; const n = name.trim(); if (!n) return undefined;
+    if (/^platform/i.test(n)) return 'platform';
+    const exact = await this.dbs.db.select({ id: centres.id }).from(centres).where(ilike(centres.name, n)); if (exact.length === 1) return exact[0].id;
+    const partial = await this.dbs.db.select({ id: centres.id, name: centres.name }).from(centres).where(ilike(centres.name, `%${n}%`)).limit(5);
+    if (partial.length === 1) return partial[0].id;
+    if (partial.length > 1) throw new HttpException(`More than one coaching matches "${n}": ${partial.map((p) => p.name).join(', ')}. Type the full name.`, 400);
+    throw new HttpException(`No coaching named "${n}". Check the spelling with your centre.`, 404);
+  }
+
+  /** Finds the account by email (preferred) or mobile in this centre (centreId 'platform' = super admin). */
+  private async account(centreId: string | undefined, mobile?: string, email?: string): Promise<Account | null> {
+    const ident = email ? eq(users.email, email.trim().toLowerCase()) : eq(users.mobile, mobile || '');
+    const where = centreId === 'platform' ? and(ident, isNull(users.centreId)) : centreId ? and(ident, eq(users.centreId, centreId)) : ident;
     const [u] = await this.dbs.db.select({ id: users.id, name: users.name, role: users.role, centreId: users.centreId, email: users.email, mobile: users.mobile }).from(users).where(where).limit(1);
     return u || null;
   }
 
-  async sendOtp(mobile: string, centreId?: string, channel: 'sms' | 'email' = 'sms') {
-    const acct = await this.account(centreId, mobile);
-    if (!acct) throw new UnauthorizedException(centreId ? 'This mobile number is not registered at this coaching. Ask the centre to check.' : 'This mobile number is not registered.');
-    if (channel === 'email' && !acct.email) throw new HttpException('No email on record for this number. Use SMS, or ask the centre to add your email.', 400);
-    const key = `${centreId || 'any'}:${mobile}`;
+  async sendOtp(mobile: string | undefined, centreId?: string, channel: 'sms' | 'email' = 'email', email?: string) {
+    const acct = await this.account(centreId, mobile, email);
+    if (!acct) throw new UnauthorizedException(email ? 'This email is not registered at this coaching. Ask the centre to add it to your profile.' : 'This mobile number is not registered at this coaching.');
+    if (email) channel = 'email';
+    if (channel === 'email' && !acct.email) throw new HttpException('No email on record. Ask the centre to add your email.', 400);
+    const ident = (email || mobile || '').toLowerCase(); const key = `${centreId || 'any'}:${ident}`;
     const sends = await this.redis.hit(`otp:sends:${key}`, 3600);
     if (sends > SEND_LIMIT) throw new HttpException('Too many OTP requests. Try again after an hour.', 429);
     const code = process.env.OTP_MODE === 'dev' ? '123456' : String(Math.floor(100000 + Math.random() * 900000));
@@ -42,21 +55,21 @@ export class AuthService {
     let delivered = 'dev';
     if (process.env.OTP_MODE !== 'dev') {
       if (channel === 'email') { const ok = await sendEmail(acct.email!, `${code} is your Coaching Connect OTP`, `Your login OTP is ${code}. It is valid for 5 minutes.`); delivered = ok ? 'email' : 'none'; if (!ok) throw new HttpException('Email is not configured on the server yet.', 503); }
-      else { try { await sendSms(mobile, `${code} is your login OTP for Coaching Connect. Valid for 5 minutes.`, code); delivered = 'sms'; } catch (e: any) { if (acct.email) { const ok = await sendEmail(acct.email, `${code} is your Coaching Connect OTP`, `Your login OTP is ${code}. It is valid for 5 minutes.`); delivered = ok ? 'email' : 'none'; } if (delivered === 'none') throw new HttpException('SMS is not set up yet. Choose "Email" to receive the OTP by email.', 503); } }
+      else { try { await sendSms(acct.mobile, `${code} is your login OTP for Coaching Connect. Valid for 5 minutes.`, code); delivered = 'sms'; } catch (e: any) { if (acct.email) { const ok = await sendEmail(acct.email, `${code} is your Coaching Connect OTP`, `Your login OTP is ${code}. It is valid for 5 minutes.`); delivered = ok ? 'email' : 'none'; } if (delivered === 'none') throw new HttpException('SMS is not set up yet. Choose "Email" to receive the OTP by email.', 503); } }
     }
     const mask = (e?: string | null) => e ? e.replace(/^(.{2}).*(@.*)$/, '$1***$2') : undefined;
-    return { sent: true, via: delivered, to: delivered === 'email' ? mask(acct.email) : delivered === 'sms' ? `***${mobile.slice(-4)}` : undefined, expiresIn: OTP_TTL, devHint: process.env.OTP_MODE === 'dev' ? '123456' : undefined };
+    return { sent: true, via: delivered, to: delivered === 'email' ? mask(acct.email) : delivered === 'sms' ? `***${acct.mobile.slice(-4)}` : undefined, expiresIn: OTP_TTL, devHint: process.env.OTP_MODE === 'dev' ? '123456' : undefined };
   }
 
-  async verifyOtp(mobile: string, code: string, centreId?: string) {
-    const key = `${centreId || 'any'}:${mobile}`;
+  async verifyOtp(mobile: string | undefined, code: string, centreId?: string, email?: string) {
+    const ident = (email || mobile || '').toLowerCase(); const key = `${centreId || 'any'}:${ident}`;
     const stored = await this.redis.get(`otp:code:${key}`);
     if (!stored) throw new UnauthorizedException('OTP expired. Request a new one.');
     if (stored !== code) { const fails = await this.redis.hit(`otp:fails:${key}`, OTP_TTL); if (fails >= VERIFY_LIMIT) { await this.redis.del(`otp:code:${key}`); throw new UnauthorizedException('Too many wrong attempts. Request a new OTP.'); } throw new UnauthorizedException(`Wrong OTP. ${VERIFY_LIMIT - fails} attempts left.`); }
     await this.redis.del(`otp:code:${key}`);
-    if (centreId) { const acct = await this.account(centreId, mobile); if (!acct) throw new UnauthorizedException('Account not found'); return this.issue(acct); }
+    if (centreId || email) { const acct = await this.account(centreId, mobile, email); if (!acct) throw new UnauthorizedException('Account not found'); return this.issue(acct); }
     // No centre given (older app): fall back to the chooser when the number exists in several places.
-    const accounts = await this.dbs.db.select({ id: users.id, name: users.name, role: users.role, centreId: users.centreId, centreName: centres.name }).from(users).leftJoin(centres, eq(centres.id, users.centreId)).where(eq(users.mobile, mobile));
+    const accounts = await this.dbs.db.select({ id: users.id, name: users.name, role: users.role, centreId: users.centreId, centreName: centres.name }).from(users).leftJoin(centres, eq(centres.id, users.centreId)).where(eq(users.mobile, mobile || ''));
     if (!accounts.length) throw new UnauthorizedException('This mobile number is not registered');
     if (accounts.length === 1) return this.issue(accounts[0]);
     const choice = await this.jwt.signAsync({ mobile, choose: true }, { expiresIn: '10m' });

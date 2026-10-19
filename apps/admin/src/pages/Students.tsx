@@ -37,9 +37,9 @@ export default function Students() {
         <F label="Parent name"><input className="input" value={form.parentName} onChange={(e) => setForm({ ...form, parentName: e.target.value })} /></F>
         <F label="Parent mobile"><input className="input" maxLength={10} value={form.parentMobile} onChange={(e) => setForm({ ...form, parentMobile: e.target.value.replace(/\D/g, '') })} /></F>
         <F label="Date of birth (for wishes)"><input className="input" type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} /></F>
-        <F label="Parent email (for email OTP)"><input className="input" type="email" value={form.parentEmail} onChange={(e) => setForm({ ...form, parentEmail: e.target.value })} /></F>
+        <F label="Parent email (login)"><input className="input" type="email" value={form.parentEmail} onChange={(e) => setForm({ ...form, parentEmail: e.target.value })} /></F>
         <F label="Batch"><select className="input" value={form.batchId} onChange={(e) => setForm({ ...form, batchId: e.target.value })}><option value="">Not assigned</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></F>
-        <div className="col-span-6"><button className="btn" disabled={!form.name || form.parentMobile.length !== 10} onClick={add}>Add student</button>{err && <span className="text-brick text-sm ml-4">{err}</span>}</div>
+        <div className="col-span-6"><button className="btn" disabled={!form.name || form.parentMobile.length !== 10 || !form.parentEmail.includes('@')} onClick={add}>Add student</button>{err && <span className="text-brick text-sm ml-4">{err}</span>}</div>
       </div>
       <div className="card p-4 mt-6">
         <div className="flex items-center gap-4 flex-wrap">
@@ -49,7 +49,7 @@ export default function Students() {
         </div>
         {preview.length > 0 && <>
           <table className="w-full mt-4 text-sm"><thead><tr><th className="th">Name</th><th className="th">Roll</th><th className="th">Class</th><th className="th">Parent</th><th className="th">Parent mobile</th></tr></thead>
-            <tbody>{preview.slice(0, 50).map((r, i) => <tr key={i} className={r.parentMobile.length !== 10 || !r.name ? 'text-brick' : ''}><td className="td">{r.name || '(missing)'}</td><td className="td">{r.rollNo}</td><td className="td">{r.className}</td><td className="td">{r.parentName}</td><td className="td">{r.parentMobile || '(missing)'}</td></tr>)}</tbody></table>
+            <tbody>{preview.slice(0, 50).map((r, i) => <tr key={i} className={r.parentMobile.length !== 10 || !r.name ? 'text-brick' : ''}><td className="td">{r.name || '(missing)'}</td><td className="td">{r.rollNo}</td><td className="td">{r.className}</td><td className="td">{r.parentName}</td><td className="td">{r.parentMobile || '(missing)'}{r.parentEmail ? '' : <span className="text-brick"> · no email</span>}</td></tr>)}</tbody></table>
           <div className="flex items-center gap-3 mt-3"><button className="btn" onClick={confirmImport}>Import {preview.length} students</button><button className="btn-quiet" onClick={() => setPreview([])}>Cancel</button>{preview.length > 50 && <span className="text-sm text-slate-500">showing first 50</span>}</div>
         </>}
         {impMsg && <p className="text-sm mt-3">{impMsg}</p>}
