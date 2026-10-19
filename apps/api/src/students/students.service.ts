@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { students, users } from '../db/schema';
 
-export type StudentInput = { name: string; parentMobile: string; parentName?: string; parentEmail?: string; mobile?: string; email?: string; className?: string; rollNo?: string; batchId?: string | null };
+export type StudentInput = { name: string; parentMobile: string; parentName?: string; parentEmail?: string; mobile?: string; email?: string; className?: string; rollNo?: string; batchId?: string | null; dob?: string };
 
 @Injectable()
 export class StudentsService {
@@ -16,7 +16,7 @@ export class StudentsService {
     const studentUser = dto.mobile && dto.mobile.length === 10 ? await this.ensureUser(centreId, dto.mobile, dto.name, 'STUDENT', dto.email) : null;
     const [row] = await db.insert(students).values({
       centreId, name: dto.name, parentMobile: dto.parentMobile, parentName: dto.parentName, mobile: dto.mobile,
-      className: dto.className, rollNo: dto.rollNo, batchId: dto.batchId || null, userId: studentUser?.id ?? null,
+      className: dto.className, rollNo: dto.rollNo, batchId: dto.batchId || null, userId: studentUser?.id ?? null, dob: dto.dob || null,
     }).returning();
     return { ...row, parentUserId: parent.id };
   }

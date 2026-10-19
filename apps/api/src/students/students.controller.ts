@@ -22,6 +22,7 @@ class StudentDto {
   @IsOptional() @IsString() className?: string;
   @IsOptional() @IsString() rollNo?: string;
   @IsOptional() @IsString() batchId?: string;
+  @IsOptional() @IsString() dob?: string;
 }
 
 @Controller('students')

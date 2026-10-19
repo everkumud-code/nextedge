@@ -3,7 +3,7 @@ import { pgTable, uuid, text, timestamp, integer, boolean, date, pgEnum, numeric
 
 export const roleEnum = pgEnum('role', ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF', 'STUDENT', 'PARENT']);
 export const attendanceStatus = pgEnum('attendance_status', ['PRESENT', 'ABSENT', 'LATE', 'LEAVE']);
-export const noticeType = pgEnum('notice_type', ['GENERAL', 'HOLIDAY', 'EXAM', 'FEE', 'EVENT', 'URGENT']);
+export const noticeType = pgEnum('notice_type', ['GENERAL', 'HOLIDAY', 'EXAM', 'FEE', 'EVENT', 'URGENT', 'ANNOUNCEMENT', 'GREETING']);
 export const paymentMode = pgEnum('payment_mode', ['UPI', 'CASH', 'CARD', 'NETBANKING', 'CHEQUE']);
 
 export const centres = pgTable('centres', {
@@ -12,6 +12,7 @@ export const centres = pgTable('centres', {
   city: text('city'),
   plan: text('plan').default('starter').notNull(),
   primaryColour: text('primary_colour').default('#F2A93B'),
+  birthdayWish: text('birthday_wish'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -47,6 +48,7 @@ export const students = pgTable('students', {
   mobile: text('mobile'),
   parentName: text('parent_name'),
   parentMobile: text('parent_mobile').notNull(),
+  dob: date('dob'),
   active: boolean('active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -93,6 +95,9 @@ export const notices = pgTable('notices', {
   body: text('body').notNull(),
   publishedAt: timestamp('published_at').defaultNow().notNull(),
   createdBy: uuid('created_by').references(() => users.id),
+  pinned: boolean('pinned').default(false).notNull(),
+  imageUrl: text('image_url'),
+  expiresAt: timestamp('expires_at'),
 });
 
 // ---------- Phase 1 additions ----------
@@ -167,6 +172,8 @@ export const notificationLog = pgTable('notification_log', {
   body: text('body').notNull(),
   status: text('status').default('queued').notNull(), // queued | sent | failed | skipped
   error: text('error'),
+  data: text('data'), // JSON deep-link payload
+  readAt: timestamp('read_at'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

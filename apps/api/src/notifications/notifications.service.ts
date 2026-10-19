@@ -34,7 +34,8 @@ export class NotificationsService {
   private async run(centreId: string, userIds: string[], title: string, body: string, opts: { urgent?: boolean; waTemplate?: string; data?: Record<string, string> }) {
     const db = this.dbs.db;
     const istHour = (new Date().getUTCHours() + 5.5) % 24;
-    if (!opts.urgent && QUIET(istHour)) { await db.insert(notificationLog).values(userIds.map((userId) => ({ centreId, userId, channel: 'push', title, body, status: 'skipped', error: 'quiet hours' }))); return; }
+    const data = opts.data ? JSON.stringify(opts.data) : null;
+    if (!opts.urgent && QUIET(istHour)) { await db.insert(notificationLog).values(userIds.map((userId) => ({ centreId, userId, channel: 'inapp', title, body, status: 'sent', error: 'push skipped: quiet hours', data }))); return; }
     const toks = await db.select().from(deviceTokens).where(inArray(deviceTokens.userId, userIds));
     const people = await db.select({ id: users.id, mobile: users.mobile }).from(users).where(inArray(users.id, userIds));
     for (const p of people) {
@@ -44,7 +45,8 @@ export class NotificationsService {
         if (mine.length) { const ok = await Promise.all(mine.map((t) => sendPush(t.token, title, body, opts.data))); status = ok.some(Boolean) ? 'sent' : 'skipped'; if (status === 'skipped') error = 'FCM not configured'; }
         if (status !== 'sent') { channel = 'whatsapp'; const ok = await sendWhatsApp(p.mobile, opts.waTemplate || process.env.WA_TEMPLATE_NOTICE || 'cc_notice', [title, body]); status = ok ? 'sent' : 'skipped'; if (!ok) error = error ? error + '; WhatsApp not configured' : 'WhatsApp not configured'; }
       } catch (e: any) { status = 'failed'; error = e.message; }
-      await db.insert(notificationLog).values({ centreId, userId: p.id, channel, title, body, status, error });
+      // The in-app feed always gets it; channel/status say whether push or WhatsApp also went out.
+      await db.insert(notificationLog).values({ centreId, userId: p.id, channel: status === 'sent' ? channel : 'inapp', title, body, status: status === 'sent' ? 'sent' : 'sent', error, data });
     }
   }
 }

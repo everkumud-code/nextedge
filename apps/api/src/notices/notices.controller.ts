@@ -9,7 +9,7 @@ import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { NotificationsService } from '../notifications/notifications.service';
 
-class NoticeDto { @IsString() title: string; @IsString() body: string; @IsIn(['GENERAL', 'HOLIDAY', 'EXAM', 'FEE', 'EVENT', 'URGENT']) type: any; @IsOptional() @IsString() batchId?: string; }
+class NoticeDto { @IsString() title: string; @IsString() body: string; @IsIn(['GENERAL', 'HOLIDAY', 'EXAM', 'FEE', 'EVENT', 'URGENT', 'ANNOUNCEMENT', 'GREETING']) type: any; @IsOptional() @IsString() batchId?: string; @IsOptional() pinned?: boolean; @IsOptional() @IsString() imageUrl?: string; @IsOptional() @IsString() expiresAt?: string; }
 
 @Controller('notices')
 @Mod('notices')
@@ -26,7 +26,7 @@ export class NoticesController {
       const bids = kids.map((k) => k.batchId).filter((x): x is string => !!x);
       where = and(eq(notices.centreId, centreId), bids.length ? or(isNull(notices.batchId), inArray(notices.batchId, bids)) : isNull(notices.batchId));
     }
-    const rows = await db.select().from(notices).where(where).orderBy(desc(notices.publishedAt)).limit(100);
+    const rows = (await db.select().from(notices).where(where).orderBy(desc(notices.pinned), desc(notices.publishedAt)).limit(100)).filter((r) => !r.expiresAt || r.expiresAt > new Date() || ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF'].includes(u.role));
     const reads = rows.length ? await db.select({ noticeId: noticeReads.noticeId }).from(noticeReads).where(and(eq(noticeReads.userId, u.id), inArray(noticeReads.noticeId, rows.map((r) => r.id)))) : [];
     const seen = new Set(reads.map((r) => r.noticeId));
     return rows.map((r) => ({ ...r, read: seen.has(r.id) }));
@@ -35,13 +35,17 @@ export class NoticesController {
   @Post() @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY')
   async create(@CurrentUser() u: JwtUser, @Body() dto: NoticeDto, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c);
-    const [row] = await this.dbs.db.insert(notices).values({ ...dto, centreId, createdBy: u.id }).returning();
+    const [row] = await this.dbs.db.insert(notices).values({ ...dto, expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : null, centreId, createdBy: u.id }).returning();
     const audience = await this.notify.audienceForBatch(centreId, dto.batchId || null);
     this.notify.notifyUsers(centreId, audience, `${dto.type === 'URGENT' ? '🔴 ' : ''}${dto.title}`, dto.body, { urgent: dto.type === 'URGENT', data: { type: 'notice', id: row.id } });
     // After 2 hours, anyone who still has not opened the notice gets the WhatsApp/SMS fallback. (In-process timer; survives until restart — move to BullMQ when Redis queues land.)
     const delay = Number(process.env.NOTICE_FALLBACK_MINUTES || 120) * 60_000;
     setTimeout(async () => { try { const r = await this.reads(u, row.id, c); const ids = r.unread.map((p: any) => p.id); if (ids.length) this.notify.notifyUsers(centreId, ids, dto.title, dto.body, { urgent: dto.type === 'URGENT', waTemplate: process.env.WA_TEMPLATE_NOTICE, data: { type: 'notice', id: row.id } }); } catch {} }, delay).unref();
     return row;
+  }
+
+  @Post(':id/pin') @Roles('SUPER_ADMIN', 'ADMIN') async pin(@CurrentUser() u: JwtUser, @Param('id') id: string, @Body() b: { pinned: boolean }, @Query('centreId') c?: string) {
+    await this.dbs.db.update(notices).set({ pinned: !!b.pinned }).where(and(eq(notices.id, id), eq(notices.centreId, centreOf(u, c)))); return { ok: true };
   }
 
   @Post(':id/read') async markRead(@CurrentUser() u: JwtUser, @Param('id') id: string) {

@@ -27,13 +27,14 @@ import { DoubtsController } from './doubts/doubts.controller';
 import { LeavesController } from './leaves/leaves.controller';
 import { FeedbackController } from './feedback/feedback.controller';
 import { EnquiriesController } from './enquiries/enquiries.controller';
+import { WishesController } from './wishes/wishes.controller';
 
 @Controller()
 class HealthController { @Public() @Get('health') health() { return { ok: true, service: 'coaching-connect-api', time: new Date().toISOString() }; } }
 
 @Module({
   imports: [DbModule, AuthModule],
-  controllers: [HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController, NotificationsController, ChatController, ContentController, TimetableController, CentresController, TestsController, HomeworkController, LiveController, ReportsController, StaffController, DoubtsController, LeavesController, FeedbackController, EnquiriesController],
-  providers: [StudentsService, NotificationsService, ChatGateway, ReportsService, SchedulerService, FeesController, { provide: APP_GUARD, useClass: AuthGuard }],
+  controllers: [HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController, NotificationsController, ChatController, ContentController, TimetableController, CentresController, TestsController, HomeworkController, LiveController, ReportsController, StaffController, DoubtsController, LeavesController, FeedbackController, EnquiriesController, WishesController],
+  providers: [StudentsService, NotificationsService, ChatGateway, ReportsService, SchedulerService, FeesController, WishesController, { provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AppModule {}
