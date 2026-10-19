@@ -3,6 +3,8 @@ import '../api.dart';
 import '../widgets.dart';
 import 'home.dart';
 import 'chat.dart';
+import 'tests.dart';
+import 'homework.dart';
 
 class ParentHome extends StatefulWidget {
   const ParentHome({super.key});
@@ -37,13 +39,15 @@ class _P extends State<ParentHome> {
         ],
         Section('Notices', notices.isEmpty ? [const Text('No notices yet.')] : notices.take(5).map((n) => NoticeTile(n, onOpen: () async { await Api.post('/notices/${n['id']}/read', {}); load(); })).toList()),
       ])),
+      kids.isEmpty ? const Center(child: Text('No child linked')) : TestsScreen(studentId: kids.first['id'], canAttempt: false),
+      kids.isEmpty ? const Center(child: Text('No child linked')) : HomeworkScreen(studentId: kids.first['id'], canSubmit: false),
       const ChatScreen(),
     ];
     return Scaffold(
       appBar: AppBar(title: const Text('Coaching Connect'), actions: [IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
       body: pages[tab],
       bottomNavigationBar: NavigationBar(selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i), destinations: const [
-        NavigationDestination(icon: Icon(Icons.family_restroom), label: 'My child'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Message centre')]),
+        NavigationDestination(icon: Icon(Icons.family_restroom), label: 'My child'), NavigationDestination(icon: Icon(Icons.quiz_outlined), label: 'Results'), NavigationDestination(icon: Icon(Icons.assignment_outlined), label: 'Homework'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Message')]),
     );
   }
 }

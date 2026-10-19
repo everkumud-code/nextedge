@@ -34,10 +34,19 @@ Full spec: docs/SOW.md (sections 1–15). This file is the short version you mus
 - [x] Super-admin API: list centres, create centre + first admin — done (admin UI page pending)
 - [ ] Seed script covers all of the above; GitHub Actions runs build + API tests (workflow file needs a token with Workflows permission)
 
-## Phase 2 — Learning (after pilot gate)
-Tests (online MCQ + offline marks, rank/percentile, weak-area report), homework (assign/submit/check), live classes (Agora + cloud recording + auto-attendance), parent monthly PDF report, iOS build.
+## Phase 2 — Learning
+- [x] Tests: online MCQ auto-check (negative marking, chapter weak areas, tab-switch count), offline marks entry, rank/percentile, publish test/results — API + admin + mobile
+- [x] Homework: assign, submit (text / file keys), grade + remark, remind pending — API + admin + mobile
+- [x] Live classes: Jitsi room per class, start → push, join/leave logging, end → auto-attendance ≥60%, recording link — API + admin + mobile
+- [x] PDF receipt (`GET /fees/receipt/:id.pdf`), 2h WhatsApp fallback for unread notices, student↔faculty DM rooms, printable QR ID cards
+- [ ] Parent monthly PDF report (attendance, marks, homework) sent on the 1st
+- [ ] Agora in-app video (replace Jitsi external link) + cloud recording to R2
+- [ ] Homework photo upload from camera (needs S3_* env; API ready: /homework/upload-url)
+- [ ] iOS build + TestFlight; Android release build (Codemagic)
+- [ ] Flutter: run `flutter create . --org in.boombites --project-name coaching_connect` once, then `flutter analyze` and fix
 
 ## Phase 3 — Scale
+
 White-label build pipeline (config → app name/icon/package id), OMR scan worker (OpenCV), enquiry CRM, multi-branch, Tally/Excel exports. Launch 20 Apr 2027.
 
 ## Local dev

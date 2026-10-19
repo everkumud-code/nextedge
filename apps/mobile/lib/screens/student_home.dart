@@ -4,6 +4,9 @@ import '../widgets.dart';
 import 'home.dart';
 import 'study.dart';
 import 'chat.dart';
+import 'tests.dart';
+import 'homework.dart';
+import 'live.dart';
 
 class StudentHome extends StatefulWidget {
   const StudentHome({super.key});
@@ -28,13 +31,16 @@ class _S extends State<StudentHome> {
         Section('Notices', notices.isEmpty ? [const Text('No notices yet.')] : notices.take(5).map((n) => NoticeTile(n, onOpen: () async { await Api.post('/notices/${n['id']}/read', {}); load(); })).toList()),
       ])),
       const StudyScreen(),
+      me == null ? const Center(child: Text('Not in a batch yet')) : LiveScreen(studentId: me['id']),
+      me == null ? const Center(child: Text('Not in a batch yet')) : TestsScreen(studentId: me['id']),
+      me == null ? const Center(child: Text('Not in a batch yet')) : HomeworkScreen(studentId: me['id']),
       const ChatScreen(),
     ];
     return Scaffold(
       appBar: AppBar(title: const Text('Coaching Connect'), actions: [IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
       body: pages[tab],
       bottomNavigationBar: NavigationBar(selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i), destinations: const [
-        NavigationDestination(icon: Icon(Icons.today), label: 'Today'), NavigationDestination(icon: Icon(Icons.menu_book), label: 'Study'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Chat')]),
+        NavigationDestination(icon: Icon(Icons.today), label: 'Today'), NavigationDestination(icon: Icon(Icons.menu_book), label: 'Study'), NavigationDestination(icon: Icon(Icons.videocam_outlined), label: 'Live'), NavigationDestination(icon: Icon(Icons.quiz_outlined), label: 'Tests'), NavigationDestination(icon: Icon(Icons.assignment_outlined), label: 'Homework'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Chat')]),
     );
   }
 }
