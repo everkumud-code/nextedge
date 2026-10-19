@@ -6,11 +6,13 @@ import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 
 class SendOtpDto { @IsString() @Length(10, 10) mobile: string; }
 class VerifyOtpDto { @IsString() @Length(10, 10) mobile: string; @IsString() @Length(6, 6) otp: string; }
+class ChooseDto { @IsString() choiceToken: string; @IsString() userId: string; }
 
 @Controller('auth')
 export class AuthController {
   constructor(private auth: AuthService) {}
   @Public() @Post('send-otp') sendOtp(@Body() dto: SendOtpDto) { return this.auth.sendOtp(dto.mobile); }
   @Public() @Post('verify-otp') verify(@Body() dto: VerifyOtpDto) { return this.auth.verifyOtp(dto.mobile, dto.otp); }
+  @Public() @Post('choose') choose(@Body() dto: ChooseDto) { return this.auth.choose(dto.choiceToken, dto.userId); }
   @Get('me') me(@CurrentUser() user: JwtUser) { return user; }
 }

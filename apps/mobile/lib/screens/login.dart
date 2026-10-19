@@ -27,7 +27,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> verify() async {
     setState(() { busy = true; error = null; });
     try {
-      final r = await Api.post('/auth/verify-otp', {'mobile': mobile.text, 'otp': otp.text}, auth: false);
+      var r = await Api.post('/auth/verify-otp', {'mobile': mobile.text, 'otp': otp.text}, auth: false);
+      if (r['choose'] == true && mounted) {
+        final opts = r['options'] as List;
+        final picked = await showDialog<String>(context: context, builder: (_) => SimpleDialog(title: const Text('Which centre?'), children: opts.map((o) => SimpleDialogOption(onPressed: () => Navigator.pop(context, o['userId'] as String), child: ListTile(title: Text(o['centreName']), subtitle: Text('${o['name']} · ${(o['role'] as String).toLowerCase()}')))).toList()));
+        if (picked == null) { setState(() => busy = false); return; }
+        r = await Api.post('/auth/choose', {'choiceToken': r['choiceToken'], 'userId': picked}, auth: false);
+      }
       final p = await SharedPreferences.getInstance();
       await p.setString('token', r['token']); await p.setString('name', r['user']['name']); await p.setString('role', r['user']['role']); await p.setString('userId', r['user']['id']);
       registerPush();

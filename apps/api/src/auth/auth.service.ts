@@ -1,8 +1,8 @@
 import { HttpException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { users } from '../db/schema';
+import { centres, users } from '../db/schema';
 import { RedisService } from '../common/redis.service';
 import { sendSms } from '../integrations/sms';
 
@@ -34,8 +34,24 @@ export class AuthService {
       throw new UnauthorizedException(`Wrong OTP. ${VERIFY_LIMIT - fails} attempts left.`);
     }
     await this.redis.del(`otp:code:${mobile}`);
-    const user = await this.dbs.db.query.users.findFirst({ where: eq(users.mobile, mobile) });
-    if (!user) throw new UnauthorizedException('This mobile number is not registered with any centre');
+    const accounts = await this.dbs.db.select({ id: users.id, name: users.name, role: users.role, centreId: users.centreId, centreName: centres.name }).from(users).leftJoin(centres, eq(centres.id, users.centreId)).where(eq(users.mobile, mobile));
+    if (!accounts.length) throw new UnauthorizedException('This mobile number is not registered with any centre');
+    if (accounts.length === 1) return this.issue(accounts[0]);
+    // Same mobile in more than one centre/role: hand back a short-lived choice token and the options.
+    const choice = await this.jwt.signAsync({ mobile, choose: true }, { expiresIn: '10m' });
+    return { choose: true, choiceToken: choice, options: accounts.map((a) => ({ userId: a.id, role: a.role, name: a.name, centreName: a.centreName || 'Platform' })) };
+  }
+
+  /** Second step when one mobile belongs to several centres. */
+  async choose(choiceToken: string, userId: string) {
+    let payload: any; try { payload = await this.jwt.verifyAsync(choiceToken); } catch { throw new UnauthorizedException('Choice expired, log in again'); }
+    if (!payload?.choose) throw new UnauthorizedException('Invalid token');
+    const [u] = await this.dbs.db.select().from(users).where(and(eq(users.id, userId), eq(users.mobile, payload.mobile)));
+    if (!u) throw new UnauthorizedException('Account not found');
+    return this.issue(u);
+  }
+
+  private async issue(user: { id: string; name: string; role: any; centreId: string | null }) {
     const token = await this.jwt.signAsync({ id: user.id, role: user.role, centreId: user.centreId, name: user.name });
     return { token, user: { id: user.id, name: user.name, role: user.role, centreId: user.centreId } };
   }
