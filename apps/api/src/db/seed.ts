@@ -4,7 +4,7 @@ import postgres from 'postgres';
 import { eq } from 'drizzle-orm';
 import * as s from './schema';
 
-async function main() {
+export async function seed() {
   const client = postgres(process.env.DATABASE_URL!); const db = drizzle(client, { schema: s });
   if ((await db.select().from(s.centres).where(eq(s.centres.name, 'Demo Coaching Centre'))).length) { console.log('Demo centre already exists'); await client.end(); return; }
   const [centre] = await db.insert(s.centres).values({ name: 'Demo Coaching Centre', city: 'Ranchi', plan: 'standard' }).returning();
@@ -28,4 +28,4 @@ async function main() {
   console.log(`Seeded. Logins (OTP 123456 in dev): admin 9999900001 · faculty 9999900002 · student 9999900003 · parent 9876500010 · super-admin 9090770070`);
   await client.end();
 }
-main().catch((e) => { console.error(e); process.exit(1); });
+if (require.main === module) seed().catch((e) => { console.error(e); process.exit(1); });

@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
+  if (process.env.SEED_ON_BOOT === 'true') { try { await (await import('./db/seed')).seed(); } catch (e) { console.error('Seed failed', e); } }
   const app = await NestFactory.create(AppModule, { rawBody: true });
   app.enableCors({ origin: process.env.CORS_ORIGIN?.split(',') ?? '*' });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
