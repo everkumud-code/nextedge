@@ -1,0 +1,43 @@
+# Cloud build for the Flutter app — no local Flutter install needed.
+# codemagic.io → Add application → this repo → workflow "android-debug" → Start new build. APK appears under Artifacts.
+workflows:
+  android-debug:
+    name: Android debug APK
+    max_build_duration: 30
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+    scripts:
+      - name: Create platform folders (first time only)
+        script: |
+          cd apps/mobile
+          if [ ! -d android ]; then flutter create . --org in.boombites --project-name coaching_connect --platforms android,ios; fi
+      - name: Get packages
+        script: cd apps/mobile && flutter pub get
+      - name: Analyze
+        script: cd apps/mobile && flutter analyze --no-fatal-infos --no-fatal-warnings
+      - name: Build APK
+        script: cd apps/mobile && flutter build apk --debug
+    artifacts:
+      - apps/mobile/build/app/outputs/flutter-apk/*.apk
+    publishing:
+      email:
+        recipients:
+          - md@boombites.in
+        notify:
+          success: true
+          failure: true
+
+  android-release:
+    name: Android release APK (Play Store later)
+    max_build_duration: 30
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+    scripts:
+      - name: Create platform folders
+        script: cd apps/mobile && [ -d android ] || flutter create . --org in.boombites --project-name coaching_connect --platforms android,ios
+      - name: Build
+        script: cd apps/mobile && flutter pub get && flutter build apk --release
+    artifacts:
+      - apps/mobile/build/app/outputs/flutter-apk/*.apk
