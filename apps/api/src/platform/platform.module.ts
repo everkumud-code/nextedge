@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
 import { PlatformService } from './platform.service';
 import { NotificationsService } from '../notifications/notifications.service';
-@Global() @Module({ providers: [PlatformService, NotificationsService], exports: [PlatformService, NotificationsService] }) export class PlatformModule {}
+import { MailService } from '../notifications/mail.service';
+@Global() @Module({ providers: [PlatformService, NotificationsService, MailService], exports: [PlatformService, NotificationsService, MailService] }) export class PlatformModule {}

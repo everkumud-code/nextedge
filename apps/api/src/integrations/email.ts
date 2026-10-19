@@ -1,25 +1,32 @@
-// Email adapter. Prefers an HTTP API (works on hosts that block SMTP, e.g. Render free): BREVO_API_KEY (free 300/day) or RESEND_API_KEY.
-// Falls back to SMTP (SMTP_HOST/USER/PASS) with a short timeout. Nothing configured → logs the mail (dev).
+// Own-mail-server email: every centre sends from its own mailbox; the platform sends from the BoomBites mailbox (PLATFORM_SMTP_*).
+// No third-party email API. SMTP needs outbound ports 465/587 (open on Hostinger VPS / Render paid; blocked on Render free).
 import nodemailer from 'nodemailer';
-const FROM_NAME = process.env.EMAIL_FROM_NAME || 'Coaching Connect';
-const FROM_ADDR = () => process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@example.com';
-export const emailReady = () => !!(process.env.BREVO_API_KEY || process.env.RESEND_API_KEY || (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS));
+export type Smtp = { host: string; port: number; user: string; pass: string; from?: string | null };
 
-export async function sendEmail(to: string, subject: string, text: string, html?: string): Promise<boolean> {
-  const body = html || `<p style="font-family:sans-serif;font-size:15px">${text.replace(/\n/g, '<br>')}</p>`;
-  if (process.env.BREVO_API_KEY) {
-    const res = await fetch('https://api.brevo.com/v3/smtp/email', { method: 'POST', headers: { 'api-key': process.env.BREVO_API_KEY, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10000),
-      body: JSON.stringify({ sender: { name: FROM_NAME, email: FROM_ADDR() }, to: [{ email: to }], subject, textContent: text, htmlContent: body }) });
-    if (!res.ok) throw new Error(`Brevo ${res.status}: ${await res.text()}`); return true;
-  }
-  if (process.env.RESEND_API_KEY) {
-    const res = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(10000),
-      body: JSON.stringify({ from: `${FROM_NAME} <${FROM_ADDR()}>`, to: [to], subject, text, html: body }) });
-    if (!res.ok) throw new Error(`Resend ${res.status}: ${await res.text()}`); return true;
-  }
-  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-    const t = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 587), secure: Number(process.env.SMTP_PORT) === 465, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }, connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 10000 });
-    await t.sendMail({ from: process.env.SMTP_FROM || `${FROM_NAME} <${FROM_ADDR()}>`, to, subject, text, html: body }); return true;
-  }
-  console.log(`[email:dev] to ${to}: ${subject} — ${text}`); return false;
+export const platformSmtp = (): Smtp | null => (process.env.PLATFORM_SMTP_HOST && process.env.PLATFORM_SMTP_USER && process.env.PLATFORM_SMTP_PASS)
+  ? { host: process.env.PLATFORM_SMTP_HOST, port: Number(process.env.PLATFORM_SMTP_PORT || 465), user: process.env.PLATFORM_SMTP_USER, pass: process.env.PLATFORM_SMTP_PASS, from: process.env.PLATFORM_SMTP_FROM || `Coaching Connect <${process.env.PLATFORM_SMTP_USER}>` } : null;
+
+/** Common presets so an owner only picks the provider and types email + password. */
+export const SMTP_PRESETS: Record<string, { host: string; port: number; note: string }> = {
+  gmail: { host: 'smtp.gmail.com', port: 465, note: 'Use a Google App Password (2-Step Verification → App passwords), not your normal password.' },
+  hostinger: { host: 'smtp.hostinger.com', port: 465, note: 'Your Hostinger mailbox password.' },
+  zoho: { host: 'smtp.zoho.in', port: 465, note: 'Zoho Mail password or app password.' },
+  outlook: { host: 'smtp.office365.com', port: 587, note: 'Microsoft 365 / Outlook password (SMTP AUTH must be enabled).' },
+  yahoo: { host: 'smtp.mail.yahoo.com', port: 465, note: 'Yahoo app password.' },
+  rediff: { host: 'smtp.rediffmailpro.com', port: 465, note: 'Rediffmail Pro password.' },
+  custom: { host: '', port: 465, note: 'Ask your email provider for the SMTP host and port.' },
+};
+
+export async function sendEmailVia(smtp: Smtp | null, to: string, subject: string, text: string, html?: string): Promise<boolean> {
+  if (!smtp) { console.log(`[email:dev] to ${to}: ${subject} — ${text}`); return false; }
+  const t = nodemailer.createTransport({ host: smtp.host, port: smtp.port, secure: smtp.port === 465, auth: { user: smtp.user, pass: smtp.pass }, connectionTimeout: 8000, greetingTimeout: 8000, socketTimeout: 12000 });
+  await t.sendMail({ from: smtp.from || smtp.user, to, subject, text, html: html || `<p style="font-family:sans-serif;font-size:15px">${text.replace(/\n/g, '<br>')}</p>` });
+  return true;
 }
+/** Verifies credentials by opening a connection (used by the Settings "Test" button). */
+export async function verifySmtp(smtp: Smtp): Promise<void> {
+  const t = nodemailer.createTransport({ host: smtp.host, port: smtp.port, secure: smtp.port === 465, auth: { user: smtp.user, pass: smtp.pass }, connectionTimeout: 8000, greetingTimeout: 8000 });
+  await t.verify();
+}
+export const emailReady = () => !!platformSmtp();
+export const sendEmail = (to: string, subject: string, text: string, html?: string) => sendEmailVia(platformSmtp(), to, subject, text, html);

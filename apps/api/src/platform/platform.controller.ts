@@ -6,6 +6,8 @@ import { Roles } from '../common/auth.guard';
 import { MODULES } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { PLAN_PRESETS, PlatformService } from './platform.service';
+import { SMTP_PRESETS, verifySmtp, sendEmailVia } from '../integrations/email';
+import { MailService } from '../notifications/mail.service';
 
 /** Super-admin console: per-centre features, plan, billing, provider. */
 @Controller('platform')
@@ -14,6 +16,9 @@ export class PlatformController {
   constructor(private dbs: DbService, private svc: PlatformService) {}
 
   @Get('modules') modules() { return MODULES; }
+  /** Is the BoomBites platform mailbox configured on the server? */
+  @Get('email-status') emailStatus() { const p = process.env.PLATFORM_SMTP_HOST && process.env.PLATFORM_SMTP_USER; return { configured: !!p, from: p ? (process.env.PLATFORM_SMTP_FROM || process.env.PLATFORM_SMTP_USER) : null }; }
+  @Post('email-test') async emailTest(@Body() b: { to: string }) { try { const ok = await sendEmailVia((await import('../integrations/email')).platformSmtp(), b.to, 'Coaching Connect platform email test', 'Platform mailbox is working.'); return { ok }; } catch (e: any) { return { ok: false, error: e.message }; } }
   @Get('plans') plans() { return PLAN_PRESETS; }
 
   /** All centres with settings, student count, open invoice. */
@@ -54,11 +59,25 @@ export class PlatformController {
 /** What a centre's own admin can see about their subscription (read-only + pay link). */
 @Controller('subscription')
 export class SubscriptionController {
-  constructor(private dbs: DbService, private svc: PlatformService) {}
+  constructor(private dbs: DbService, private svc: PlatformService, private mail: MailService) {}
+
+  @Get('email-presets') presets() { return SMTP_PRESETS; }
+  /** Owner's own mailbox: tests the login, sends a test mail to the owner, saves on success. */
+  @Put('email') @Roles('ADMIN') async setEmail(@CurrentUser() u: JwtUser, @Body() b: { provider: string; host?: string; port?: number; user: string; pass: string; fromName?: string; testTo?: string }) {
+    const preset = SMTP_PRESETS[b.provider] || SMTP_PRESETS.custom; const host = b.host || preset.host; const port = Number(b.port || preset.port);
+    if (!host || !b.user || !b.pass) return { ok: false, error: 'Email, password and provider are required' };
+    const smtp = { host, port, user: b.user.trim(), pass: b.pass, from: `${b.fromName || 'Coaching'} <${b.user.trim()}>` };
+    try { await verifySmtp(smtp); await sendEmailVia(smtp, b.testTo || b.user, 'Coaching Connect: email connected ✅', 'Your coaching’s emails (OTPs, notices, receipts) will now be sent from this mailbox.'); }
+    catch (e: any) { return { ok: false, error: `Could not connect: ${e.message}. ${preset.note}` }; }
+    await this.svc.settings(u.centreId!);
+    await this.dbs.db.update(centreSettings).set({ smtpHost: host, smtpPort: port, smtpUser: smtp.user, smtpPass: b.pass, smtpFrom: smtp.from, smtpVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(centreSettings.centreId, u.centreId!));
+    return { ok: true };
+  }
+  @Put('email/remove') @Roles('ADMIN') async removeEmail(@CurrentUser() u: JwtUser) { await this.dbs.db.update(centreSettings).set({ smtpHost: null, smtpPort: null, smtpUser: null, smtpPass: null, smtpFrom: null, smtpVerifiedAt: null }).where(eq(centreSettings.centreId, u.centreId!)); return { ok: true }; }
   @Get() async mine(@CurrentUser() u: JwtUser) {
     if (!u.centreId) return null; const s = await this.svc.settings(u.centreId); const n = await this.svc.activeStudents(u.centreId);
     const [inv] = await this.dbs.db.select().from(subscriptionInvoices).where(and(eq(subscriptionInvoices.centreId, u.centreId), eq(subscriptionInvoices.status, 'due')));
-    const { zoomClientSecret, zoomClientId, zoomAccountId, ...safe } = s as any;
+    const { zoomClientSecret, zoomClientId, zoomAccountId, smtpPass, ...safe } = s as any;
     return { ...safe, activeStudents: n, openInvoice: inv || null, estimateNext: Math.max(s.minStudents, n) * Number(s.pricePerStudent) * (s.billingCycle === 'annual' ? 10 : 1) };
   }
   @Post('invoice') @Roles('ADMIN') async raise(@CurrentUser() u: JwtUser) { return this.svc.raiseInvoice(u.centreId!); }
