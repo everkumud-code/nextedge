@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
-import '../widgets.dart';
 import 'home.dart';
 import 'chat.dart';
 
@@ -34,7 +33,7 @@ class _F extends State<FacultyHome> {
     final pages = [
       Column(children: [
         Padding(padding: const EdgeInsets.all(12), child: Row(children: [
-          Expanded(child: DropdownButtonFormField<String>(value: batchId, items: batches.map<DropdownMenuItem<String>>((b) => DropdownMenuItem(value: b['id'], child: Text(b['name']))).toList(), onChanged: (v) { batchId = v; loadBatch(); }, decoration: const InputDecoration(labelText: 'Batch'))),
+          Expanded(child: DropdownButtonFormField<String>(initialValue: batchId, items: batches.map<DropdownMenuItem<String>>((b) => DropdownMenuItem(value: b['id'], child: Text(b['name']))).toList(), onChanged: (v) { batchId = v; loadBatch(); }, decoration: const InputDecoration(labelText: 'Batch'))),
           const SizedBox(width: 12), Text('$present / ${students.length}'),
         ])),
         Expanded(child: ListView(children: students.map((s) => ListTile(
