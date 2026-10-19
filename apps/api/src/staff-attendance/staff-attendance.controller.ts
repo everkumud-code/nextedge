@@ -28,7 +28,7 @@ export class StaffAttendanceController {
   private async fence(centreId: string) { const [s] = await this.dbs.db.select().from(centreSettings).where(eq(centreSettings.centreId, centreId)); return s; }
   private check(s: any, dto: GeoDto) {
     if (!s?.lat || !s?.lng) throw new BadRequestException('The owner has not set the centre location yet.');
-    const d = metres(dto.lat, dto.lng, Number(s.lat), Number(s.lng)); const allowed = s.geofenceM + Math.min(dto.accuracy || 0, 50);
+    const d = metres(dto.lat, dto.lng, Number(s.lat), Number(s.lng)); const allowed = s.geofenceM + Math.min(dto.accuracy || 0, 5); // strict: only 5 m of GPS tolerance on top of the fence
     if (d > allowed) throw new BadRequestException(`You are ${d} m from the centre (allowed ${s.geofenceM} m). Move closer and try again.`);
     return d;
   }

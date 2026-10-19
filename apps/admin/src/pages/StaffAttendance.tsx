@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 const today = new Date().toISOString().slice(0, 10); const t = (d?: string | null) => d ? new Date(d).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) : '—';
 export default function StaffAttendance() {
-  const [loc, setLoc] = useState<any>({ lat: '', lng: '', geofenceM: 100, workStart: '09:00', lateAfterMin: 15, halfDayMin: 240 }); const [rows, setRows] = useState<any[]>([]); const [date, setDate] = useState(today); const [msg, setMsg] = useState('');
+  const [loc, setLoc] = useState<any>({ lat: '', lng: '', geofenceM: 15, workStart: '09:00', lateAfterMin: 15, halfDayMin: 240 }); const [rows, setRows] = useState<any[]>([]); const [date, setDate] = useState(today); const [msg, setMsg] = useState('');
   const load = () => api(`/staff-attendance/register?date=${date}&month=${date.slice(0, 7)}`).then(setRows);
   useEffect(() => { api('/staff-attendance/location').then((l) => l && setLoc({ ...loc, ...l })); }, []); useEffect(() => { load(); }, [date]);
   async function saveLoc() { setMsg(''); try { await api('/staff-attendance/location', { method: 'PUT', body: JSON.stringify({ ...loc, lat: Number(loc.lat), lng: Number(loc.lng), geofenceM: Number(loc.geofenceM), lateAfterMin: Number(loc.lateAfterMin), halfDayMin: Number(loc.halfDayMin) }) }); setMsg('Centre location saved — staff can check in from the app now'); } catch (e: any) { setMsg(e.message); } }
@@ -15,7 +15,7 @@ export default function StaffAttendance() {
         <div className="grid grid-cols-6 gap-3 items-end">
           <div><label className="text-sm font-medium">Latitude</label><input className="input" value={loc.lat ?? ''} onChange={(e) => setLoc({ ...loc, lat: e.target.value })} placeholder="23.3441" /></div>
           <div><label className="text-sm font-medium">Longitude</label><input className="input" value={loc.lng ?? ''} onChange={(e) => setLoc({ ...loc, lng: e.target.value })} placeholder="85.3096" /></div>
-          <div><label className="text-sm font-medium">Radius (m)</label><input className="input" type="number" value={loc.geofenceM} onChange={(e) => setLoc({ ...loc, geofenceM: e.target.value })} /></div>
+          <div><label className="text-sm font-medium">Radius (m, default 15)</label><input className="input" type="number" value={loc.geofenceM} onChange={(e) => setLoc({ ...loc, geofenceM: e.target.value })} /></div>
           <div><label className="text-sm font-medium">Work starts</label><input className="input" type="time" value={loc.workStart} onChange={(e) => setLoc({ ...loc, workStart: e.target.value })} /></div>
           <div><label className="text-sm font-medium">Late after (min)</label><input className="input" type="number" value={loc.lateAfterMin} onChange={(e) => setLoc({ ...loc, lateAfterMin: e.target.value })} /></div>
           <div><label className="text-sm font-medium">Half-day under (min)</label><input className="input" type="number" value={loc.halfDayMin} onChange={(e) => setLoc({ ...loc, halfDayMin: e.target.value })} /></div>
