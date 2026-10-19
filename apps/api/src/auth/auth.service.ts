@@ -54,7 +54,7 @@ export class AuthService {
     await this.redis.set(`otp:code:${key}`, code, OTP_TTL); await this.redis.del(`otp:fails:${key}`);
     let delivered = 'dev';
     if (process.env.OTP_MODE !== 'dev') {
-      if (channel === 'email') { const ok = await sendEmail(acct.email!, `${code} is your Coaching Connect OTP`, `Your login OTP is ${code}. It is valid for 5 minutes.`); delivered = ok ? 'email' : 'none'; if (!ok) throw new HttpException('Email is not configured on the server yet.', 503); }
+      if (channel === 'email') { let ok = false; try { ok = await sendEmail(acct.email!, `${code} is your Coaching Connect OTP`, `Your login OTP is ${code}. It is valid for 5 minutes.`); } catch (e: any) { console.error('Email send failed:', e.message); throw new HttpException('Could not send the OTP email right now. Please try again in a minute.', 503); } delivered = ok ? 'email' : 'none'; if (!ok) throw new HttpException('Email is not configured on the server yet.', 503); }
       else { try { await sendSms(acct.mobile, `${code} is your login OTP for Coaching Connect. Valid for 5 minutes.`, code); delivered = 'sms'; } catch (e: any) { if (acct.email) { const ok = await sendEmail(acct.email, `${code} is your Coaching Connect OTP`, `Your login OTP is ${code}. It is valid for 5 minutes.`); delivered = ok ? 'email' : 'none'; } if (delivered === 'none') throw new HttpException('SMS is not set up yet. Choose "Email" to receive the OTP by email.', 503); } }
     }
     const mask = (e?: string | null) => e ? e.replace(/^(.{2}).*(@.*)$/, '$1***$2') : undefined;

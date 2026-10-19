@@ -21,7 +21,7 @@ export class PlatformService {
 
   async settings(centreId: string) {
     const db = this.dbs.db; let [s] = await db.select().from(centreSettings).where(eq(centreSettings.centreId, centreId));
-    if (!s) { [s] = await db.insert(centreSettings).values({ centreId, trialEndsAt: addDays(today(), 30), features: JSON.stringify(PLAN_PRESETS.standard.features) }).returning(); }
+    if (!s) { await db.insert(centreSettings).values({ centreId, trialEndsAt: addDays(today(), 30), features: JSON.stringify(PLAN_PRESETS.standard.features) }).onConflictDoNothing(); [s] = await db.select().from(centreSettings).where(eq(centreSettings.centreId, centreId)); }
     return { ...s, features: JSON.parse(s.features) as string[] };
   }
   /** Modules this centre may use; empty list means everything. */
