@@ -15,6 +15,9 @@ import Tests from './pages/Tests';
 import Homework from './pages/Homework';
 import Live from './pages/Live';
 import IdCards from './pages/IdCards';
+import Staff from './pages/Staff';
+import Enquiries from './pages/Enquiries';
+import Inbox from './pages/Inbox';
 
 function Private({ children }: { children: JSX.Element }) { return session.token ? children : <Navigate to="/login" replace />; }
 
@@ -36,6 +39,9 @@ export default function App() {
         <Route path="homework" element={<Homework />} />
         <Route path="live" element={<Live />} />
         <Route path="id-cards" element={<IdCards />} />
+        <Route path="staff" element={<Staff />} />
+        <Route path="enquiries" element={<Enquiries />} />
+        <Route path="inbox" element={<Inbox />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

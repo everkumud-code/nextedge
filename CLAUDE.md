@@ -48,6 +48,11 @@ Super-admin for this (and every) project: ever.kumud@gmail.com — seeded as SUP
 - [ ] iOS build + TestFlight; Android release build (Codemagic)
 - [ ] Flutter: run `flutter create . --org in.boombites --project-name coaching_connect` once, then `flutter analyze` and fix
 
+## Owner / parent / student extras (done)
+- [x] Staff & privileges: roles ADMIN (owner, all) / FACULTY / STAFF; `staff_permissions.modules` decides pages; `@Mod('x')` on controllers + `AuthGuard` enforce; admin nav filters by `user.modules`
+- [x] Doubt box (student asks, faculty answers, 24h overdue flag), leave requests (approved → LEAVE in attendance), parent feedback/complaints with owner reply, enquiry register with follow-ups and one-click admission
+- Admin: Inbox (doubts/leaves/feedback), Enquiries, Staff pages. Mobile: SupportScreen tab for student (Doubts, Leave) and parent (Leave, Feedback, Doubts)
+
 ## Phase 3 — Scale
 
 White-label build pipeline (config → app name/icon/package id), OMR scan worker (OpenCV), enquiry CRM, multi-branch, Tally/Excel exports. Launch 20 Apr 2027.
