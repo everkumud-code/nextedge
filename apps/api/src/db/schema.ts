@@ -330,3 +330,33 @@ export const enquiries = pgTable('enquiries', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// ---------- Platform: feature flags, subscription billing, online-class providers ----------
+export const centreSettings = pgTable('centre_settings', {
+  centreId: uuid('centre_id').primaryKey().references(() => centres.id),
+  features: text('features').default('[]').notNull(), // JSON array of enabled module keys (empty = all on)
+  pricePerStudent: numeric('price_per_student', { precision: 8, scale: 2 }).default('40').notNull(),
+  minStudents: integer('min_students').default(50).notNull(),
+  billingCycle: text('billing_cycle').default('monthly').notNull(), // monthly | annual
+  trialEndsAt: date('trial_ends_at'),
+  paidUntil: date('paid_until'),
+  status: text('status').default('trial').notNull(), // trial | active | grace | suspended
+  liveProvider: text('live_provider').default('jitsi').notNull(), // jitsi | zoom | meet | teams | custom
+  zoomAccountId: text('zoom_account_id'), zoomClientId: text('zoom_client_id'), zoomClientSecret: text('zoom_client_secret'),
+  defaultMeetingUrl: text('default_meeting_url'), // for meet/teams/custom: the centre's standing room link
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const subscriptionInvoices = pgTable('subscription_invoices', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  periodFrom: date('period_from').notNull(),
+  periodTo: date('period_to').notNull(),
+  students: integer('students').notNull(),
+  pricePerStudent: numeric('price_per_student', { precision: 8, scale: 2 }).notNull(),
+  amount: numeric('amount', { precision: 10, scale: 2 }).notNull(),
+  status: text('status').default('due').notNull(), // due | paid | void
+  paidOn: date('paid_on'),
+  mode: text('mode'), reference: text('reference'), paymentLink: text('payment_link'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});

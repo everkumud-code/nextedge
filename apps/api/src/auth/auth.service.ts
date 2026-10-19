@@ -4,6 +4,7 @@ import { and, eq, isNull, or, ilike } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { centres, staffPermissions, users } from '../db/schema';
 import { FACULTY_DEFAULT, MODULES } from '../common/permissions';
+import { PlatformService } from '../platform/platform.service';
 import { RedisService } from '../common/redis.service';
 import { sendSms } from '../integrations/sms';
 import { sendEmail } from '../integrations/email';
@@ -14,7 +15,7 @@ type Account = { id: string; name: string; role: any; centreId: string | null; e
 /** Login = choose coaching → mobile → OTP by SMS or email. OTP_MODE=dev → OTP is always 123456. */
 @Injectable()
 export class AuthService {
-  constructor(private dbs: DbService, private jwt: JwtService, private redis: RedisService) {}
+  constructor(private dbs: DbService, private jwt: JwtService, private redis: RedisService, private platform: PlatformService) {}
 
   /** Public list for the login screen. */
   async centres(q?: string) {
@@ -77,7 +78,9 @@ export class AuthService {
       if (p && !p.active) throw new UnauthorizedException('Your staff account is deactivated. Contact the owner.');
       modules = p ? JSON.parse(p.modules) : user.role === 'FACULTY' ? FACULTY_DEFAULT : [];
     }
+    let features: string[] = [...MODULES], status = 'active';
+    if (user.centreId) { const s = await this.platform.settings(user.centreId); features = s.features.length ? s.features : [...MODULES]; status = s.status; modules = modules.filter((m) => features.includes(m)); }
     const token = await this.jwt.signAsync({ id: user.id, role: user.role, centreId: user.centreId, name: user.name, modules });
-    return { token, user: { id: user.id, name: user.name, role: user.role, centreId: user.centreId, modules } };
+    return { token, user: { id: user.id, name: user.name, role: user.role, centreId: user.centreId, modules, features, subscriptionStatus: status } };
   }
 }

@@ -9,6 +9,8 @@ import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { myStudents } from '../common/scope';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PlatformService } from '../platform/platform.service';
+import { zoomCreateMeeting } from '../integrations/zoom';
 
 class LiveDto { @IsString() batchId: string; @IsString() title: string; @IsString() startAt: string; @IsOptional() @IsInt() @Min(10) durationMin?: number; @IsOptional() @IsString() joinUrl?: string; }
 
@@ -18,7 +20,7 @@ const roomUrl = (centreId: string, id: string) => `https://${process.env.JITSI_H
 @Controller('live')
 @Mod('live')
 export class LiveController {
-  constructor(private dbs: DbService, private notify: NotificationsService) {}
+  constructor(private dbs: DbService, private notify: NotificationsService, private platform: PlatformService) {}
 
   @Get() async list(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c); const db = this.dbs.db; const staff = ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF'].includes(u.role);
@@ -29,11 +31,18 @@ export class LiveController {
 
   @Post() @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY') async create(@CurrentUser() u: JwtUser, @Body() dto: LiveDto, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c); const db = this.dbs.db;
-    const [row] = await db.insert(liveClasses).values({ centreId, batchId: dto.batchId, title: dto.title, startAt: new Date(dto.startAt), durationMin: dto.durationMin || 60, provider: dto.joinUrl ? 'external' : 'jitsi', joinUrl: dto.joinUrl || 'pending', createdBy: u.id }).returning();
-    const joinUrl = dto.joinUrl || roomUrl(centreId, row.id); await db.update(liveClasses).set({ joinUrl }).where(eq(liveClasses.id, row.id));
+    // Provider is a centre setting: jitsi (free, auto room) | zoom (auto meeting via API) | meet / teams / custom (centre's standing link) | or a one-off link typed on the form.
+    const st = await this.platform.settings(centreId); const dur = dto.durationMin || 60; let provider = dto.joinUrl ? 'external' : st.liveProvider; let joinUrl = dto.joinUrl || ''; let hostUrl: string | undefined;
+    if (!joinUrl && provider === 'zoom') {
+      if (!st.zoomAccountId || !st.zoomClientId || !st.zoomClientSecret) provider = 'jitsi';
+      else { try { const z = await zoomCreateMeeting({ accountId: st.zoomAccountId, clientId: st.zoomClientId, clientSecret: st.zoomClientSecret }, dto.title, new Date(dto.startAt), dur); joinUrl = z.joinUrl; hostUrl = z.startUrl; } catch (e: any) { provider = 'jitsi'; console.warn('Zoom failed, falling back to Jitsi:', e.message); } }
+    }
+    if (!joinUrl && ['meet', 'teams', 'custom'].includes(provider)) { if (st.defaultMeetingUrl) joinUrl = st.defaultMeetingUrl; else provider = 'jitsi'; }
+    const [row] = await db.insert(liveClasses).values({ centreId, batchId: dto.batchId, title: dto.title, startAt: new Date(dto.startAt), durationMin: dur, provider, joinUrl: joinUrl || 'pending', createdBy: u.id }).returning();
+    if (!joinUrl) { joinUrl = roomUrl(centreId, row.id); await db.update(liveClasses).set({ joinUrl }).where(eq(liveClasses.id, row.id)); }
     const aud = await this.notify.audienceForBatch(centreId, dto.batchId);
     this.notify.notifyUsers(centreId, aud, `Live class: ${dto.title}`, `Starts ${new Date(dto.startAt).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`, { data: { type: 'live', id: row.id } });
-    return { ...row, joinUrl };
+    return { ...row, joinUrl, hostUrl };
   }
 
   /** Faculty taps Start: status=live and every student gets a push "Join now" (bypasses quiet hours). */

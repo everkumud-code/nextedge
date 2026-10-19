@@ -11,6 +11,7 @@ import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { NotificationsService } from '../notifications/notifications.service';
 import { createPaymentLink, razorpayReady, verifyWebhook } from '../integrations/razorpay';
+import { PlatformService } from '../platform/platform.service';
 
 class PlanDto { @IsString() name: string; @IsNumberString() amount: string; @IsIn(['one-time', 'monthly', 'quarterly']) cycle: string; @IsOptional() @IsString() batchId?: string; }
 class AssignDto { @IsString() studentId: string; @IsString() planId: string; @IsString() startDate: string; @IsOptional() @IsNumberString() discount?: string; }
@@ -29,7 +30,7 @@ function dueSoFar(cycle: string, amount: number, discount: number, startDate: st
 @Controller('fees')
 @Mod('fees')
 export class FeesController {
-  constructor(private dbs: DbService, private notify: NotificationsService) {}
+  constructor(private dbs: DbService, private notify: NotificationsService, private platform: PlatformService) {}
 
   @Get('plans') @Roles('SUPER_ADMIN', 'ADMIN') plans(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
     return this.dbs.db.select().from(feePlans).where(eq(feePlans.centreId, centreOf(u, c)));
@@ -103,6 +104,7 @@ export class FeesController {
     if (!verifyWebhook(raw, sig || '')) return { ok: false };
     const ev = req.body; if (ev.event !== 'payment_link.paid') return { ok: true, ignored: ev.event };
     const pay = ev.payload?.payment?.entity; const notes = ev.payload?.payment_link?.entity?.notes || {};
+    if (pay && notes.subscriptionInvoiceId) { await this.platform.markPaid(notes.subscriptionInvoiceId, 'razorpay', pay.id); return { ok: true }; }
     if (!pay || !notes.centreId || !notes.studentId) return { ok: false };
     const dup = await this.dbs.db.select({ id: feePayments.id }).from(feePayments).where(eq(feePayments.reference, pay.id));
     if (dup.length) return { ok: true, duplicate: true };
