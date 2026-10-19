@@ -6,6 +6,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { feePayments, feePlans, studentFeePlans, students, users } from '../db/schema';
 import { Public, Roles } from '../common/auth.guard';
+import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -26,6 +27,7 @@ function dueSoFar(cycle: string, amount: number, discount: number, startDate: st
 }
 
 @Controller('fees')
+@Mod('fees')
 export class FeesController {
   constructor(private dbs: DbService, private notify: NotificationsService) {}
 

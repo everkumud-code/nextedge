@@ -4,6 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { facultyBatches, timetableSlots, users } from '../db/schema';
 import { Roles } from '../common/auth.guard';
+import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 
@@ -12,6 +13,7 @@ class FacultyDto { @IsString() name: string; @IsString() mobile: string; @IsOpti
 class FacultyBatchDto { @IsString() facultyId: string; @IsString() batchId: string; @IsOptional() @IsString() subject?: string; }
 
 @Controller('timetable')
+@Mod('timetable')
 export class TimetableController {
   constructor(private dbs: DbService) {}
 

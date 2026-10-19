@@ -4,6 +4,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { homework, homeworkSubmissions, students, users } from '../db/schema';
 import { Roles } from '../common/auth.guard';
+import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { myStudents } from '../common/scope';
@@ -15,12 +16,13 @@ class SubmitDto { @IsString() studentId: string; @IsOptional() @IsString() text?
 class GradeDto { @IsString() submissionId: string; @IsOptional() @IsString() grade?: string; @IsOptional() @IsString() remark?: string; }
 
 @Controller('homework')
+@Mod('homework')
 export class HomeworkController {
   constructor(private dbs: DbService, private notify: NotificationsService) {}
 
   /** Staff: all, with submission counts. Student/parent: own batch, with own submission + grade. */
   @Get() async list(@CurrentUser() u: JwtUser, @Query('batchId') batchId?: string, @Query('centreId') c?: string) {
-    const centreId = centreOf(u, c); const db = this.dbs.db; const staff = ['SUPER_ADMIN', 'ADMIN', 'FACULTY'].includes(u.role);
+    const centreId = centreOf(u, c); const db = this.dbs.db; const staff = ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF'].includes(u.role);
     let mine: { id: string; batchId: string | null }[] = []; let where: any = batchId ? and(eq(homework.centreId, centreId), eq(homework.batchId, batchId)) : eq(homework.centreId, centreId);
     if (!staff) { mine = await myStudents(db, u, centreId); const bids = [...new Set(mine.map((s) => s.batchId).filter((x): x is string => !!x))]; if (!bids.length) return []; where = and(eq(homework.centreId, centreId), inArray(homework.batchId, bids)); }
     const rows = await db.select().from(homework).where(where).orderBy(desc(homework.dueAt)).limit(200);

@@ -4,6 +4,7 @@ import { and, desc, eq, inArray, or, isNull } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { content, students, users } from '../db/schema';
 import { Roles } from '../common/auth.guard';
+import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { downloadUrl, storageReady, uploadUrl } from '../integrations/storage';
@@ -13,6 +14,7 @@ class ContentDto { @IsString() subject: string; @IsString() title: string; @IsIn
 class UploadDto { @IsString() filename: string; @IsString() contentType: string; }
 
 @Controller('content')
+@Mod('study')
 export class ContentController {
   constructor(private dbs: DbService, private notify: NotificationsService) {}
 

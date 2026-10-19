@@ -16,7 +16,12 @@ export class AuthGuard implements CanActivate {
     if (!token) throw new UnauthorizedException('Login required');
     try { req.user = await this.jwt.verifyAsync(token); } catch { throw new UnauthorizedException('Session expired, login again'); }
     const roles = this.reflector.getAllAndOverride<string[]>('roles', [ctx.getHandler(), ctx.getClass()]);
-    if (roles?.length && !roles.includes(req.user.role)) throw new ForbiddenException('Not allowed for your role');
+    const u = req.user;
+    // STAFF counts as FACULTY for role checks; what they may actually touch is decided by their module list.
+    const effRole = u.role === 'STAFF' ? 'FACULTY' : u.role;
+    if (roles?.length && !roles.includes(effRole)) throw new ForbiddenException('Not allowed for your role');
+    const mod = this.reflector.getAllAndOverride<string>('module', [ctx.getHandler(), ctx.getClass()]);
+    if (mod && (u.role === 'FACULTY' || u.role === 'STAFF') && !(u.modules || []).includes(mod)) throw new ForbiddenException(`You do not have access to ${mod}. Ask the owner.`);
     return true;
   }
 }

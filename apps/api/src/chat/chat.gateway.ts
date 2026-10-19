@@ -33,7 +33,7 @@ export class ChatGateway implements OnGatewayConnection {
   /** Which rooms this user may read/post in. */
   async allowedRooms(u: U): Promise<string[]> {
     const db = this.dbs.db; if (!u.centreId && u.role !== 'SUPER_ADMIN') return [];
-    if (u.role === 'ADMIN' || u.role === 'FACULTY') {
+    if (u.role === 'ADMIN' || u.role === 'FACULTY' || u.role === 'STAFF') {
       const parents = await db.select({ id: users.id }).from(users).where(and(eq(users.centreId, u.centreId!), eq(users.role, 'PARENT')));
       const bs = await db.selectDistinct({ batchId: students.batchId }).from(students).where(eq(students.centreId, u.centreId!));
       const dms = u.role === 'FACULTY' ? (await db.select({ userId: students.userId }).from(students).innerJoin(facultyBatches, and(eq(facultyBatches.batchId, students.batchId), eq(facultyBatches.facultyId, u.id))).where(eq(students.centreId, u.centreId!))).map((s) => s.userId).filter((x): x is string => !!x).map((sid) => `dm:${sid}_${u.id}`) : [];

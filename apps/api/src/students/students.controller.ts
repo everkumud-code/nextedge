@@ -4,6 +4,7 @@ import { and, eq } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { students } from '../db/schema';
 import { Roles } from '../common/auth.guard';
+import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { StudentsService } from './students.service';
@@ -24,6 +25,7 @@ class StudentDto {
 }
 
 @Controller('students')
+@Mod('students')
 @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY')
 export class StudentsController {
   constructor(private dbs: DbService, private svc: StudentsService) {}

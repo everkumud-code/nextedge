@@ -3,9 +3,11 @@ import { and, desc, eq, lt } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { messages } from '../db/schema';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
+import { Mod } from '../common/permissions';
 import { ChatGateway } from './chat.gateway';
 
 @Controller('chat')
+@Mod('chat')
 export class ChatController {
   constructor(private dbs: DbService, private gw: ChatGateway) {}
   @Get('rooms') rooms(@CurrentUser() u: JwtUser) { return this.gw.allowedRooms(u); }

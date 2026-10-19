@@ -2,7 +2,8 @@ import { HttpException, Injectable, UnauthorizedException } from '@nestjs/common
 import { JwtService } from '@nestjs/jwt';
 import { and, eq, isNull, or, ilike } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { centres, users } from '../db/schema';
+import { centres, staffPermissions, users } from '../db/schema';
+import { FACULTY_DEFAULT, MODULES } from '../common/permissions';
 import { RedisService } from '../common/redis.service';
 import { sendSms } from '../integrations/sms';
 import { sendEmail } from '../integrations/email';
@@ -69,7 +70,14 @@ export class AuthService {
   }
 
   private async issue(user: { id: string; name: string; role: any; centreId: string | null }) {
-    const token = await this.jwt.signAsync({ id: user.id, role: user.role, centreId: user.centreId, name: user.name });
-    return { token, user: { id: user.id, name: user.name, role: user.role, centreId: user.centreId } };
+    let modules: string[] = [];
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') modules = [...MODULES];
+    else if (user.role === 'FACULTY' || user.role === 'STAFF') {
+      const [p] = await this.dbs.db.select().from(staffPermissions).where(eq(staffPermissions.userId, user.id));
+      if (p && !p.active) throw new UnauthorizedException('Your staff account is deactivated. Contact the owner.');
+      modules = p ? JSON.parse(p.modules) : user.role === 'FACULTY' ? FACULTY_DEFAULT : [];
+    }
+    const token = await this.jwt.signAsync({ id: user.id, role: user.role, centreId: user.centreId, name: user.name, modules });
+    return { token, user: { id: user.id, name: user.name, role: user.role, centreId: user.centreId, modules } };
   }
 }

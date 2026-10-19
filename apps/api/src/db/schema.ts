@@ -1,7 +1,7 @@
 // Every table that holds centre data carries centre_id. No query may cross centres.
 import { pgTable, uuid, text, timestamp, integer, boolean, date, pgEnum, numeric } from 'drizzle-orm/pg-core';
 
-export const roleEnum = pgEnum('role', ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STUDENT', 'PARENT']);
+export const roleEnum = pgEnum('role', ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF', 'STUDENT', 'PARENT']);
 export const attendanceStatus = pgEnum('attendance_status', ['PRESENT', 'ABSENT', 'LATE', 'LEAVE']);
 export const noticeType = pgEnum('notice_type', ['GENERAL', 'HOLIDAY', 'EXAM', 'FEE', 'EVENT', 'URGENT']);
 export const paymentMode = pgEnum('payment_mode', ['UPI', 'CASH', 'CARD', 'NETBANKING', 'CHEQUE']);
@@ -257,4 +257,69 @@ export const liveAttendance = pgTable('live_attendance', {
   joinedAt: timestamp('joined_at').defaultNow().notNull(),
   leftAt: timestamp('left_at'),
   minutes: integer('minutes').default(0).notNull(),
+});
+
+// ---------- Staff privileges, doubts, leave requests, feedback, enquiries ----------
+export const staffPermissions = pgTable('staff_permissions', {
+  userId: uuid('user_id').primaryKey().references(() => users.id),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  modules: text('modules').default('[]').notNull(), // JSON array of module keys the staff member may use
+  active: boolean('active').default(true).notNull(),
+  title: text('title'), // e.g. Receptionist, Physics faculty, Accountant
+});
+
+export const doubts = pgTable('doubts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  studentId: uuid('student_id').notNull().references(() => students.id),
+  batchId: uuid('batch_id').references(() => batches.id),
+  subject: text('subject').notNull(),
+  question: text('question').notNull(),
+  imageUrl: text('image_url'),
+  answer: text('answer'),
+  answeredBy: uuid('answered_by').references(() => users.id),
+  answeredAt: timestamp('answered_at'),
+  resolved: boolean('resolved').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const leaveRequests = pgTable('leave_requests', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  studentId: uuid('student_id').notNull().references(() => students.id),
+  fromDate: date('from_date').notNull(),
+  toDate: date('to_date').notNull(),
+  reason: text('reason').notNull(),
+  status: text('status').default('pending').notNull(), // pending | approved | rejected
+  decidedBy: uuid('decided_by').references(() => users.id),
+  note: text('note'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const feedback = pgTable('feedback', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  studentId: uuid('student_id').references(() => students.id),
+  kind: text('kind').default('feedback').notNull(), // feedback | complaint | suggestion
+  text: text('text').notNull(),
+  status: text('status').default('open').notNull(), // open | replied | closed
+  reply: text('reply'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const enquiries = pgTable('enquiries', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  name: text('name').notNull(),
+  mobile: text('mobile').notNull(),
+  className: text('class_name'),
+  course: text('course'),
+  source: text('source').default('walk-in').notNull(), // walk-in | phone | website | referral | social
+  status: text('status').default('new').notNull(), // new | contacted | demo | admitted | lost
+  nextFollowUp: date('next_follow_up'),
+  notes: text('notes'),
+  assignedTo: uuid('assigned_to').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

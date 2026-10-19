@@ -4,6 +4,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { students, testAttempts, tests } from '../db/schema';
 import { Roles } from '../common/auth.guard';
+import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { myStudents } from '../common/scope';
@@ -17,12 +18,13 @@ class MarksDto { @IsArray() marks: { studentId: string; marks: number }[]; }
 const pct = (rank: number, n: number) => (n <= 1 ? 100 : Math.round(((n - rank) / (n - 1)) * 100));
 
 @Controller('tests')
+@Mod('tests')
 export class TestsController {
   constructor(private dbs: DbService, private notify: NotificationsService) {}
 
   /** Staff: all tests (with questions + answers). Students/parents: tests of own batch; answers stripped until results publish. */
   @Get() async list(@CurrentUser() u: JwtUser, @Query('batchId') batchId?: string, @Query('centreId') c?: string) {
-    const centreId = centreOf(u, c); const db = this.dbs.db; const staff = ['SUPER_ADMIN', 'ADMIN', 'FACULTY'].includes(u.role);
+    const centreId = centreOf(u, c); const db = this.dbs.db; const staff = ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF'].includes(u.role);
     let bids: string[] | null = null; let mine: { id: string; batchId: string | null }[] = [];
     if (!staff) { mine = await myStudents(db, u, centreId); bids = [...new Set(mine.map((s) => s.batchId).filter((x): x is string => !!x))]; if (!bids.length) return []; }
     const where = bids ? and(eq(tests.centreId, centreId), inArray(tests.batchId, bids), eq(tests.published, true)) : batchId ? and(eq(tests.centreId, centreId), eq(tests.batchId, batchId)) : eq(tests.centreId, centreId);
@@ -75,7 +77,7 @@ export class TestsController {
 
   /** Result sheet: rank, percentile, batch average, topper, weak chapters (<50%). Students/parents only after results publish. */
   @Get(':id/results') async results(@CurrentUser() u: JwtUser, @Param('id') id: string, @Query('centreId') c?: string) {
-    const centreId = centreOf(u, c); const db = this.dbs.db; const staff = ['SUPER_ADMIN', 'ADMIN', 'FACULTY'].includes(u.role);
+    const centreId = centreOf(u, c); const db = this.dbs.db; const staff = ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF'].includes(u.role);
     const [t] = await db.select().from(tests).where(and(eq(tests.id, id), eq(tests.centreId, centreId))); if (!t) return null;
     if (!staff && !t.resultsPublished) throw new ForbiddenException('Results not published yet');
     const sts = await db.select({ id: students.id, name: students.name, rollNo: students.rollNo }).from(students).where(and(eq(students.batchId, t.batchId), eq(students.active, true)));

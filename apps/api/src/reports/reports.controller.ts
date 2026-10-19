@@ -1,11 +1,13 @@
 import { Controller, Get, NotFoundException, Param, Query, Res, ForbiddenException } from '@nestjs/common';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
+import { Mod } from '../common/permissions';
 import { centreOf } from '../common/tenant';
 import { myStudents } from '../common/scope';
 import { DbService } from '../db/db.service';
 import { ReportsService } from './reports.service';
 
 @Controller('reports')
+@Mod('reports')
 export class ReportsController {
   constructor(private dbs: DbService, private svc: ReportsService) {}
   /** JSON report (app) — ?month=YYYY-MM, default last month. */
@@ -17,6 +19,6 @@ export class ReportsController {
     const centreId = centreOf(u, c); await this.guard(u, centreId, sid); const r = await this.svc.monthly(centreId, sid, month || lastMonth()); if (!r) throw new NotFoundException();
     const pdf = await this.svc.monthlyPdf(r); res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', `inline; filename="report-${r.student.name.replace(/\s+/g, '_')}-${r.month}.pdf"`); res.end(pdf);
   }
-  private async guard(u: JwtUser, centreId: string, sid: string) { if (['SUPER_ADMIN', 'ADMIN', 'FACULTY'].includes(u.role)) return; const mine = await myStudents(this.dbs.db, u, centreId); if (!mine.find((s) => s.id === sid)) throw new ForbiddenException(); }
+  private async guard(u: JwtUser, centreId: string, sid: string) { if (['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF'].includes(u.role)) return; const mine = await myStudents(this.dbs.db, u, centreId); if (!mine.find((s) => s.id === sid)) throw new ForbiddenException(); }
 }
 const lastMonth = () => { const d = new Date(); d.setDate(0); return d.toISOString().slice(0, 7); };

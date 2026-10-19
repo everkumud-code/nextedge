@@ -4,6 +4,7 @@ import { and, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { attendance, liveAttendance, liveClasses } from '../db/schema';
 import { Roles } from '../common/auth.guard';
+import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { myStudents } from '../common/scope';
@@ -15,11 +16,12 @@ class LiveDto { @IsString() batchId: string; @IsString() title: string; @IsStrin
 const roomUrl = (centreId: string, id: string) => `https://${process.env.JITSI_HOST || 'meet.jit.si'}/cc-${centreId.slice(0, 8)}-${id.slice(0, 8)}#config.prejoinPageEnabled=false`;
 
 @Controller('live')
+@Mod('live')
 export class LiveController {
   constructor(private dbs: DbService, private notify: NotificationsService) {}
 
   @Get() async list(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
-    const centreId = centreOf(u, c); const db = this.dbs.db; const staff = ['SUPER_ADMIN', 'ADMIN', 'FACULTY'].includes(u.role);
+    const centreId = centreOf(u, c); const db = this.dbs.db; const staff = ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF'].includes(u.role);
     let where: any = eq(liveClasses.centreId, centreId);
     if (!staff) { const mine = await myStudents(db, u, centreId); const bids = [...new Set(mine.map((s) => s.batchId).filter((x): x is string => !!x))]; if (!bids.length) return []; where = and(where, inArray(liveClasses.batchId, bids)); }
     return db.select().from(liveClasses).where(where).orderBy(desc(liveClasses.startAt)).limit(100);

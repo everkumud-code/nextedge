@@ -4,6 +4,7 @@ import { and, eq, gte, sql, inArray } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { attendance, students, users } from '../db/schema';
 import { Roles } from '../common/auth.guard';
+import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -14,6 +15,7 @@ class ScanDto { @IsString() studentId: string; @IsOptional() @IsString() date?: 
 const today = () => new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
 
 @Controller('attendance')
+@Mod('attendance')
 export class AttendanceController {
   constructor(private dbs: DbService, private notify: NotificationsService) {}
 
