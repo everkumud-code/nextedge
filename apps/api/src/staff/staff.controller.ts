@@ -7,6 +7,7 @@ import { Roles } from '../common/auth.guard';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { MODULES, FACULTY_DEFAULT } from '../common/permissions';
+import { label } from '../common/roles';
 
 class StaffDto { @IsString() name: string; @IsString() @Length(10, 10) mobile: string; @IsOptional() @IsString() email?: string; @IsIn(['FACULTY', 'STAFF', 'ADMIN']) role: string; @IsOptional() @IsString() title?: string; @IsOptional() @IsArray() modules?: string[]; }
 class UpdateDto { @IsOptional() @IsString() name?: string; @IsOptional() @IsString() email?: string; @IsOptional() @IsString() title?: string; @IsOptional() @IsArray() modules?: string[]; @IsOptional() active?: boolean; @IsOptional() @IsIn(['FACULTY', 'STAFF', 'ADMIN']) role?: string; }
@@ -23,7 +24,7 @@ export class StaffController {
     const centreId = centreOf(u, c); const db = this.dbs.db;
     const rows = await db.select().from(users).where(and(eq(users.centreId, centreId), inArray(users.role, ['ADMIN', 'FACULTY', 'STAFF'])));
     const perms = rows.length ? await db.select().from(staffPermissions).where(inArray(staffPermissions.userId, rows.map((r) => r.id))) : [];
-    return rows.map((r) => { const p = perms.find((x) => x.userId === r.id); return { id: r.id, name: r.name, mobile: r.mobile, email: r.email, role: r.role, title: p?.title, active: p ? p.active : true, modules: r.role === 'ADMIN' ? [...MODULES] : p ? JSON.parse(p.modules) : r.role === 'FACULTY' ? FACULTY_DEFAULT : [], isOwner: r.id === u.id }; });
+    return rows.map((r) => { const p = perms.find((x) => x.userId === r.id); return { id: r.id, name: r.name, mobile: r.mobile, email: r.email, role: r.role, roleLabel: label(r.role), title: p?.title, active: p ? p.active : true, modules: r.role === 'ADMIN' ? [...MODULES] : p ? JSON.parse(p.modules) : r.role === 'FACULTY' ? FACULTY_DEFAULT : [], isOwner: r.id === u.id }; });
   }
 
   @Post() async create(@CurrentUser() u: JwtUser, @Body() dto: StaffDto, @Query('centreId') c?: string) {

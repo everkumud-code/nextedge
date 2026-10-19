@@ -344,6 +344,8 @@ export const centreSettings = pgTable('centre_settings', {
   liveProvider: text('live_provider').default('jitsi').notNull(), // jitsi | zoom | meet | teams | custom
   zoomAccountId: text('zoom_account_id'), zoomClientId: text('zoom_client_id'), zoomClientSecret: text('zoom_client_secret'),
   defaultMeetingUrl: text('default_meeting_url'), // for meet/teams/custom: the centre's standing room link
+  lat: numeric('lat', { precision: 10, scale: 7 }), lng: numeric('lng', { precision: 10, scale: 7 }), geofenceM: integer('geofence_m').default(100).notNull(),
+  workStart: text('work_start').default('09:00').notNull(), lateAfterMin: integer('late_after_min').default(15).notNull(), halfDayMin: integer('half_day_min').default(240).notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
@@ -359,4 +361,20 @@ export const subscriptionInvoices = pgTable('subscription_invoices', {
   paidOn: date('paid_on'),
   mode: text('mode'), reference: text('reference'), paymentLink: text('payment_link'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// ---------- Staff attendance with geofence ----------
+export const staffAttendance = pgTable('staff_attendance', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  date: date('date').notNull(),
+  checkIn: timestamp('check_in'),
+  checkOut: timestamp('check_out'),
+  inLat: numeric('in_lat', { precision: 10, scale: 7 }), inLng: numeric('in_lng', { precision: 10, scale: 7 }), inDistanceM: integer('in_distance_m'),
+  outLat: numeric('out_lat', { precision: 10, scale: 7 }), outLng: numeric('out_lng', { precision: 10, scale: 7 }), outDistanceM: integer('out_distance_m'),
+  status: text('status').default('present').notNull(), // present | late | half-day | absent | leave | manual
+  minutes: integer('minutes').default(0).notNull(),
+  note: text('note'),
+  markedBy: uuid('marked_by').references(() => users.id), // set when the owner marks manually
 });
