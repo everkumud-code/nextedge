@@ -344,7 +344,7 @@ export const centreSettings = pgTable('centre_settings', {
   liveProvider: text('live_provider').default('jitsi').notNull(), // jitsi | zoom | meet | teams | custom
   zoomAccountId: text('zoom_account_id'), zoomClientId: text('zoom_client_id'), zoomClientSecret: text('zoom_client_secret'),
   defaultMeetingUrl: text('default_meeting_url'), // for meet/teams/custom: the centre's standing room link
-  lat: numeric('lat', { precision: 10, scale: 7 }), lng: numeric('lng', { precision: 10, scale: 7 }), geofenceM: integer('geofence_m').default(15).notNull(),
+  lat: numeric('lat', { precision: 10, scale: 7 }), lng: numeric('lng', { precision: 10, scale: 7 }), geofenceM: integer('geofence_m').default(15).notNull(), gpsToleranceM: integer('gps_tolerance_m').default(5).notNull(),
   workStart: text('work_start').default('09:00').notNull(), lateAfterMin: integer('late_after_min').default(15).notNull(), halfDayMin: integer('half_day_min').default(240).notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
