@@ -22,7 +22,7 @@ Full spec: docs/SOW.md (sections 1–15). This file is the short version you mus
 10. Do not add ad SDKs or analytics that profile minors (DPDP Act 2023).
 
 ## Phase 1 — MVP backlog (do in this order)
-- [ ] Redis-backed OTP + rate limit (5 OTP/hour/number); BullMQ queue for notifications
+- [x] Redis-backed OTP + rate limit (5 OTP/hour/number) — done; BullMQ queue for notifications pending
 - [ ] Students: bulk import from Excel (xlsx upload → preview → confirm), parent user auto-created on add, printable ID card with QR
 - [ ] Attendance: QR scan endpoint (`POST /attendance/scan`), parent push on PRESENT/ABSENT, monthly % per student, <75% flag
 - [ ] Fees: fee plans assigned to students, due calculation per cycle, Razorpay payment link + webhook, PDF receipt, defaulter list, reminders at −7/−1/0/+7 days
