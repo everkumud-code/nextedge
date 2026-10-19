@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react';
 import { api } from '../api';
 const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 export default function Subscription() {
-  const [s, setS] = useState<any>(null); const [p, setP] = useState({ liveProvider: 'jitsi', zoomAccountId: '', zoomClientId: '', zoomClientSecret: '', defaultMeetingUrl: '' }); const [msg, setMsg] = useState('');
-  const load = () => api('/subscription').then((r) => { setS(r); setP({ liveProvider: r.liveProvider, zoomAccountId: '', zoomClientId: '', zoomClientSecret: '', defaultMeetingUrl: r.defaultMeetingUrl || '' }); }); useEffect(() => { load(); }, []);
+  const [s, setS] = useState<any>(null); const [p, setP] = useState({ liveProvider: 'jitsi', zoomAccountId: '', zoomClientId: '', zoomClientSecret: '', defaultMeetingUrl: '' }); const [msg, setMsg] = useState(''); const [presets, setPresets] = useState<any>({}); const [em, setEm] = useState({ provider: 'gmail', host: '', port: '', user: '', pass: '', fromName: '' }); const [emMsg, setEmMsg] = useState('');
+  const load = () => api('/subscription').then((r) => { setS(r); setP({ liveProvider: r.liveProvider, zoomAccountId: '', zoomClientId: '', zoomClientSecret: '', defaultMeetingUrl: r.defaultMeetingUrl || '' }); }); useEffect(() => { load(); api('/subscription/email-presets').then(setPresets); }, []);
   if (!s) return <p>Loading…</p>;
   const end = s.status === 'trial' ? s.trialEndsAt : s.paidUntil;
   return (
@@ -21,6 +21,17 @@ export default function Subscription() {
           {['meet', 'teams', 'custom'].includes(p.liveProvider) && <div className="text-sm"><p className="text-slate-600 mb-1">{p.liveProvider === 'meet' ? 'meet.google.com → New meeting → "Create a meeting for later" → paste the link.' : p.liveProvider === 'teams' ? 'Teams → Calendar → Meet now / schedule → copy the meeting link.' : 'Paste the link students should join.'}</p><input className="input" placeholder="https://…" value={p.defaultMeetingUrl} onChange={(e) => setP({ ...p, defaultMeetingUrl: e.target.value })} /></div>}
           <button className="btn mt-3" onClick={async () => { await api('/subscription/live-provider', { method: 'PUT', body: JSON.stringify({ ...p, zoomAccountId: p.zoomAccountId || undefined, zoomClientId: p.zoomClientId || undefined, zoomClientSecret: p.zoomClientSecret || undefined }) }); setMsg('Saved'); }}>Save</button>
           <p className="text-xs text-slate-500 mt-2">Every scheduled class gets its link from here. You can still paste a one-off link on the Live classes page.</p></div>
+      </div>
+      <div className="card p-4 mt-4"><h2 className="font-semibold mb-1">Your coaching’s email</h2><p className="text-sm text-slate-600 mb-3">OTPs, notices, receipts and reports to your students and parents are sent <b>from your own email</b>. {s.smtpUser ? <>Connected: <b>{s.smtpUser}</b> {s.smtpVerifiedAt && <span className="text-moss">✓ verified</span>}</> : <span className="text-brick">Not connected yet — until then mails go from the platform address.</span>}</p>
+        <div className="grid grid-cols-4 gap-3">
+          <div><label className="text-sm font-medium">Email provider</label><select className="input" value={em.provider} onChange={(e) => setEm({ ...em, provider: e.target.value })}>{Object.keys(presets).map((k) => <option key={k} value={k}>{k === 'custom' ? 'Other / custom' : k.charAt(0).toUpperCase() + k.slice(1)}</option>)}</select></div>
+          <div><label className="text-sm font-medium">Email address</label><input className="input" type="email" placeholder="coaching@gmail.com" value={em.user} onChange={(e) => setEm({ ...em, user: e.target.value })} /></div>
+          <div><label className="text-sm font-medium">Password / app password</label><input className="input" type="password" value={em.pass} onChange={(e) => setEm({ ...em, pass: e.target.value })} /></div>
+          <div><label className="text-sm font-medium">Sender name</label><input className="input" placeholder="Sharma Classes" value={em.fromName} onChange={(e) => setEm({ ...em, fromName: e.target.value })} /></div>
+          {em.provider === 'custom' && <><div><label className="text-sm font-medium">SMTP host</label><input className="input" placeholder="smtp.yourdomain.in" value={em.host} onChange={(e) => setEm({ ...em, host: e.target.value })} /></div><div><label className="text-sm font-medium">Port</label><input className="input" placeholder="465" value={em.port} onChange={(e) => setEm({ ...em, port: e.target.value })} /></div></>}
+        </div>
+        {presets[em.provider] && <p className="text-xs text-slate-500 mt-2">{presets[em.provider].note}</p>}
+        <div className="flex items-center gap-3 mt-3"><button className="btn" disabled={!em.user || !em.pass} onClick={async () => { setEmMsg('Testing…'); const r = await api('/subscription/email', { method: 'PUT', body: JSON.stringify({ ...em, port: em.port ? Number(em.port) : undefined, host: em.host || undefined }) }); setEmMsg(r.ok ? 'Connected — a test mail was sent to your inbox' : r.error); if (r.ok) { setEm({ ...em, pass: '' }); load(); } }}>Test & save</button>{s.smtpUser && <button className="btn-quiet" onClick={async () => { await api('/subscription/email/remove', { method: 'PUT' }); load(); }}>Disconnect</button>}{emMsg && <span className="text-sm">{emMsg}</span>}</div>
       </div>
     </div>
   );
