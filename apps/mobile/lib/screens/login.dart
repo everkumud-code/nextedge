@@ -21,6 +21,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> send() async {
     setState(() { busy = true; error = null; });
     try { final r = await Api.post('/auth/send-otp', {'centreName': coaching.text.trim(), 'email': email.text.trim().toLowerCase()}, auth: false);
+      if (r['token'] != null) { await _finish(r); return; }
       setState(() { step = 1; hint = r['devHint'] != null ? 'Dev OTP: ${r['devHint']}' : 'OTP sent to ${r['to'] ?? email.text}. Check spam too.'; }); }
     catch (e) { setState(() => error = e.toString().replaceFirst('Exception: ', '')); } finally { setState(() => busy = false); }
   }
@@ -35,6 +36,12 @@ class _LoginScreenState extends State<LoginScreen> {
         if (picked == null) { setState(() => busy = false); return; }
         r = await Api.post('/auth/choose', {'choiceToken': r['choiceToken'], 'userId': picked}, auth: false);
       }
+      await _finish(r);
+    } catch (e) { setState(() => error = e.toString().replaceFirst('Exception: ', '')); } finally { if (mounted) setState(() => busy = false); }
+  }
+
+  Future<void> _finish(Map r) async {
+    try {
       final p = await SharedPreferences.getInstance();
       await p.setString('token', r['token']); await p.setString('name', r['user']['name']); await p.setString('role', r['user']['role']); await p.setString('userId', r['user']['id']);
       await p.setString('coaching', coaching.text.trim()); await p.setString('email', email.text.trim().toLowerCase());
