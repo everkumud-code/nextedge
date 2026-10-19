@@ -93,3 +93,86 @@ export const notices = pgTable('notices', {
   publishedAt: timestamp('published_at').defaultNow().notNull(),
   createdBy: uuid('created_by').references(() => users.id),
 });
+
+// ---------- Phase 1 additions ----------
+export const noticeReads = pgTable('notice_reads', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  noticeId: uuid('notice_id').notNull().references(() => notices.id),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  readAt: timestamp('read_at').defaultNow().notNull(),
+});
+
+export const content = pgTable('content', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  batchId: uuid('batch_id').references(() => batches.id),
+  subject: text('subject').notNull(),
+  chapter: text('chapter'),
+  title: text('title').notNull(),
+  kind: text('kind').default('link').notNull(), // link | file | video | text
+  url: text('url'),
+  fileKey: text('file_key'),
+  body: text('body'),
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const messages = pgTable('messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  room: text('room').notNull(), // batch:<id> | dm:<userA>_<userB> | parent:<centre>_<userId>
+  senderId: uuid('sender_id').notNull().references(() => users.id),
+  senderName: text('sender_name').notNull(),
+  senderRole: text('sender_role').notNull(),
+  text: text('text').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const timetableSlots = pgTable('timetable_slots', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  batchId: uuid('batch_id').notNull().references(() => batches.id),
+  facultyId: uuid('faculty_id').references(() => users.id),
+  weekday: integer('weekday').notNull(), // 0=Sun..6=Sat
+  startTime: text('start_time').notNull(), // HH:MM
+  endTime: text('end_time').notNull(),
+  subject: text('subject').notNull(),
+  room: text('room'),
+});
+
+export const facultyBatches = pgTable('faculty_batches', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  facultyId: uuid('faculty_id').notNull().references(() => users.id),
+  batchId: uuid('batch_id').notNull().references(() => batches.id),
+  subject: text('subject'),
+});
+
+export const studentFeePlans = pgTable('student_fee_plans', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  studentId: uuid('student_id').notNull().references(() => students.id),
+  planId: uuid('plan_id').notNull().references(() => feePlans.id),
+  startDate: date('start_date').notNull(),
+  discount: numeric('discount', { precision: 10, scale: 2 }).default('0').notNull(),
+});
+
+export const notificationLog = pgTable('notification_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  userId: uuid('user_id').references(() => users.id),
+  channel: text('channel').notNull(), // push | whatsapp | sms
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  status: text('status').default('queued').notNull(), // queued | sent | failed | skipped
+  error: text('error'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const deviceTokens = pgTable('device_tokens', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  token: text('token').notNull(),
+  platform: text('platform').default('android').notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});

@@ -24,14 +24,14 @@ Full spec: docs/SOW.md (sections 1–15). This file is the short version you mus
 ## Phase 1 — MVP backlog (do in this order)
 - [x] Redis-backed OTP + rate limit (5 OTP/hour/number) — done; BullMQ queue for notifications pending
 - [x] Students: bulk import from Excel (preview → confirm) and parent/student login auto-created — done; printable ID card with QR pending
-- [ ] Attendance: QR scan endpoint (`POST /attendance/scan`), parent push on PRESENT/ABSENT, monthly % per student, <75% flag
-- [ ] Fees: fee plans assigned to students, due calculation per cycle, Razorpay payment link + webhook, PDF receipt, defaulter list, reminders at −7/−1/0/+7 days
-- [ ] Notices: FCM push to audience, seen-by tracking (`notice_reads` table), WhatsApp template fallback after 2h unread
-- [ ] Chat: WebSocket gateway (Socket.IO), channels: batch group, student↔faculty, parent↔centre, broadcast; messages table; phone numbers never exposed
-- [ ] Study library: `content` table (course/subject/chapter/topic), R2 signed upload/download, per-batch release
-- [ ] Faculty & timetable: `faculty_batches`, `timetable_slots` with clash detection
+- [x] Attendance: QR scan endpoint, parent alerts on reached/absent, monthly % with <75% flag — done
+- [x] Fees: plans → student assignment, due per cycle, defaulters, reminders endpoint, Razorpay payment link + webhook — done (PDF receipt pending)
+- [x] Notices: push to audience with WhatsApp fallback, seen-by report — done (2h delayed fallback pending)
+- [x] Chat: Socket.IO gateway `/chat`, rooms batch/parent/staff, history REST, word filter — done (student↔faculty DM pending)
+- [x] Study library: content table, R2 signed upload/download, per-batch release, new-notes push — done
+- [x] Faculty & timetable with clash detection — done
 - [ ] Mobile app: role-based home (student: today's classes/notices/attendance; parent: child attendance/fees/notices; faculty: roll call), notices, study library viewer
-- [ ] Super-admin console page in admin: list centres, create centre + first admin
+- [x] Super-admin API: list centres, create centre + first admin — done (admin UI page pending)
 - [ ] Seed script covers all of the above; GitHub Actions runs build + API tests
 
 ## Phase 2 — Learning (after pilot gate)

@@ -9,13 +9,20 @@ import { BatchesController } from './batches/batches.controller';
 import { AttendanceController } from './attendance/attendance.controller';
 import { FeesController } from './fees/fees.controller';
 import { NoticesController } from './notices/notices.controller';
+import { NotificationsService } from './notifications/notifications.service';
+import { NotificationsController } from './notifications/notifications.controller';
+import { ChatGateway } from './chat/chat.gateway';
+import { ChatController } from './chat/chat.controller';
+import { ContentController } from './content/content.controller';
+import { TimetableController } from './timetable/timetable.controller';
+import { CentresController } from './centres/centres.controller';
 
 @Controller()
 class HealthController { @Public() @Get('health') health() { return { ok: true, service: 'coaching-connect-api', time: new Date().toISOString() }; } }
 
 @Module({
   imports: [DbModule, AuthModule],
-  controllers: [HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController],
-  providers: [StudentsService, { provide: APP_GUARD, useClass: AuthGuard }],
+  controllers: [HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController, NotificationsController, ChatController, ContentController, TimetableController, CentresController],
+  providers: [StudentsService, NotificationsService, ChatGateway, { provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AppModule {}
