@@ -11,6 +11,10 @@ import Notices from './pages/Notices';
 import Study from './pages/Study';
 import Timetable from './pages/Timetable';
 import Centres from './pages/Centres';
+import Tests from './pages/Tests';
+import Homework from './pages/Homework';
+import Live from './pages/Live';
+import IdCards from './pages/IdCards';
 
 function Private({ children }: { children: JSX.Element }) { return session.token ? children : <Navigate to="/login" replace />; }
 
@@ -28,6 +32,10 @@ export default function App() {
         <Route path="study" element={<Study />} />
         <Route path="timetable" element={<Timetable />} />
         <Route path="centres" element={<Centres />} />
+        <Route path="tests" element={<Tests />} />
+        <Route path="homework" element={<Homework />} />
+        <Route path="live" element={<Live />} />
+        <Route path="id-cards" element={<IdCards />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

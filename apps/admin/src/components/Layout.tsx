@@ -2,7 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { session } from '../api';
 
 const nav = [
-  ['/', 'Today'], ['/students', 'Students'], ['/batches', 'Batches'], ['/attendance', 'Attendance'], ['/fees', 'Fees'], ['/study', 'Study'], ['/timetable', 'Timetable'], ['/notices', 'Notices'],
+  ['/', 'Today'], ['/students', 'Students'], ['/batches', 'Batches'], ['/attendance', 'Attendance'], ['/fees', 'Fees'], ['/study', 'Study'], ['/live', 'Live classes'], ['/tests', 'Tests'], ['/homework', 'Homework'], ['/timetable', 'Timetable'], ['/notices', 'Notices'], ['/id-cards', 'ID cards'],
 ];
 
 export default function Layout() {
