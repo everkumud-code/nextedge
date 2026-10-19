@@ -3,6 +3,7 @@ import '../api.dart';
 import '../widgets.dart';
 import 'home.dart';
 import 'chat.dart';
+import 'notifications.dart';
 import 'tests.dart';
 import 'homework.dart';
 import 'support.dart';
@@ -27,6 +28,7 @@ class _P extends State<ParentHome> {
   Widget build(BuildContext context) {
     final pages = [
       RefreshIndicator(onRefresh: load, child: ListView(padding: const EdgeInsets.all(16), children: [
+        AnnouncementBanner(notices),
         if (kids.isEmpty) const Card(child: Padding(padding: EdgeInsets.all(16), child: Text('No student is linked to this mobile number yet. Ask the centre to check the admission form.'))),
         for (final k in kids) ...[
           Text(k['name'], style: Theme.of(context).textTheme.titleLarge),
@@ -46,7 +48,7 @@ class _P extends State<ParentHome> {
       const ChatScreen(),
     ];
     return Scaffold(
-      appBar: AppBar(title: const Text('Coaching Connect'), actions: [IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
+      appBar: AppBar(title: const Text('Coaching Connect'), actions: [const BellAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
       body: pages[tab],
       bottomNavigationBar: NavigationBar(selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i), destinations: const [
         NavigationDestination(icon: Icon(Icons.family_restroom), label: 'My child'), NavigationDestination(icon: Icon(Icons.quiz_outlined), label: 'Results'), NavigationDestination(icon: Icon(Icons.assignment_outlined), label: 'Homework'), NavigationDestination(icon: Icon(Icons.support_agent), label: 'Leave & more'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Message')]),

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 import * as XLSX from 'xlsx';
-const empty = { name: '', className: '', rollNo: '', parentName: '', parentMobile: '', parentEmail: '', batchId: '' };
+const empty = { name: '', className: '', rollNo: '', parentName: '', parentMobile: '', parentEmail: '', batchId: '', dob: '' };
 export default function Students() {
   const [rows, setRows] = useState<any[]>([]); const [batches, setBatches] = useState<any[]>([]); const [form, setForm] = useState(empty); const [err, setErr] = useState(''); const [q, setQ] = useState('');
   const [preview, setPreview] = useState<any[]>([]); const [impBatch, setImpBatch] = useState(''); const [impMsg, setImpMsg] = useState('');
   const load = () => api('/students').then(setRows); useEffect(() => { load(); api('/batches').then(setBatches); }, []);
-  async function add() { setErr(''); try { await api('/students', { method: 'POST', body: JSON.stringify({ ...form, batchId: form.batchId || undefined }) }); setForm(empty); load(); } catch (e: any) { setErr(e.message); } }
+  async function add() { setErr(''); try { await api('/students', { method: 'POST', body: JSON.stringify({ ...form, batchId: form.batchId || undefined, dob: form.dob || undefined }) }); setForm(empty); load(); } catch (e: any) { setErr(e.message); } }
   function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0]; if (!f) return;
     const r = new FileReader();
@@ -36,6 +36,7 @@ export default function Students() {
         <F label="Roll no"><input className="input" value={form.rollNo} onChange={(e) => setForm({ ...form, rollNo: e.target.value })} /></F>
         <F label="Parent name"><input className="input" value={form.parentName} onChange={(e) => setForm({ ...form, parentName: e.target.value })} /></F>
         <F label="Parent mobile"><input className="input" maxLength={10} value={form.parentMobile} onChange={(e) => setForm({ ...form, parentMobile: e.target.value.replace(/\D/g, '') })} /></F>
+        <F label="Date of birth (for wishes)"><input className="input" type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} /></F>
         <F label="Parent email (for email OTP)"><input className="input" type="email" value={form.parentEmail} onChange={(e) => setForm({ ...form, parentEmail: e.target.value })} /></F>
         <F label="Batch"><select className="input" value={form.batchId} onChange={(e) => setForm({ ...form, batchId: e.target.value })}><option value="">Not assigned</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></F>
         <div className="col-span-6"><button className="btn" disabled={!form.name || form.parentMobile.length !== 10} onClick={add}>Add student</button>{err && <span className="text-brick text-sm ml-4">{err}</span>}</div>

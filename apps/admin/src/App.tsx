@@ -18,6 +18,7 @@ import IdCards from './pages/IdCards';
 import Staff from './pages/Staff';
 import Enquiries from './pages/Enquiries';
 import Inbox from './pages/Inbox';
+import Wishes from './pages/Wishes';
 
 function Private({ children }: { children: JSX.Element }) { return session.token ? children : <Navigate to="/login" replace />; }
 
@@ -42,6 +43,7 @@ export default function App() {
         <Route path="staff" element={<Staff />} />
         <Route path="enquiries" element={<Enquiries />} />
         <Route path="inbox" element={<Inbox />} />
+        <Route path="wishes" element={<Wishes />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

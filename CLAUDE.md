@@ -53,6 +53,8 @@ Super-admin for this (and every) project: ever.kumud@gmail.com — seeded as SUP
 - [x] Doubt box (student asks, faculty answers, 24h overdue flag), leave requests (approved → LEAVE in attendance), parent feedback/complaints with owner reply, enquiry register with follow-ups and one-click admission
 - Admin: Inbox (doubts/leaves/feedback), Enquiries, Staff pages. Mobile: SupportScreen tab for student (Doubts, Leave) and parent (Leave, Feedback, Doubts)
 
+- [x] Announcements: notice types ANNOUNCEMENT/GREETING, `pinned` banner (top of app home), `imageUrl`, `expiresAt`; Wishes page: festival greetings (templates) + auto birthday wish 07:00 IST from `students.dob` + owner-editable template; in-app notification feed (`/notifications/mine`, bell with unread in admin + app)
+
 ## Phase 3 — Scale
 
 White-label build pipeline (config → app name/icon/package id), OMR scan worker (OpenCV), enquiry CRM, multi-branch, Tally/Excel exports. Launch 20 Apr 2027.

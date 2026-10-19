@@ -32,3 +32,19 @@ class NoticeTile extends StatelessWidget {
 
 Future<void> openUrl(String url) async { final u = Uri.parse(url); if (await canLaunchUrl(u)) await launchUrl(u, mode: LaunchMode.externalApplication); }
 String day(String iso) { final d = DateTime.tryParse(iso); if (d == null) return iso; const m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']; return '${d.day} ${m[d.month - 1]}'; }
+
+/// Pinned announcement banner (shown at the top of Today). Tap to open.
+class AnnouncementBanner extends StatelessWidget {
+  final List notices;
+  const AnnouncementBanner(this.notices, {super.key});
+  @override
+  Widget build(BuildContext context) {
+    final pinned = notices.where((n) => n['pinned'] == true).toList();
+    if (pinned.isEmpty) return const SizedBox();
+    return Column(children: pinned.take(3).map((n) => Card(color: Theme.of(context).colorScheme.primaryContainer, child: InkWell(onTap: () => showDialog(context: context, builder: (_) => AlertDialog(title: Text(n['title']), content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [if (n['imageUrl'] != null) Image.network(n['imageUrl'], errorBuilder: (_, __, ___) => const SizedBox()), Text(n['body'])])))),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        if (n['imageUrl'] != null) ClipRRect(borderRadius: const BorderRadius.vertical(top: Radius.circular(12)), child: Image.network(n['imageUrl'], height: 140, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox())),
+        Padding(padding: const EdgeInsets.all(12), child: Row(children: [const Icon(Icons.campaign), const SizedBox(width: 8), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(n['title'], style: const TextStyle(fontWeight: FontWeight.bold)), Text(n['body'], maxLines: 2, overflow: TextOverflow.ellipsis)]))])),
+      ])))).toList());
+  }
+}

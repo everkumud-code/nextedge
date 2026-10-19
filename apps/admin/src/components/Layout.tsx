@@ -1,13 +1,15 @@
+import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { session } from '../api';
+import { api, session } from '../api';
 
 // [path, label, module key]; a staff member only sees the pages their owner ticked.
 const nav: [string, string, string][] = [
-  ['/', 'Today', ''], ['/inbox', 'Inbox', 'doubts'], ['/students', 'Students', 'students'], ['/batches', 'Batches', 'students'], ['/attendance', 'Attendance', 'attendance'], ['/fees', 'Fees', 'fees'], ['/study', 'Study', 'study'], ['/live', 'Live classes', 'live'], ['/tests', 'Tests', 'tests'], ['/homework', 'Homework', 'homework'], ['/timetable', 'Timetable', 'timetable'], ['/notices', 'Notices', 'notices'], ['/enquiries', 'Enquiries', 'enquiries'], ['/id-cards', 'ID cards', 'students'], ['/staff', 'Staff', 'staff'],
+  ['/', 'Today', ''], ['/inbox', 'Inbox', 'doubts'], ['/students', 'Students', 'students'], ['/batches', 'Batches', 'students'], ['/attendance', 'Attendance', 'attendance'], ['/fees', 'Fees', 'fees'], ['/study', 'Study', 'study'], ['/live', 'Live classes', 'live'], ['/tests', 'Tests', 'tests'], ['/homework', 'Homework', 'homework'], ['/timetable', 'Timetable', 'timetable'], ['/notices', 'Notices', 'notices'], ['/wishes', 'Wishes', 'notices'], ['/enquiries', 'Enquiries', 'enquiries'], ['/id-cards', 'ID cards', 'students'], ['/staff', 'Staff', 'staff'],
 ];
 
 export default function Layout() {
-  const user = session.user; const go = useNavigate();
+  const user = session.user; const go = useNavigate(); const [bell, setBell] = useState<{ unread: number; items: any[] } | null>(null); const [open, setOpen] = useState(false);
+  useEffect(() => { const f = () => api('/notifications/mine').then(setBell).catch(() => {}); f(); const t = setInterval(f, 60000); return () => clearInterval(t); }, []);
   return (
     <div className="flex min-h-screen">
       <aside className="w-56 shrink-0 bg-teal-900 text-white flex flex-col">
@@ -22,7 +24,10 @@ export default function Layout() {
         </nav>
         <button onClick={() => { session.clear(); go('/login'); }} className="px-5 py-4 text-left text-sm text-teal-100/80 hover:text-white border-t border-teal-800">Log out</button>
       </aside>
-      <main className="flex-1 p-8 max-w-6xl"><Outlet /></main>
+      <main className="flex-1 p-8 max-w-6xl relative">
+        <button className="absolute right-8 top-6 btn-quiet" onClick={() => { setOpen(!open); if (!open && bell?.unread) api('/notifications/read-all', { method: 'POST' }).then(() => setBell(bell ? { ...bell, unread: 0 } : bell)); }}>🔔{bell?.unread ? <span className="ml-1 bg-brick text-white text-xs rounded-full px-1.5">{bell.unread}</span> : null}</button>
+        {open && bell && <div className="absolute right-8 top-16 w-96 card p-3 shadow-lg z-10 max-h-96 overflow-y-auto"><div className="font-semibold mb-2">Notifications</div>{bell.items.length ? bell.items.slice(0, 30).map((n) => <div key={n.id} className={`py-2 border-t border-slate-100 text-sm ${!n.readAt ? 'font-semibold' : ''}`}><div>{n.title}</div><div className="text-slate-600 font-normal">{n.body}</div><div className="text-xs text-slate-400 font-normal">{new Date(n.createdAt).toLocaleString('en-IN')}</div></div>) : <p className="text-sm text-slate-500">Nothing yet.</p>}</div>}
+        <Outlet /></main>
     </div>
   );
 }

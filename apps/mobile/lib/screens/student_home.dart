@@ -4,6 +4,7 @@ import '../widgets.dart';
 import 'home.dart';
 import 'study.dart';
 import 'chat.dart';
+import 'notifications.dart';
 import 'tests.dart';
 import 'homework.dart';
 import 'live.dart';
@@ -26,6 +27,7 @@ class _S extends State<StudentHome> {
     final todayClasses = timetable.where((t) => t['weekday'] == wd && (me == null || t['batchId'] == me['batchId'])).toList()..sort((a, b) => (a['startTime'] as String).compareTo(b['startTime']));
     final pages = [
       RefreshIndicator(onRefresh: load, child: ListView(padding: const EdgeInsets.all(16), children: [
+        AnnouncementBanner(notices),
         Row(children: [Stat('attendance this month', me == null || me['pct'] == null ? '—' : '${me['pct']}%', color: me != null && me['low'] == true ? Colors.red : Colors.green), Stat('classes today', '${todayClasses.length}')]),
         const SizedBox(height: 12),
         Section('Today’s classes', todayClasses.isEmpty ? [const Text('No classes scheduled today.')] : todayClasses.map((t) => Card(child: ListTile(leading: Text(t['startTime'], style: const TextStyle(fontWeight: FontWeight.bold)), title: Text(t['subject']), subtitle: Text('${t['startTime']}–${t['endTime']}${t['room'] != null ? ' · Room ${t['room']}' : ''}')))).toList()),
@@ -39,7 +41,7 @@ class _S extends State<StudentHome> {
       const ChatScreen(),
     ];
     return Scaffold(
-      appBar: AppBar(title: const Text('Coaching Connect'), actions: [IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
+      appBar: AppBar(title: const Text('Coaching Connect'), actions: [const BellAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
       body: pages[tab],
       bottomNavigationBar: NavigationBar(selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i), destinations: const [
         NavigationDestination(icon: Icon(Icons.today), label: 'Today'), NavigationDestination(icon: Icon(Icons.menu_book), label: 'Study'), NavigationDestination(icon: Icon(Icons.videocam_outlined), label: 'Live'), NavigationDestination(icon: Icon(Icons.quiz_outlined), label: 'Tests'), NavigationDestination(icon: Icon(Icons.assignment_outlined), label: 'Homework'), NavigationDestination(icon: Icon(Icons.help_outline), label: 'Doubts'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Chat')]),
