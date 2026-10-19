@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../api.dart';
 import '../config.dart';
 import 'home.dart';
+import '../push.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -28,7 +29,8 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final r = await Api.post('/auth/verify-otp', {'mobile': mobile.text, 'otp': otp.text}, auth: false);
       final p = await SharedPreferences.getInstance();
-      await p.setString('token', r['token']); await p.setString('name', r['user']['name']); await p.setString('role', r['user']['role']);
+      await p.setString('token', r['token']); await p.setString('name', r['user']['name']); await p.setString('role', r['user']['role']); await p.setString('userId', r['user']['id']);
+      registerPush();
       if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
     } catch (e) { setState(() => error = e.toString()); } finally { setState(() => busy = false); }
   }

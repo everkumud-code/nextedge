@@ -1,37 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../api.dart';
 import 'login.dart';
+import 'student_home.dart';
+import 'parent_home.dart';
+import 'faculty_home.dart';
 
-// Phase 1: role-based home. Student/parent see notices + attendance; faculty gets roll call. Build out per CLAUDE.md.
-class HomeScreen extends StatefulWidget {
+/// Routes to the right home by role after login.
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  Widget build(BuildContext context) => FutureBuilder<SharedPreferences>(
+        future: SharedPreferences.getInstance(),
+        builder: (_, s) {
+          if (!s.hasData) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          final role = s.data!.getString('role') ?? '';
+          switch (role) {
+            case 'STUDENT': return const StudentHome();
+            case 'PARENT': return const ParentHome();
+            case 'FACULTY': case 'ADMIN': case 'SUPER_ADMIN': return const FacultyHome();
+            default: return const LoginScreen();
+          }
+        },
+      );
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  List notices = []; String name = '', role = '';
-  @override
-  void initState() { super.initState(); load(); }
-  Future<void> load() async {
-    final p = await SharedPreferences.getInstance();
-    name = p.getString('name') ?? ''; role = p.getString('role') ?? '';
-    try { notices = await Api.get('/notices'); } catch (_) {}
-    if (mounted) setState(() {});
-  }
-
-  @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text('Hi $name'), actions: [IconButton(icon: const Icon(Icons.logout), onPressed: () async { (await SharedPreferences.getInstance()).clear(); if (mounted) Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen())); })]),
-        body: RefreshIndicator(
-          onRefresh: load,
-          child: ListView(padding: const EdgeInsets.all(16), children: [
-            Text('Notices', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 8),
-            if (notices.isEmpty) const Text('No notices yet.'),
-            for (final n in notices) Card(child: ListTile(title: Text(n['title']), subtitle: Text(n['body']), trailing: Text(n['type'], style: const TextStyle(fontSize: 11)))),
-          ]),
-        ),
-      );
+Future<void> logout(BuildContext context) async {
+  (await SharedPreferences.getInstance()).clear();
+  if (context.mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
 }

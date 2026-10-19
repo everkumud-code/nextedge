@@ -30,9 +30,9 @@ Full spec: docs/SOW.md (sections 1–15). This file is the short version you mus
 - [x] Chat: Socket.IO gateway `/chat`, rooms batch/parent/staff, history REST, word filter — done (student↔faculty DM pending)
 - [x] Study library: content table, R2 signed upload/download, per-batch release, new-notes push — done
 - [x] Faculty & timetable with clash detection — done
-- [ ] Mobile app: role-based home (student: today's classes/notices/attendance; parent: child attendance/fees/notices; faculty: roll call), notices, study library viewer
+- [x] Mobile app: role-based homes (student/parent/faculty), study viewer, chat, pay-now link, push token registration — written, NOT yet compiled (no Flutter SDK in the build env): run `flutter pub get && flutter analyze` first and fix anything it reports
 - [x] Super-admin API: list centres, create centre + first admin — done (admin UI page pending)
-- [ ] Seed script covers all of the above; GitHub Actions runs build + API tests
+- [ ] Seed script covers all of the above; GitHub Actions runs build + API tests (workflow file needs a token with Workflows permission)
 
 ## Phase 2 — Learning (after pilot gate)
 Tests (online MCQ + offline marks, rank/percentile, weak-area report), homework (assign/submit/check), live classes (Agora + cloud recording + auto-attendance), parent monthly PDF report, iOS build.
