@@ -3,6 +3,7 @@ import '../api.dart';
 import 'home.dart';
 import 'chat.dart';
 import 'notifications.dart';
+import 'checkin.dart';
 
 /// Faculty: one-tap roll call per batch + notices + chat.
 class FacultyHome extends StatefulWidget {
@@ -33,6 +34,7 @@ class _F extends State<FacultyHome> {
     final present = marks.values.where((v) => v == 'PRESENT' || v == 'LATE').length;
     final pages = [
       Column(children: [
+        const Padding(padding: EdgeInsets.fromLTRB(12, 12, 12, 0), child: CheckInCard()),
         Padding(padding: const EdgeInsets.all(12), child: Row(children: [
           Expanded(child: DropdownButtonFormField<String>(initialValue: batchId, items: batches.map<DropdownMenuItem<String>>((b) => DropdownMenuItem(value: b['id'], child: Text(b['name']))).toList(), onChanged: (v) { batchId = v; loadBatch(); }, decoration: const InputDecoration(labelText: 'Batch'))),
           const SizedBox(width: 12), Text('$present / ${students.length}'),

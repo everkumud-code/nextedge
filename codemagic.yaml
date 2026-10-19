@@ -12,6 +12,12 @@ workflows:
         script: |
           cd apps/mobile
           if [ ! -d android ]; then flutter create . --org in.boombites --project-name coaching_connect --platforms android,ios; fi
+      - name: Android permissions (location, internet)
+        script: |
+          cd apps/mobile
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q ACCESS_FINE_LOCATION $M || sed -i.bak 's#<application#<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <application#' $M
+          grep -q NSLocationWhenInUseUsageDescription ios/Runner/Info.plist || sed -i.bak 's#<dict>#<dict>\n\t<key>NSLocationWhenInUseUsageDescription</key>\n\t<string>Used to check in at the coaching centre.</string>#' ios/Runner/Info.plist
       - name: Get packages
         script: cd apps/mobile && flutter pub get
       - name: Analyze
@@ -37,6 +43,12 @@ workflows:
     scripts:
       - name: Create platform folders
         script: cd apps/mobile && [ -d android ] || flutter create . --org in.boombites --project-name coaching_connect --platforms android,ios
+      - name: Android permissions (location, internet)
+        script: |
+          cd apps/mobile
+          M=android/app/src/main/AndroidManifest.xml
+          grep -q ACCESS_FINE_LOCATION $M || sed -i.bak 's#<application#<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <application#' $M
+          grep -q NSLocationWhenInUseUsageDescription ios/Runner/Info.plist || sed -i.bak 's#<dict>#<dict>\n\t<key>NSLocationWhenInUseUsageDescription</key>\n\t<string>Used to check in at the coaching centre.</string>#' ios/Runner/Info.plist
       - name: Build
         script: cd apps/mobile && flutter pub get && flutter build apk --release
     artifacts:

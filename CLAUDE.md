@@ -61,6 +61,9 @@ Super-admin for this (and every) project: ever.kumud@gmail.com — seeded as SUP
 - [x] Live providers per centre: jitsi (default) | zoom (S2S OAuth, auto meeting) | meet | teams | custom (standing link); owner sets on /subscription, super-admin on /platform
 - Admin pages: Platform (super-admin), Subscription (owner). Guard enforces flags + suspension.
 
+- [x] Staff/teacher attendance with geofence: `centre_settings.lat/lng/geofence_m/work_start/late_after_min/half_day_min`; `/staff-attendance/check-in|check-out` (Haversine distance, late/half-day), `/me`, owner `/register` + `/manual`; admin Staff attendance page (set location via browser GPS), mobile CheckInCard on teacher home (geolocator; Codemagic injects Android/iOS location permissions after `flutter create`)
+- Role labels everywhere: `src/common/roles.ts` → Owner / Teacher / Staff / Student / Parent / Platform admin
+
 ## Phase 3 — Scale
 
 White-label build pipeline (config → app name/icon/package id), OMR scan worker (OpenCV), enquiry CRM, multi-branch, Tally/Excel exports. Launch 20 Apr 2027.

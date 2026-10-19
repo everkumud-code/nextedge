@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { api, session } from '../api';
 
+const ROLE: Record<string, string> = { SUPER_ADMIN: 'Platform admin', ADMIN: 'Owner', FACULTY: 'Teacher', STAFF: 'Staff', STUDENT: 'Student', PARENT: 'Parent' };
 // [path, label, module key]; a staff member only sees the pages their owner ticked.
 const nav: [string, string, string][] = [
-  ['/', 'Today', ''], ['/inbox', 'Inbox', 'doubts'], ['/students', 'Students', 'students'], ['/batches', 'Batches', 'students'], ['/attendance', 'Attendance', 'attendance'], ['/fees', 'Fees', 'fees'], ['/study', 'Study', 'study'], ['/live', 'Live classes', 'live'], ['/tests', 'Tests', 'tests'], ['/homework', 'Homework', 'homework'], ['/timetable', 'Timetable', 'timetable'], ['/notices', 'Notices', 'notices'], ['/wishes', 'Wishes', 'notices'], ['/enquiries', 'Enquiries', 'enquiries'], ['/id-cards', 'ID cards', 'students'], ['/staff', 'Staff', 'staff'], ['/subscription', 'Subscription', 'staff'],
+  ['/', 'Today', ''], ['/inbox', 'Inbox', 'doubts'], ['/students', 'Students', 'students'], ['/batches', 'Batches', 'students'], ['/attendance', 'Attendance', 'attendance'], ['/fees', 'Fees', 'fees'], ['/study', 'Study', 'study'], ['/live', 'Live classes', 'live'], ['/tests', 'Tests', 'tests'], ['/homework', 'Homework', 'homework'], ['/timetable', 'Timetable', 'timetable'], ['/notices', 'Notices', 'notices'], ['/wishes', 'Wishes', 'notices'], ['/enquiries', 'Enquiries', 'enquiries'], ['/id-cards', 'ID cards', 'students'], ['/staff', 'Staff', 'staff'], ['/staff-attendance', 'Staff attendance', 'staff'], ['/subscription', 'Subscription', 'staff'],
 ];
 
 export default function Layout() {
@@ -15,7 +16,7 @@ export default function Layout() {
       <aside className="w-56 shrink-0 bg-teal-900 text-white flex flex-col">
         <div className="px-5 py-5 border-b border-teal-800">
           <div className="text-lg font-bold leading-tight">Coaching Connect</div>
-          <div className="text-xs text-teal-100/80 mt-1">{user?.name} · {user?.role.toLowerCase()}</div>
+          <div className="text-xs text-teal-100/80 mt-1">{user?.name} · {ROLE[user?.role || ''] || user?.role}</div>
         </div>
         <nav className="flex-1 py-3">
           {[...nav.filter(([, , m]) => !m || ((!user?.modules || user.modules.includes(m) || ['ADMIN', 'SUPER_ADMIN'].includes(user.role)) && (!user?.features || user.features.includes(m) || user.role === 'SUPER_ADMIN'))), ...(user?.role === 'SUPER_ADMIN' ? [['/centres', 'Centres', ''], ['/platform', 'Platform', '']] : [])].map(([to, label]) => (

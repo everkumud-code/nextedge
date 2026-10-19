@@ -10,17 +10,17 @@ export default function Timetable() {
   async function addFaculty() { setErr(''); try { await api('/timetable/faculty', { method: 'POST', body: JSON.stringify(nf) }); setNf({ name: '', mobile: '', email: '' }); load(); } catch (e: any) { setErr(e.message); } }
   return (
     <div>
-      <h1 className="text-2xl font-bold">Faculty & timetable</h1>
-      <div className="card p-4 mt-6"><h2 className="font-semibold mb-2">Faculty</h2>
-        <div className="flex gap-3 items-end"><div><label className="text-sm font-medium">Name</label><input className="input" value={nf.name} onChange={(e) => setNf({ ...nf, name: e.target.value })} /></div><div><label className="text-sm font-medium">Mobile (login)</label><input className="input" maxLength={10} value={nf.mobile} onChange={(e) => setNf({ ...nf, mobile: e.target.value.replace(/\D/g, '') })} /></div><div><label className="text-sm font-medium">Email</label><input className="input" type="email" value={nf.email} onChange={(e) => setNf({ ...nf, email: e.target.value })} /></div><button className="btn" disabled={!nf.name || nf.mobile.length !== 10} onClick={addFaculty}>Add faculty</button></div>
-        <div className="mt-3 text-sm">{faculty.map((x) => <span key={x.id} className="inline-block mr-2 mb-1 px-2 py-1 rounded bg-teal-100">{x.name}</span>)}{!faculty.length && <span className="text-slate-500">No faculty yet.</span>}</div></div>
+      <h1 className="text-2xl font-bold">Teachers & timetable</h1>
+      <div className="card p-4 mt-6"><h2 className="font-semibold mb-2">Teachers</h2>
+        <div className="flex gap-3 items-end"><div><label className="text-sm font-medium">Name</label><input className="input" value={nf.name} onChange={(e) => setNf({ ...nf, name: e.target.value })} /></div><div><label className="text-sm font-medium">Mobile (login)</label><input className="input" maxLength={10} value={nf.mobile} onChange={(e) => setNf({ ...nf, mobile: e.target.value.replace(/\D/g, '') })} /></div><div><label className="text-sm font-medium">Email</label><input className="input" type="email" value={nf.email} onChange={(e) => setNf({ ...nf, email: e.target.value })} /></div><button className="btn" disabled={!nf.name || nf.mobile.length !== 10} onClick={addFaculty}>Add teacher</button></div>
+        <div className="mt-3 text-sm">{faculty.map((x) => <span key={x.id} className="inline-block mr-2 mb-1 px-2 py-1 rounded bg-teal-100">{x.name}</span>)}{!faculty.length && <span className="text-slate-500">No teachers yet.</span>}</div></div>
       <div className="card p-4 mt-4 grid grid-cols-7 gap-3 items-end">
         <div><label className="text-sm font-medium">Batch</label><select className="input" value={f.batchId} onChange={(e) => setF({ ...f, batchId: e.target.value })}>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
         <div><label className="text-sm font-medium">Day</label><select className="input" value={f.weekday} onChange={(e) => setF({ ...f, weekday: Number(e.target.value) })}>{DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}</select></div>
         <div><label className="text-sm font-medium">Start</label><input className="input" type="time" value={f.startTime} onChange={(e) => setF({ ...f, startTime: e.target.value })} /></div>
         <div><label className="text-sm font-medium">End</label><input className="input" type="time" value={f.endTime} onChange={(e) => setF({ ...f, endTime: e.target.value })} /></div>
         <div><label className="text-sm font-medium">Subject</label><input className="input" value={f.subject} onChange={(e) => setF({ ...f, subject: e.target.value })} /></div>
-        <div><label className="text-sm font-medium">Faculty</label><select className="input" value={f.facultyId} onChange={(e) => setF({ ...f, facultyId: e.target.value })}><option value="">—</option>{faculty.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></div>
+        <div><label className="text-sm font-medium">Teachers</label><select className="input" value={f.facultyId} onChange={(e) => setF({ ...f, facultyId: e.target.value })}><option value="">—</option>{faculty.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</select></div>
         <button className="btn" disabled={!f.batchId || !f.subject} onClick={add}>Add slot</button>
         {err && <p className="col-span-7 text-brick text-sm">{err}</p>}
       </div>
