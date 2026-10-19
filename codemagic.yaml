@@ -23,7 +23,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - md@boombites.in
+          - boombitesindia@gmail.com
         notify:
           success: true
           failure: true
