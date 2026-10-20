@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../widgets.dart';
+import 'wellbeing.dart';
 
 /// Student: doubt box. Parent: leave requests + feedback. One screen, tabs by role.
 class SupportScreen extends StatefulWidget {
@@ -10,7 +11,7 @@ class SupportScreen extends StatefulWidget {
 }
 class _S extends State<SupportScreen> with SingleTickerProviderStateMixin {
   late TabController tabs; List doubts = [], leaves = [], feedback = [];
-  List<String> get tabNames => widget.role == 'STUDENT' ? ['Doubts', 'Leave'] : ['Leave', 'Feedback', 'Doubts'];
+  List<String> get tabNames => widget.role == 'STUDENT' ? ['Doubts', 'Leave', 'Wellbeing'] : ['Leave', 'Feedback', 'Doubts', 'Wellbeing'];
   @override void initState() { super.initState(); tabs = TabController(length: tabNames.length, vsync: this); load(); }
   Future<void> load() async { try { doubts = await Api.get('/doubts'); leaves = await Api.get('/leaves'); feedback = await Api.get('/feedback'); } catch (_) {} if (mounted) setState(() {}); }
 
@@ -53,7 +54,7 @@ class _S extends State<SupportScreen> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    final views = widget.role == 'STUDENT' ? [doubtsTab(), leavesTab()] : [leavesTab(), feedbackTab(), doubtsTab()];
+    final views = widget.role == 'STUDENT' ? [doubtsTab(), leavesTab(), WellbeingScreen(studentId: widget.studentId)] : [leavesTab(), feedbackTab(), doubtsTab(), WellbeingScreen(studentId: widget.studentId)];
     return Column(children: [TabBar(controller: tabs, tabs: tabNames.map((t) => Tab(text: t)).toList()), Expanded(child: TabBarView(controller: tabs, children: views))]);
   }
 }

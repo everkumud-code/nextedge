@@ -3,8 +3,8 @@ import { api, session } from '../api';
 
 export default function Dashboard() {
   const [students, setStudents] = useState<any[]>([]); const [batches, setBatches] = useState<any[]>([]);
-  const [fees, setFees] = useState<{ collectedThisMonth: number; collectedTotal: number } | null>(null); const [notices, setNotices] = useState<any[]>([]);
-  useEffect(() => { api('/students').then(setStudents); api('/batches').then(setBatches); api('/fees/summary').then(setFees); api('/notices').then(setNotices); }, []);
+  const [fees, setFees] = useState<{ collectedThisMonth: number; collectedTotal: number } | null>(null); const [notices, setNotices] = useState<any[]>([]); const [wb, setWb] = useState<any>(null);
+  useEffect(() => { api('/students').then(setStudents); api('/batches').then(setBatches); api('/fees/summary').then(setFees); api('/notices').then(setNotices); api('/wellbeing/summary').then(setWb).catch(() => {}); }, []);
   const active = students.filter((s) => s.active).length;
   return (
     <div>
@@ -21,6 +21,7 @@ export default function Dashboard() {
         <Stat label="Fees collected this month" value={fees ? `₹${fees.collectedThisMonth.toLocaleString('en-IN')}` : '—'} note={fees ? `₹${fees.collectedTotal.toLocaleString('en-IN')} all time` : ''} />
         <Stat label="Notices this week" value={notices.filter((n) => Date.now() - new Date(n.publishedAt).getTime() < 7 * 864e5).length} note={notices[0] ? `Latest: ${notices[0].title}` : 'None yet'} />
       </div>
+      {wb && wb.total > 0 && <div className="card mt-6 p-4"><b>Wellbeing & counselling</b> <span className="text-sm text-slate-600">— {wb.total} requests from your students/parents · {wb.byStatus.closed || 0} closed · {Object.entries(wb.byCategory).map(([k, v]) => `${k} ${v}`).join(', ')}</span><p className="text-xs text-slate-500 mt-1">{wb.note}</p></div>}
       {students.length === 0 && <div className="card mt-8 p-6"><p className="font-semibold">No students yet.</p><p className="text-slate-600 text-sm mt-1">Add your first batch, then add students to it. Parents get their login the moment a student is added.</p></div>}
     </div>
   );
