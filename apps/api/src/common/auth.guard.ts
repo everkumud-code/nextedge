@@ -23,6 +23,7 @@ export class AuthGuard implements CanActivate {
     if (roles?.length && !roles.includes(effRole)) throw new ForbiddenException('Not allowed for your role');
     const mod = this.reflector.getAllAndOverride<string>('module', [ctx.getHandler(), ctx.getClass()]);
     if (mod && (u.role === 'FACULTY' || u.role === 'STAFF') && !(u.modules || []).includes(mod)) throw new ForbiddenException(`You do not have access to ${mod}. Ask the owner.`);
+    if (u.role === 'EXPERT' && mod && mod !== 'wellbeing' && mod !== 'notices') throw new ForbiddenException('Counsellors can only use the wellbeing console.');
     // Platform-level switches: feature off for this centre, or centre suspended (read-only for everyone but the owner's subscription page).
     if (u.centreId && u.role !== 'SUPER_ADMIN') {
       const s = await this.platform.settings(u.centreId);

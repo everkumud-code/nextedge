@@ -1,7 +1,7 @@
 // Every table that holds centre data carries centre_id. No query may cross centres.
 import { pgTable, uuid, text, timestamp, integer, boolean, date, pgEnum, numeric } from 'drizzle-orm/pg-core';
 
-export const roleEnum = pgEnum('role', ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF', 'STUDENT', 'PARENT']);
+export const roleEnum = pgEnum('role', ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF', 'STUDENT', 'PARENT', 'EXPERT']);
 export const attendanceStatus = pgEnum('attendance_status', ['PRESENT', 'ABSENT', 'LATE', 'LEAVE']);
 export const noticeType = pgEnum('notice_type', ['GENERAL', 'HOLIDAY', 'EXAM', 'FEE', 'EVENT', 'URGENT', 'ANNOUNCEMENT', 'GREETING']);
 export const paymentMode = pgEnum('payment_mode', ['UPI', 'CASH', 'CARD', 'NETBANKING', 'CHEQUE']);
@@ -379,4 +379,42 @@ export const staffAttendance = pgTable('staff_attendance', {
   minutes: integer('minutes').default(0).notNull(),
   note: text('note'),
   markedBy: uuid('marked_by').references(() => users.id), // set when the owner marks manually
+});
+
+// ---------- Wellbeing & counselling (platform experts, confidential) ----------
+export const wellbeingRequests = pgTable('wellbeing_requests', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  studentId: uuid('student_id').references(() => students.id),
+  requesterId: uuid('requester_id').notNull().references(() => users.id), // student or parent
+  requesterRole: text('requester_role').notNull(),
+  category: text('category').notNull(), // exam-stress | anxiety | focus | family | bullying | career | other
+  text: text('text').notNull(),
+  urgency: text('urgency').default('normal').notNull(), // normal | urgent
+  status: text('status').default('new').notNull(), // new | assigned | scheduled | in-progress | closed
+  expertId: uuid('expert_id').references(() => users.id),
+  sessionAt: timestamp('session_at'),
+  sessionUrl: text('session_url'),
+  expertNotes: text('expert_notes'), // private to experts
+  closedAt: timestamp('closed_at'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const wellbeingMessages = pgTable('wellbeing_messages', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  requestId: uuid('request_id').notNull().references(() => wellbeingRequests.id),
+  senderId: uuid('sender_id').notNull().references(() => users.id),
+  senderRole: text('sender_role').notNull(),
+  text: text('text').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const wellbeingPosts = pgTable('wellbeing_posts', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  expertId: uuid('expert_id').notNull().references(() => users.id),
+  title: text('title').notNull(),
+  body: text('body').notNull(),
+  audience: text('audience').default('all').notNull(), // all | students | parents
+  publishedAt: timestamp('published_at').defaultNow().notNull(),
 });

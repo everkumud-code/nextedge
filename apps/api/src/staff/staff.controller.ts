@@ -53,4 +53,4 @@ export class StaffController {
     return { ok: true };
   }
 }
-const LABELS: Record<string, string> = { students: 'Students & batches', attendance: 'Attendance', fees: 'Fees & receipts', study: 'Study material', live: 'Live classes', tests: 'Tests & results', homework: 'Homework', notices: 'Notices', chat: 'Chat', timetable: 'Timetable', doubts: 'Doubt box', leaves: 'Leave requests', feedback: 'Parent feedback', enquiries: 'Enquiries / leads', reports: 'Reports', staff: 'Staff management' };
+const LABELS: Record<string, string> = { students: 'Students & batches', attendance: 'Attendance', fees: 'Fees & receipts', study: 'Study material', live: 'Live classes', tests: 'Tests & results', homework: 'Homework', notices: 'Notices', chat: 'Chat', timetable: 'Timetable', doubts: 'Doubt box', leaves: 'Leave requests', feedback: 'Parent feedback', enquiries: 'Enquiries / leads', reports: 'Reports', staff: 'Staff management', wellbeing: 'Wellbeing & counselling' };
