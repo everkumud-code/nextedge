@@ -1,4 +1,4 @@
-# Coaching Connect
+# NextEdge
 
 White-label app + admin panel for coaching centres (students, parents, faculty, admin). Built by BoomBites / Lazywood.
 

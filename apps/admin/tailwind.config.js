@@ -5,7 +5,7 @@ export default {
     extend: {
       colors: {
         paper: '#F3F5F8', ink: '#1A1F26', teal: { 900: '#11343C', 800: '#174651', 100: '#DCEBEE' },
-        marigold: { 500: '#F2A93B', 600: '#D98F1F', 100: '#FDF1DC' }, moss: '#2F8F5B', brick: '#C4412B',
+        marigold: { 500: '#F2A93B', 600: '#D98F1F', 100: '#FDF1DC' }, edge: { 500: '#1673D9', 600: '#125FB3', 100: '#DCEAFB' }, moss: '#2F8F5B', brick: '#C4412B',
       },
       fontFamily: { sans: ['"Hanken Grotesk"', 'system-ui', 'sans-serif'] },
     },

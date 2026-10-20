@@ -15,7 +15,7 @@ export default function Layout() {
     <div className="flex min-h-screen">
       <aside className="w-56 shrink-0 bg-teal-900 text-white flex flex-col">
         <div className="px-5 py-5 border-b border-teal-800">
-          <div className="text-lg font-bold leading-tight">Coaching Connect</div>
+          <div className="bg-white rounded-md px-2 py-1 inline-block"><img src="/nextedge-logo.png" alt="NextEdge" className="h-7" /></div>
           <div className="text-xs text-teal-100/80 mt-1">{user?.name} · {ROLE[user?.role || ''] || user?.role}</div>
         </div>
         <nav className="flex-1 py-3">

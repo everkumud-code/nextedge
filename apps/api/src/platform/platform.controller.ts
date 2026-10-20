@@ -18,7 +18,7 @@ export class PlatformController {
   @Get('modules') modules() { return MODULES; }
   /** Is the BoomBites platform mailbox configured on the server? */
   @Get('email-status') emailStatus() { const p = process.env.PLATFORM_SMTP_HOST && process.env.PLATFORM_SMTP_USER; return { configured: !!p, from: p ? (process.env.PLATFORM_SMTP_FROM || process.env.PLATFORM_SMTP_USER) : null }; }
-  @Post('email-test') async emailTest(@Body() b: { to: string }) { try { const ok = await sendEmailVia((await import('../integrations/email')).platformSmtp(), b.to, 'Coaching Connect platform email test', 'Platform mailbox is working.'); return { ok }; } catch (e: any) { return { ok: false, error: e.message }; } }
+  @Post('email-test') async emailTest(@Body() b: { to: string }) { try { const ok = await sendEmailVia((await import('../integrations/email')).platformSmtp(), b.to, 'NextEdge platform email test', 'Platform mailbox is working.'); return { ok }; } catch (e: any) { return { ok: false, error: e.message }; } }
   @Get('plans') plans() { return PLAN_PRESETS; }
 
   /** All centres with settings, student count, open invoice. */
@@ -67,7 +67,7 @@ export class SubscriptionController {
     const preset = SMTP_PRESETS[b.provider] || SMTP_PRESETS.custom; const host = b.host || preset.host; const port = Number(b.port || preset.port);
     if (!host || !b.user || !b.pass) return { ok: false, error: 'Email, password and provider are required' };
     const smtp = { host, port, user: b.user.trim(), pass: b.pass, from: `${b.fromName || 'Coaching'} <${b.user.trim()}>` };
-    try { await verifySmtp(smtp); await sendEmailVia(smtp, b.testTo || b.user, 'Coaching Connect: email connected ✅', 'Your coaching’s emails (OTPs, notices, receipts) will now be sent from this mailbox.'); }
+    try { await verifySmtp(smtp); await sendEmailVia(smtp, b.testTo || b.user, 'NextEdge: email connected ✅', 'Your coaching’s emails (OTPs, notices, receipts) will now be sent from this mailbox.'); }
     catch (e: any) { return { ok: false, error: `Could not connect: ${e.message}. ${preset.note}` }; }
     await this.svc.settings(u.centreId!);
     await this.dbs.db.update(centreSettings).set({ smtpHost: host, smtpPort: port, smtpUser: smtp.user, smtpPass: b.pass, smtpFrom: smtp.from, smtpVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(centreSettings.centreId, u.centreId!));

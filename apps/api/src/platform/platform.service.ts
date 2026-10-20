@@ -39,7 +39,7 @@ export class PlatformService {
     const amount = Math.round(n * Number(s.pricePerStudent) * months);
     const [inv] = await db.insert(subscriptionInvoices).values({ centreId, periodFrom: from, periodTo: to, students: n, pricePerStudent: s.pricePerStudent, amount: String(amount) }).returning();
     if (razorpayReady()) { try { const [ce] = await db.select().from(centres).where(eq(centres.id, centreId)); const [admin] = await db.select().from(users).where(and(eq(users.centreId, centreId), eq(users.role, 'ADMIN')));
-      const link = await createPaymentLink(amount, `Coaching Connect subscription · ${ce.name}`, { name: admin?.name || ce.name, contact: admin?.mobile || '9999999999' }, `sub-${inv.id}`, { subscriptionInvoiceId: inv.id, centreId });
+      const link = await createPaymentLink(amount, `NextEdge subscription · ${ce.name}`, { name: admin?.name || ce.name, contact: admin?.mobile || '9999999999' }, `sub-${inv.id}`, { subscriptionInvoiceId: inv.id, centreId });
       await db.update(subscriptionInvoices).set({ paymentLink: link.short_url }).where(eq(subscriptionInvoices.id, inv.id)); inv.paymentLink = link.short_url; } catch (e: any) { this.log.warn(`Razorpay link failed: ${e.message}`); } }
     return inv;
   }

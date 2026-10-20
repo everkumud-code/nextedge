@@ -20,6 +20,12 @@ workflows:
           grep -q NSLocationWhenInUseUsageDescription ios/Runner/Info.plist || sed -i.bak 's#<dict>#<dict>\n\t<key>NSLocationWhenInUseUsageDescription</key>\n\t<string>Used to check in at the coaching centre.</string>#' ios/Runner/Info.plist
       - name: Get packages
         script: cd apps/mobile && flutter pub get
+      - name: App name + launcher icon
+        script: |
+          cd apps/mobile
+          sed -i.bak 's#android:label="coaching_connect"#android:label="NextEdge"#' android/app/src/main/AndroidManifest.xml
+          sed -i.bak 's#<string>coaching_connect</string>#<string>NextEdge</string>#; s#<string>Coaching Connect</string>#<string>NextEdge</string>#' ios/Runner/Info.plist
+          dart run flutter_launcher_icons || true
       - name: Analyze
         script: cd apps/mobile && (flutter analyze --no-fatal-infos --no-fatal-warnings || echo 'ANALYZE REPORTED ISSUES - see above; continuing to build')
       - name: Build APK
@@ -50,6 +56,6 @@ workflows:
           grep -q ACCESS_FINE_LOCATION $M || sed -i.bak 's#<application#<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <application#' $M
           grep -q NSLocationWhenInUseUsageDescription ios/Runner/Info.plist || sed -i.bak 's#<dict>#<dict>\n\t<key>NSLocationWhenInUseUsageDescription</key>\n\t<string>Used to check in at the coaching centre.</string>#' ios/Runner/Info.plist
       - name: Build
-        script: cd apps/mobile && flutter pub get && flutter build apk --release
+        script: cd apps/mobile && flutter pub get && (sed -i.bak 's#android:label="coaching_connect"#android:label="NextEdge"#' android/app/src/main/AndroidManifest.xml; dart run flutter_launcher_icons || true) && flutter build apk --release
     artifacts:
       - apps/mobile/build/app/outputs/flutter-apk/*.apk

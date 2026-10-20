@@ -1,5 +1,5 @@
 name: coaching_connect
-description: Coaching Connect - student, parent and faculty app. White-labelled per centre.
+description: NextEdge - student, parent and teacher app for coaching centres.
 publish_to: 'none'
 version: 0.1.0+1
 environment:
@@ -19,5 +19,16 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.1
 flutter:
   uses-material-design: true
+  assets:
+    - assets/nextedge-logo.png
+    - assets/icon.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/icon.png
+  adaptive_icon_background: "#FFFFFF"
+  adaptive_icon_foreground: assets/icon.png

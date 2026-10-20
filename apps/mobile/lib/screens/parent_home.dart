@@ -48,7 +48,7 @@ class _P extends State<ParentHome> {
       const ChatScreen(),
     ];
     return Scaffold(
-      appBar: AppBar(title: const Text('Coaching Connect'), actions: [const BellAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
+      appBar: AppBar(title: const Text('NextEdge'), actions: [const BellAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
       body: pages[tab],
       bottomNavigationBar: NavigationBar(selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i), destinations: const [
         NavigationDestination(icon: Icon(Icons.family_restroom), label: 'My child'), NavigationDestination(icon: Icon(Icons.quiz_outlined), label: 'Results'), NavigationDestination(icon: Icon(Icons.assignment_outlined), label: 'Homework'), NavigationDestination(icon: Icon(Icons.support_agent), label: 'Leave & more'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Message')]),

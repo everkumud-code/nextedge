@@ -54,6 +54,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(AppConfig.appName)),
         body: Padding(padding: const EdgeInsets.all(20), child: ListView(children: [
+          Center(child: Padding(padding: const EdgeInsets.symmetric(vertical: 24), child: Image.asset('assets/nextedge-logo.png', height: 64))),
           if (step == 0) ...[
             const Text('Sign in with the email registered at your coaching', style: TextStyle(fontSize: 15)),
             const SizedBox(height: 16),

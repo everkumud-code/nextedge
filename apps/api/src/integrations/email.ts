@@ -4,7 +4,7 @@ import nodemailer from 'nodemailer';
 export type Smtp = { host: string; port: number; user: string; pass: string; from?: string | null };
 
 export const platformSmtp = (): Smtp | null => (process.env.PLATFORM_SMTP_HOST && process.env.PLATFORM_SMTP_USER && process.env.PLATFORM_SMTP_PASS)
-  ? { host: process.env.PLATFORM_SMTP_HOST, port: Number(process.env.PLATFORM_SMTP_PORT || 465), user: process.env.PLATFORM_SMTP_USER, pass: process.env.PLATFORM_SMTP_PASS, from: process.env.PLATFORM_SMTP_FROM || `Coaching Connect <${process.env.PLATFORM_SMTP_USER}>` } : null;
+  ? { host: process.env.PLATFORM_SMTP_HOST, port: Number(process.env.PLATFORM_SMTP_PORT || 465), user: process.env.PLATFORM_SMTP_USER, pass: process.env.PLATFORM_SMTP_PASS, from: process.env.PLATFORM_SMTP_FROM || `NextEdge <${process.env.PLATFORM_SMTP_USER}>` } : null;
 
 /** Common presets so an owner only picks the provider and types email + password. */
 export const SMTP_PRESETS: Record<string, { host: string; port: number; note: string }> = {

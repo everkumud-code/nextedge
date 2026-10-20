@@ -1,4 +1,4 @@
-# Coaching Connect — build guide for Claude Code
+# NextEdge — build guide for Claude Code
 
 Multi-tenant SaaS for coaching centres: web admin panel + Flutter app for students, parents and faculty.
 Full spec: docs/SOW.md (sections 1–15). This file is the short version you must follow.

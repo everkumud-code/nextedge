@@ -33,7 +33,7 @@ import { PlatformModule } from './platform/platform.module';
 import { StaffAttendanceController } from './staff-attendance/staff-attendance.controller';
 
 @Controller()
-class HealthController { @Public() @Get('health') health() { return { ok: true, service: 'coaching-connect-api', time: new Date().toISOString() }; } }
+class HealthController { @Public() @Get('health') health() { return { ok: true, service: 'nextedge-api', time: new Date().toISOString() }; } }
 
 @Module({
   imports: [DbModule, PlatformModule, AuthModule],

@@ -8,7 +8,7 @@ export function receiptPdf(d: { centre: string; city?: string | null; receiptNo:
     row('Receipt no', d.receiptNo); row('Date', d.paidOn); row('Student', d.student + (d.rollNo ? ` (Roll ${d.rollNo})` : '')); if (d.batch) row('Batch', d.batch); if (d.parent) row('Parent', d.parent);
     doc.moveDown(0.5); doc.fontSize(14).text(`Amount received: Rs ${d.amount.toLocaleString('en-IN')}`); doc.fontSize(10).text(`Mode: ${d.mode}${d.reference ? ` · Ref ${d.reference}` : ''}`);
     doc.moveDown(0.5).text(d.balance > 0 ? `Balance due: Rs ${d.balance.toLocaleString('en-IN')}` : 'No balance due');
-    doc.moveDown(2).fontSize(8).fillColor('#666').text('Computer-generated receipt. Issued via Coaching Connect.', { align: 'center' });
+    doc.moveDown(2).fontSize(8).fillColor('#666').text('Computer-generated receipt. Issued via NextEdge.', { align: 'center' });
     doc.end();
   });
 }

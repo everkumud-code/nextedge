@@ -41,7 +41,7 @@ class _S extends State<StudentHome> {
       const ChatScreen(),
     ];
     return Scaffold(
-      appBar: AppBar(title: const Text('Coaching Connect'), actions: [const BellAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
+      appBar: AppBar(title: const Text('NextEdge'), actions: [const BellAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
       body: pages[tab],
       bottomNavigationBar: NavigationBar(selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i), destinations: const [
         NavigationDestination(icon: Icon(Icons.today), label: 'Today'), NavigationDestination(icon: Icon(Icons.menu_book), label: 'Study'), NavigationDestination(icon: Icon(Icons.videocam_outlined), label: 'Live'), NavigationDestination(icon: Icon(Icons.quiz_outlined), label: 'Tests'), NavigationDestination(icon: Icon(Icons.assignment_outlined), label: 'Homework'), NavigationDestination(icon: Icon(Icons.help_outline), label: 'Doubts'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Chat')]),

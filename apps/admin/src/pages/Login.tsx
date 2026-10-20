@@ -16,7 +16,7 @@ export default function Login() {
   return (
     <div className="min-h-screen grid place-items-center bg-teal-900">
       <div className="w-full max-w-sm card p-8">
-        <h1 className="text-2xl font-bold">Coaching Connect</h1>
+        <img src="/nextedge-logo.png" alt="NextEdge" className="h-12 mb-2" />
         {step === 'login' && <>
           <p className="text-slate-600 mt-1 mb-4">Sign in with the email registered at your coaching.</p>
           <label className="block text-sm font-medium mb-1">Coaching name</label>
