@@ -10,6 +10,7 @@ export async function seed() {
   if ((await db.select().from(s.centres).where(eq(s.centres.name, 'Demo Coaching Centre'))).length) {
     // Already seeded: just make sure every demo login has an email (login is email-based now).
     for (const [mobile, email] of Object.entries(DEMO_EMAILS)) await db.update(s.users).set({ email }).where(and(eq(s.users.mobile, mobile), isNull(s.users.email)));
+    await ensureExtras(db);
     console.log('Demo centre already exists — emails ensured'); await client.end(); return;
   }
   const [centre] = await db.insert(s.centres).values({ name: 'Demo Coaching Centre', city: 'Ranchi', plan: 'standard' }).returning();
@@ -30,7 +31,19 @@ export async function seed() {
   await db.insert(s.tests).values({ centreId: centre.id, batchId: batch.id, title: 'Weekly test 1 · Physics', subject: 'Physics', mode: 'online', date: new Date().toISOString().slice(0, 10), maxMarks: 3, published: true, createdBy: fac.id,
     questions: JSON.stringify([{ q: 'SI unit of force?', opts: ['Joule', 'Newton', 'Watt', 'Pascal'], ans: 'B', chapter: 'Laws of Motion' }, { q: 'Acceleration due to gravity on Earth is about', opts: ['9.8 m/s²', '3.7 m/s²', '1.6 m/s²', '12 m/s²'], ans: 'A', chapter: 'Gravitation' }, { q: 'Friction always acts', opts: ['Along motion', 'Opposite to relative motion', 'Upwards', 'Randomly'], ans: 'B', chapter: 'Laws of Motion' }]) });
   await db.insert(s.homework).values({ centreId: centre.id, batchId: batch.id, title: 'Exercise 3.2, Q1–10', subject: 'Physics', dueAt: new Date(Date.now() + 2 * 864e5), createdBy: fac.id });
+  await ensureExtras(db);
   console.log('Seeded. Logins: coaching "Demo Coaching Centre" + owner@demo.coaching / teacher@demo.coaching / student@demo.coaching / parent1@demo.coaching; Platform + ever.kumud@gmail.com');
   await client.end();
 }
 if (require.main === module) seed().catch((e) => { console.error(e); process.exit(1); });
+
+/** Demo staff (front-desk) and a platform counsellor; safe to re-run. */
+async function ensureExtras(db: any) {
+  const [centre] = await db.select().from(s.centres).where(eq(s.centres.name, 'Demo Coaching Centre')); if (!centre) return;
+  if (!(await db.select().from(s.users).where(eq(s.users.email, 'staff@demo.coaching'))).length) {
+    const [st] = await db.insert(s.users).values({ centreId: centre.id, mobile: '9999900004', email: 'staff@demo.coaching', name: 'Demo Front Desk', role: 'STAFF' }).returning();
+    await db.insert(s.staffPermissions).values({ userId: st.id, centreId: centre.id, modules: JSON.stringify(['students', 'attendance', 'fees', 'notices', 'enquiries', 'leaves', 'feedback']), title: 'Receptionist' });
+  }
+  if (!(await db.select().from(s.users).where(eq(s.users.email, 'counsellor@demo.coaching'))).length)
+    await db.insert(s.users).values({ centreId: null, mobile: '9999900005', email: 'counsellor@demo.coaching', name: 'Demo Counsellor', role: 'EXPERT' });
+}
