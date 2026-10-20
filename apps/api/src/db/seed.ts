@@ -46,4 +46,16 @@ async function ensureExtras(db: any) {
   }
   if (!(await db.select().from(s.users).where(eq(s.users.email, 'counsellor@demo.coaching'))).length)
     await db.insert(s.users).values({ centreId: null, mobile: '9999900005', email: 'counsellor@demo.coaching', name: 'Demo Counsellor', role: 'EXPERT' });
+  // Demo counselling data so the console is not empty
+  const [expert] = await db.select().from(s.users).where(eq(s.users.email, 'counsellor@demo.coaching'));
+  const [student] = await db.select().from(s.users).where(eq(s.users.email, 'student@demo.coaching'));
+  const [parent] = await db.select().from(s.users).where(eq(s.users.email, 'parent2@demo.coaching'));
+  const [aarav] = await db.select().from(s.students).where(and(eq(s.students.centreId, centre.id), eq(s.students.name, 'Aarav Kumar')));
+  if (expert && student && !(await db.select().from(s.wellbeingRequests).where(eq(s.wellbeingRequests.centreId, centre.id))).length) {
+    const [r1] = await db.insert(s.wellbeingRequests).values({ centreId: centre.id, studentId: aarav?.id, requesterId: student.id, requesterRole: 'STUDENT', category: 'exam-stress', text: 'JEE mock tests are coming and I cannot sleep properly. I keep thinking I will fail even after studying all day.', urgency: 'normal', status: 'in-progress', expertId: expert.id }).returning();
+    await db.insert(s.wellbeingMessages).values([{ requestId: r1.id, senderId: student.id, senderRole: 'STUDENT', text: 'JEE mock tests are coming and I cannot sleep properly. I keep thinking I will fail even after studying all day.' }, { requestId: r1.id, senderId: expert.id, senderRole: 'EXPERT', text: 'Thank you for writing, Aarav. What you describe is very common before mocks. Let us talk for 20 minutes this week — meanwhile try the 4-7-8 breathing before bed. Would tomorrow 6 pm work?' }]);
+    if (parent) { const [r2] = await db.insert(s.wellbeingRequests).values({ centreId: centre.id, requesterId: parent.id, requesterRole: 'PARENT', category: 'focus', text: 'My daughter spends hours on the phone and her marks have dropped this term. We fight about it daily. How should I handle this?', urgency: 'normal', status: 'new' }).returning();
+      await db.insert(s.wellbeingMessages).values({ requestId: r2.id, senderId: parent.id, senderRole: 'PARENT', text: 'My daughter spends hours on the phone and her marks have dropped this term. We fight about it daily. How should I handle this?' }); }
+    await db.insert(s.wellbeingPosts).values({ expertId: expert.id, title: 'Before a big test: the 10-minute reset', body: '1) Close the books 10 minutes before you start.\n2) Breathe in for 4, hold for 7, out for 8 — four rounds.\n3) Write down the one thing you are worried about, then fold the paper.\n4) Walk in. You have prepared; the paper is just questions.', audience: 'students' });
+  }
 }
