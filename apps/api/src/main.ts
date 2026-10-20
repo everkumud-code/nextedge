@@ -11,6 +11,6 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
   const port = Number(process.env.PORT) || 3000;
   await app.listen(port);
-  console.log(`API listening on :${port}`);
+  console.log(`API listening on :${port} · OTP_MODE=${(process.env.OTP_MODE || 'live').trim()}`);
 }
 bootstrap();

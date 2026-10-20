@@ -50,7 +50,7 @@ export class AuthService {
     const ident = (email || mobile || '').toLowerCase(); const key = `${centreId || 'any'}:${ident}`;
     const sends = await this.redis.hit(`otp:sends:${key}`, 3600);
     if (sends > SEND_LIMIT) throw new HttpException('Too many OTP requests. Try again after an hour.', 429);
-    const code = process.env.OTP_MODE === 'dev' ? '123456' : String(Math.floor(100000 + Math.random() * 900000));
+    const code = (process.env.OTP_MODE || '').trim() === 'dev' ? '123456' : String(Math.floor(100000 + Math.random() * 900000));
     await this.redis.set(`otp:code:${key}`, code, OTP_TTL); await this.redis.del(`otp:fails:${key}`);
     let delivered = 'dev';
     if (process.env.OTP_MODE !== 'dev') {

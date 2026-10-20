@@ -12,6 +12,8 @@ class ChooseDto { @IsString() choiceToken: string; @IsString() userId: string; }
 export class AuthController {
   constructor(private auth: AuthService) {}
   /** Login screen step 1: list of coachings (search by name). */
+  /** Public: which OTP mode the server is running (none | dev | live). */
+  @Public() @Get('mode') mode() { return { otpMode: (process.env.OTP_MODE || 'live').trim() }; }
   @Public() @Get('centres') centres(@Query('q') q?: string) { return this.auth.centres(q); }
   /** Login step 1: coaching name (typed) + email → OTP by email. (mobile + centreId still accepted for older app builds.) */
   @Public() @Post('send-otp') async sendOtp(@Body() dto: SendOtpDto) { const centreId = await this.auth.resolveCentre(dto.centreName, dto.centreId); return this.auth.sendOtp(dto.mobile, centreId, dto.channel || 'email', dto.email); }
