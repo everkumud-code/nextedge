@@ -57,6 +57,8 @@ Super-admin for this (and every) project: ever.kumud@gmail.com — seeded as SUP
 
 - [x] Wellbeing & counselling (module `wellbeing`): students/parents open confidential requests → platform experts (role EXPERT, centreId null, login coaching "Platform" + email); threaded messages, session scheduling (Jitsi room), expert-only notes, tips/posts to all centres; owners get counts only (`/wellbeing/summary`). Admin: Counsellor console (super-admin + experts). Mobile: Wellbeing tab in Support.
 
+- [x] Current affairs & news: `/news?category=` from free public RSS (Google News search feeds + PIB), 30-min server cache, 7 categories incl. Hindi and Jharkhand; `/news/today` IST date/time. Mobile News tab (student + parent). Wellbeing is branded "Powered by Psychographic Society". Live clock in every app bar.
+
 ## Platform (super-admin) — done
 - [x] Per-centre feature flags (`centre_settings.features`), plan presets (starter ₹25 / standard ₹40 / pro ₹60 per student), min students, monthly/annual
 - [x] Subscription invoices (students × rate), Razorpay pay link + webhook, manual mark-paid, `paidUntil`; renewal reminders 7/3/1 days, expiry → grace 7 days → suspended (writes blocked); owner sees /subscription

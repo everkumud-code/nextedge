@@ -9,9 +9,9 @@ class WellbeingScreen extends StatefulWidget {
   @override State<WellbeingScreen> createState() => _W();
 }
 class _W extends State<WellbeingScreen> {
-  List mine = [], posts = [], cats = [];
+  List mine = [], posts = [], cats = []; String poweredBy = 'Psychographic Society';
   @override void initState() { super.initState(); load(); }
-  Future<void> load() async { try { mine = await Api.get('/wellbeing/mine'); posts = await Api.get('/wellbeing/posts'); cats = await Api.get('/wellbeing/categories'); } catch (_) {} if (mounted) setState(() {}); }
+  Future<void> load() async { try { mine = await Api.get('/wellbeing/mine'); posts = await Api.get('/wellbeing/posts'); final c = await Api.get('/wellbeing/categories'); cats = c['categories']; poweredBy = c['poweredBy'] ?? poweredBy; } catch (_) {} if (mounted) setState(() {}); }
 
   Future<void> ask() async {
     String cat = cats.isNotEmpty ? cats.first['key'] : 'other'; bool urgent = false; final text = TextEditingController();
@@ -35,7 +35,7 @@ class _W extends State<WellbeingScreen> {
     Card(color: Theme.of(context).colorScheme.primaryContainer, child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('Feeling stressed, stuck or low?', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), const SizedBox(height: 4),
       const Text('Talk privately to a NextEdge counsellor. Your coaching will not see the conversation.'), const SizedBox(height: 10),
-      FilledButton.icon(onPressed: ask, icon: const Icon(Icons.favorite_outline), label: const Text('Talk to a counsellor'))]))),
+      FilledButton.icon(onPressed: ask, icon: const Icon(Icons.favorite_outline), label: const Text('Talk to a counsellor')), const SizedBox(height: 8), Text('Powered by $poweredBy', style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic))]))),
     if (mine.isNotEmpty) Section('My conversations', mine.map((r) { final msgs = r['messages'] as List; final s = r['status'];
       return Card(child: Padding(padding: const EdgeInsets.all(12), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [Expanded(child: Text(r['category'].toString().replaceAll('-', ' '), style: const TextStyle(fontWeight: FontWeight.bold))), Chip(label: Text(s), backgroundColor: s == 'closed' ? Colors.grey.shade200 : Colors.green.shade100)]),

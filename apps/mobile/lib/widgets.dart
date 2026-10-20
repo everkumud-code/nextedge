@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -46,5 +47,25 @@ class AnnouncementBanner extends StatelessWidget {
         if (n['imageUrl'] != null) ClipRRect(borderRadius: const BorderRadius.vertical(top: Radius.circular(12)), child: Image.network(n['imageUrl'], height: 140, fit: BoxFit.cover, errorBuilder: (_, __, ___) => const SizedBox())),
         Padding(padding: const EdgeInsets.all(12), child: Row(children: [const Icon(Icons.campaign), const SizedBox(width: 8), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(n['title'], style: const TextStyle(fontWeight: FontWeight.bold)), Text(n['body'], maxLines: 2, overflow: TextOverflow.ellipsis)]))])),
       ])))).toList());
+  }
+}
+
+/// Live date + time (device local time) for the app bar.
+class Clock extends StatefulWidget {
+  const Clock({super.key});
+  @override State<Clock> createState() => _ClockState();
+}
+class _ClockState extends State<Clock> {
+  late Timer t; DateTime now = DateTime.now();
+  @override void initState() { super.initState(); t = Timer.periodic(const Duration(seconds: 30), (_) => setState(() => now = DateTime.now())); }
+  @override void dispose() { t.cancel(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    const d = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']; const m = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final h = now.hour % 12 == 0 ? 12 : now.hour % 12; final ap = now.hour < 12 ? 'am' : 'pm';
+    return Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [
+      Text('$h:${now.minute.toString().padLeft(2, '0')} $ap', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+      Text('${d[now.weekday - 1]}, ${now.day} ${m[now.month - 1]} ${now.year}', style: const TextStyle(fontSize: 11)),
+    ]);
   }
 }

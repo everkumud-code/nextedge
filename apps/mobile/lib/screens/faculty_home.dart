@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
+import '../widgets.dart';
 import 'home.dart';
 import 'chat.dart';
 import 'notifications.dart';
@@ -50,7 +51,7 @@ class _F extends State<FacultyHome> {
       const ChatScreen(),
     ];
     return Scaffold(
-      appBar: AppBar(title: const Text('Roll call'), actions: [const BellAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
+      appBar: AppBar(title: const Text('Roll call'), actions: [const Padding(padding: EdgeInsets.only(right: 8), child: Clock()), const BellAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
       body: pages[tab],
       bottomNavigationBar: NavigationBar(selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i), destinations: const [
         NavigationDestination(icon: Icon(Icons.checklist), label: 'Attendance'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Chat')]),

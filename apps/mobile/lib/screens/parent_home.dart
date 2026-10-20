@@ -7,6 +7,7 @@ import 'notifications.dart';
 import 'tests.dart';
 import 'homework.dart';
 import 'support.dart';
+import 'news.dart';
 
 class ParentHome extends StatefulWidget {
   const ParentHome({super.key});
@@ -45,13 +46,14 @@ class _P extends State<ParentHome> {
       kids.isEmpty ? const Center(child: Text('No child linked')) : TestsScreen(studentId: kids.first['id'], canAttempt: false),
       kids.isEmpty ? const Center(child: Text('No child linked')) : HomeworkScreen(studentId: kids.first['id'], canSubmit: false),
       kids.isEmpty ? const Center(child: Text('No child linked')) : SupportScreen(studentId: kids.first['id'], role: 'PARENT'),
+      const NewsScreen(),
       const ChatScreen(),
     ];
     return Scaffold(
-      appBar: AppBar(title: const Text('NextEdge'), actions: [const BellAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
+      appBar: AppBar(title: const Text('NextEdge'), actions: [const Padding(padding: EdgeInsets.only(right: 8), child: Clock()), const BellAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
       body: pages[tab],
-      bottomNavigationBar: NavigationBar(selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i), destinations: const [
-        NavigationDestination(icon: Icon(Icons.family_restroom), label: 'My child'), NavigationDestination(icon: Icon(Icons.quiz_outlined), label: 'Results'), NavigationDestination(icon: Icon(Icons.assignment_outlined), label: 'Homework'), NavigationDestination(icon: Icon(Icons.support_agent), label: 'Leave & more'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Message')]),
+      bottomNavigationBar: NavigationBar(selectedIndex: tab, labelBehavior: NavigationDestinationLabelBehavior.alwaysShow, onDestinationSelected: (i) => setState(() => tab = i), destinations: const [
+        NavigationDestination(icon: Icon(Icons.family_restroom), label: 'My child'), NavigationDestination(icon: Icon(Icons.quiz_outlined), label: 'Results'), NavigationDestination(icon: Icon(Icons.assignment_outlined), label: 'Homework'), NavigationDestination(icon: Icon(Icons.support_agent), label: 'Leave & more'), NavigationDestination(icon: Icon(Icons.newspaper), label: 'News'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Message')]),
     );
   }
 }
