@@ -346,6 +346,10 @@ export const centreSettings = pgTable('centre_settings', {
   defaultMeetingUrl: text('default_meeting_url'), // for meet/teams/custom: the centre's standing room link
   // The centre's own email account: OTPs, notices and receipts for this centre go out from here.
   smtpHost: text('smtp_host'), smtpPort: integer('smtp_port'), smtpUser: text('smtp_user'), smtpPass: text('smtp_pass'), smtpFrom: text('smtp_from'), smtpVerifiedAt: timestamp('smtp_verified_at'),
+  // White-label app
+  appName: text('app_name'), packageId: text('package_id'), appColour: text('app_colour'), appLogoUrl: text('app_logo_url'), appIconUrl: text('app_icon_url'), playStoreUrl: text('play_store_url'),
+  // Centre's own PayU for student fee collection
+  payuKey: text('payu_key'), payuSalt: text('payu_salt'), payuTest: boolean('payu_test').default(true).notNull(), manualPayInfo: text('manual_pay_info'),
   lat: numeric('lat', { precision: 10, scale: 7 }), lng: numeric('lng', { precision: 10, scale: 7 }), geofenceM: integer('geofence_m').default(15).notNull(), gpsToleranceM: integer('gps_tolerance_m').default(5).notNull(),
   workStart: text('work_start').default('09:00').notNull(), lateAfterMin: integer('late_after_min').default(15).notNull(), halfDayMin: integer('half_day_min').default(240).notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
@@ -362,6 +366,7 @@ export const subscriptionInvoices = pgTable('subscription_invoices', {
   status: text('status').default('due').notNull(), // due | paid | void
   paidOn: date('paid_on'),
   mode: text('mode'), reference: text('reference'), paymentLink: text('payment_link'),
+  claimedRef: text('claimed_ref'), claimedAt: timestamp('claimed_at'), claimedNote: text('claimed_note'), // owner says "paid manually" → super-admin approves
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -424,5 +429,7 @@ export const platformSettings = pgTable('platform_settings', {
   id: text('id').primaryKey(), // 'platform'
   smtpHost: text('smtp_host'), smtpPort: integer('smtp_port'), smtpUser: text('smtp_user'), smtpPass: text('smtp_pass'), smtpFrom: text('smtp_from'), smtpVerifiedAt: timestamp('smtp_verified_at'),
   otpEnabled: boolean('otp_enabled').default(false).notNull(),
+  payuKey: text('payu_key'), payuSalt: text('payu_salt'), payuTest: boolean('payu_test').default(true).notNull(),
+  manualPayInfo: text('manual_pay_info'), // shown on the payment wall: UPI id, bank details, WhatsApp number
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

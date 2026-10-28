@@ -46,7 +46,7 @@ export class PlatformService {
 
   async markPaid(invoiceId: string, mode: string, reference?: string) {
     const db = this.dbs.db; const [inv] = await db.select().from(subscriptionInvoices).where(eq(subscriptionInvoices.id, invoiceId)); if (!inv || inv.status === 'paid') return inv;
-    await db.update(subscriptionInvoices).set({ status: 'paid', paidOn: today(), mode, reference }).where(eq(subscriptionInvoices.id, invoiceId));
+    await db.update(subscriptionInvoices).set({ status: 'paid', paidOn: today(), mode, reference: reference || inv.claimedRef || null }).where(eq(subscriptionInvoices.id, invoiceId));
     await db.update(centreSettings).set({ paidUntil: inv.periodTo, status: 'active', updatedAt: new Date() }).where(eq(centreSettings.centreId, inv.centreId));
     const admins = await db.select({ id: users.id }).from(users).where(and(eq(users.centreId, inv.centreId), eq(users.role, 'ADMIN')));
     this.notify.notifyUsers(inv.centreId, admins.map((a) => a.id), 'Subscription renewed ✅', `Paid ₹${Number(inv.amount).toLocaleString('en-IN')} · active till ${inv.periodTo}.`, { data: { type: 'subscription' } });

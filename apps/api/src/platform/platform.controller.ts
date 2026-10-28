@@ -50,9 +50,16 @@ export class PlatformController {
     if (b.plan && PLAN_PRESETS[b.plan]) { await db.update(centres).set({ plan: b.plan }).where(eq(centres.id, id)); set.pricePerStudent = String(PLAN_PRESETS[b.plan].price); set.features = JSON.stringify(PLAN_PRESETS[b.plan].features); }
     if (b.features) set.features = JSON.stringify(b.features.filter((m) => (MODULES as readonly string[]).includes(m)));
     if (b.pricePerStudent !== undefined) set.pricePerStudent = String(b.pricePerStudent);
-    for (const k of ['minStudents', 'billingCycle', 'status', 'paidUntil', 'trialEndsAt', 'liveProvider', 'zoomAccountId', 'zoomClientId', 'zoomClientSecret', 'defaultMeetingUrl'] as const) if (b[k] !== undefined) set[k] = b[k];
+    for (const k of ['minStudents', 'billingCycle', 'status', 'paidUntil', 'trialEndsAt', 'liveProvider', 'zoomAccountId', 'zoomClientId', 'zoomClientSecret', 'defaultMeetingUrl', 'appName', 'packageId', 'appColour', 'appLogoUrl', 'appIconUrl', 'playStoreUrl'] as const) if ((b as any)[k] !== undefined) set[k] = (b as any)[k];
     await db.update(centreSettings).set(set).where(eq(centreSettings.centreId, id));
     return this.svc.settings(id);
+  }
+
+  /** Build config for the white-label app of this centre (used by the Codemagic 'whitelabel' workflow env vars). */
+  @Get('centres/:id/app-config') async appConfig(@Param('id') id: string) {
+    const s = await this.svc.settings(id); const [c] = await this.dbs.db.select().from(centres).where(eq(centres.id, id));
+    const slug = (c.name || 'nextedge').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 20) || 'nextedge';
+    return { CENTRE_ID: id, APP_NAME: s.appName || c.name, PACKAGE_ID: s.packageId || `in.nextedge.${slug}`, APP_COLOUR: s.appColour || c.primaryColour || '#1673D9', APP_LOGO_URL: s.appLogoUrl || '', APP_ICON_URL: s.appIconUrl || s.appLogoUrl || '', API_BASE: (process.env.PUBLIC_API_URL || 'https://coaching-connect-api.onrender.com') + '/api', note: 'Codemagic → coaching-connect → workflow "White-label release" → Start new build → set these as environment variables (or add them to the Codemagic app’s environment group for this client).' };
   }
 
   @Get('centres/:id/invoices') invoices(@Param('id') id: string) { return this.dbs.db.select().from(subscriptionInvoices).where(eq(subscriptionInvoices.centreId, id)).orderBy(desc(subscriptionInvoices.createdAt)); }
@@ -92,7 +99,7 @@ export class SubscriptionController {
   @Get() async mine(@CurrentUser() u: JwtUser) {
     if (!u.centreId) return null; const s = await this.svc.settings(u.centreId); const n = await this.svc.activeStudents(u.centreId);
     const [inv] = await this.dbs.db.select().from(subscriptionInvoices).where(and(eq(subscriptionInvoices.centreId, u.centreId), eq(subscriptionInvoices.status, 'due')));
-    const { zoomClientSecret, zoomClientId, zoomAccountId, smtpPass, ...safe } = s as any;
+    const { zoomClientSecret, zoomClientId, zoomAccountId, smtpPass, payuSalt, ...safe } = s as any;
     return { ...safe, activeStudents: n, openInvoice: inv || null, estimateNext: Math.max(s.minStudents, n) * Number(s.pricePerStudent) * (s.billingCycle === 'annual' ? 10 : 1) };
   }
   @Post('invoice') @Roles('ADMIN') async raise(@CurrentUser() u: JwtUser) { return this.svc.raiseInvoice(u.centreId!); }

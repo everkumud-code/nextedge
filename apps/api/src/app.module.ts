@@ -33,13 +33,14 @@ import { PlatformModule } from './platform/platform.module';
 import { StaffAttendanceController } from './staff-attendance/staff-attendance.controller';
 import { WellbeingController } from './wellbeing/wellbeing.controller';
 import { NewsController } from './news/news.controller';
+import { PaymentsController } from './payments/payments.controller';
 
 @Controller()
 class HealthController { @Public() @Get('health') health() { return { ok: true, service: 'nextedge-api', time: new Date().toISOString() }; } }
 
 @Module({
   imports: [DbModule, PlatformModule, AuthModule],
-  controllers: [HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController, NotificationsController, ChatController, ContentController, TimetableController, CentresController, TestsController, HomeworkController, LiveController, ReportsController, StaffController, DoubtsController, LeavesController, FeedbackController, EnquiriesController, WishesController, PlatformController, SubscriptionController, StaffAttendanceController, WellbeingController, NewsController],
+  controllers: [HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController, NotificationsController, ChatController, ContentController, TimetableController, CentresController, TestsController, HomeworkController, LiveController, ReportsController, StaffController, DoubtsController, LeavesController, FeedbackController, EnquiriesController, WishesController, PlatformController, SubscriptionController, StaffAttendanceController, WellbeingController, NewsController, PaymentsController],
   providers: [StudentsService, ChatGateway, ReportsService, SchedulerService, FeesController, WishesController, { provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AppModule {}
