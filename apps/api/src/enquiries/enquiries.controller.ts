@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
-import { IsIn, IsOptional, IsString, Length } from 'class-validator';
+import { IsIn, IsOptional, IsString, Length, ValidateIf } from 'class-validator';
 import { and, desc, eq, lte, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { enquiries, students } from '../db/schema';
@@ -11,7 +11,7 @@ import { StudentsService } from '../students/students.service';
 
 const STATUSES = ['new', 'contacted', 'demo', 'admitted', 'lost'];
 class EnqDto { @IsString() name: string; @IsString() @Length(10, 10) mobile: string; @IsOptional() @IsString() className?: string; @IsOptional() @IsString() course?: string; @IsOptional() @IsIn(['walk-in', 'phone', 'website', 'referral', 'social']) source?: string; @IsOptional() @IsString() notes?: string; @IsOptional() @IsString() nextFollowUp?: string; }
-class UpdDto { @IsOptional() @IsIn(STATUSES) status?: string; @IsOptional() @IsString() notes?: string; @IsOptional() @IsString() nextFollowUp?: string | null; @IsOptional() @IsString() assignedTo?: string; }
+class UpdDto { @IsOptional() @IsIn(STATUSES) status?: string; @IsOptional() @IsString() notes?: string; @ValidateIf((o) => o.nextFollowUp !== null && o.nextFollowUp !== undefined) @IsString() nextFollowUp?: string | null; @IsOptional() @IsString() assignedTo?: string; }
 
 /** Enquiry register: walk-ins and calls → follow-ups → admission (one click creates the student). */
 @Controller('enquiries')

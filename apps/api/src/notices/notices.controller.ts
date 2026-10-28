@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
-import { IsIn, IsOptional, IsString } from 'class-validator';
+import { IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
 import { and, desc, eq, inArray, or, isNull } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { noticeReads, notices, students, users } from '../db/schema';
@@ -9,7 +9,7 @@ import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { NotificationsService } from '../notifications/notifications.service';
 
-class NoticeDto { @IsString() title: string; @IsString() body: string; @IsIn(['GENERAL', 'HOLIDAY', 'EXAM', 'FEE', 'EVENT', 'URGENT', 'ANNOUNCEMENT', 'GREETING']) type: any; @IsOptional() @IsString() batchId?: string; @IsOptional() pinned?: boolean; @IsOptional() @IsString() imageUrl?: string; @IsOptional() @IsString() expiresAt?: string; }
+class NoticeDto { @IsString() title: string; @IsString() body: string; @IsIn(['GENERAL', 'HOLIDAY', 'EXAM', 'FEE', 'EVENT', 'URGENT', 'ANNOUNCEMENT', 'GREETING']) type: any; @IsOptional() @IsString() batchId?: string; @IsOptional() @IsBoolean() pinned?: boolean; @IsOptional() @IsString() imageUrl?: string; @IsOptional() @IsString() expiresAt?: string; }
 
 @Controller('notices')
 @Mod('notices')

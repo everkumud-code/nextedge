@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Param, Post, Put, Query, BadRequestException, ForbiddenException } from '@nestjs/common';
-import { IsArray, IsIn, IsInt, IsOptional, IsString, Min } from 'class-validator';
+import { IsArray, IsIn, IsInt, IsObject, IsOptional, IsString, Min } from 'class-validator';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { students, testAttempts, tests } from '../db/schema';
@@ -12,7 +12,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 
 type Q = { q: string; opts: string[]; ans: 'A' | 'B' | 'C' | 'D'; chapter?: string; marks?: number };
 class TestDto { @IsString() batchId: string; @IsString() title: string; @IsOptional() @IsString() subject?: string; @IsIn(['online', 'offline']) mode: string; @IsString() date: string; @IsOptional() @IsInt() @Min(1) durationMin?: number; @IsOptional() @IsInt() maxMarks?: number; @IsOptional() negative?: number; @IsOptional() @IsArray() questions?: Q[]; }
-class SubmitDto { @IsString() studentId: string; answers: Record<string, string>; @IsOptional() @IsInt() tabSwitches?: number; }
+class SubmitDto { @IsString() studentId: string; @IsObject() answers: Record<string, string>; @IsOptional() @IsInt() tabSwitches?: number; }
 class MarksDto { @IsArray() marks: { studentId: string; marks: number }[]; }
 
 const pct = (rank: number, n: number) => (n <= 1 ? 100 : Math.round(((n - rank) / (n - 1)) * 100));

@@ -22,7 +22,10 @@ export class AuthGuard implements CanActivate {
     const effRole = u.role === 'STAFF' ? 'FACULTY' : u.role;
     if (roles?.length && !roles.includes(effRole)) throw new ForbiddenException('Not allowed for your role');
     const mod = this.reflector.getAllAndOverride<string>('module', [ctx.getHandler(), ctx.getClass()]);
-    if (mod && (u.role === 'FACULTY' || u.role === 'STAFF') && !(u.modules || []).includes(mod)) throw new ForbiddenException(`You do not have access to ${mod}. Ask the owner.`);
+    const mods: string[] = u.modules || [];
+    // Reading the student/batch list is needed by every teaching module (roll call, marks, homework), so a GET on 'students' passes when any of those is granted.
+    const studentRead = mod === 'students' && req.method === 'GET' && mods.some((m) => ['students', 'attendance', 'tests', 'homework', 'fees', 'live', 'study', 'doubts', 'leaves', 'chat', 'timetable'].includes(m));
+    if (mod && (u.role === 'FACULTY' || u.role === 'STAFF') && !mods.includes(mod) && !studentRead) throw new ForbiddenException(`You do not have access to ${mod}. Ask the owner.`);
     if (u.role === 'EXPERT' && mod && mod !== 'wellbeing' && mod !== 'notices') throw new ForbiddenException('Counsellors can only use the wellbeing console.');
     // Platform-level switches: feature off for this centre, or centre suspended (read-only for everyone but the owner's subscription page).
     if (u.centreId && u.role !== 'SUPER_ADMIN') {
