@@ -3,6 +3,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import { and, eq, isNull } from 'drizzle-orm';
 import * as s from './schema';
+import { MODULES } from '../common/permissions';
 
 export async function seed() {
   const client = postgres(process.env.DATABASE_URL!); const db = drizzle(client, { schema: s });
@@ -40,6 +41,8 @@ if (require.main === module) seed().catch((e) => { console.error(e); process.exi
 /** Demo staff (front-desk) and a platform counsellor; safe to re-run. */
 async function ensureExtras(db: any) {
   const [centre] = await db.select().from(s.centres).where(eq(s.centres.name, 'Demo Coaching Centre')); if (!centre) return;
+  // Demo centre always has every module switched on (new modules appear as they are built).
+  await db.update(s.centreSettings).set({ features: JSON.stringify([...MODULES]) }).where(eq(s.centreSettings.centreId, centre.id));
   if (!(await db.select().from(s.users).where(eq(s.users.email, 'staff@demo.coaching'))).length) {
     const [st] = await db.insert(s.users).values({ centreId: centre.id, mobile: '9999900004', email: 'staff@demo.coaching', name: 'Demo Front Desk', role: 'STAFF' }).returning();
     await db.insert(s.staffPermissions).values({ userId: st.id, centreId: centre.id, modules: JSON.stringify(['students', 'attendance', 'fees', 'notices', 'enquiries', 'leaves', 'feedback']), title: 'Receptionist' });
@@ -51,6 +54,18 @@ async function ensureExtras(db: any) {
   const [student] = await db.select().from(s.users).where(eq(s.users.email, 'student@demo.coaching'));
   const [parent] = await db.select().from(s.users).where(eq(s.users.email, 'parent2@demo.coaching'));
   const [aarav] = await db.select().from(s.students).where(and(eq(s.students.centreId, centre.id), eq(s.students.name, 'Aarav Kumar')));
+  if (aarav && !(await db.select().from(s.records).where(eq(s.records.centreId, centre.id))).length) {
+      const [route] = await db.insert(s.records).values({ centreId: centre.id, kind: 'transport-route', title: 'Route 1 — Lalpur to Kanke Road', status: 'active', data: JSON.stringify({ vehicle: 'JH01AB1234', driver: 'Ramesh Yadav', driverMobile: '9876500099', stops: 'Lalpur 7:10\nKokar 7:20\nBariatu 7:30\nKanke Road 7:45', fee: 1200, capacity: 30 }) }).returning();
+      await db.insert(s.records).values([
+        { centreId: centre.id, kind: 'transport-assign', studentId: aarav.id, refId: route.id, title: 'Kokar', status: 'active', parentVisible: true, data: JSON.stringify({ dropStop: 'Kokar', pickupTime: '07:20', dropTime: '16:30' }) },
+        { centreId: centre.id, kind: 'book', title: 'Concepts of Physics — H.C. Verma (Vol 1)', status: 'available', data: JSON.stringify({ author: 'H.C. Verma', isbn: '9788177091878', subject: 'Physics', copies: 5, shelf: 'A2', price: 450 }) },
+        { centreId: centre.id, kind: 'achievement', studentId: aarav.id, title: 'Gold medal — District Maths Olympiad', date: '2026-10-05', status: 'published', parentVisible: true, data: JSON.stringify({ area: 'Olympiad', level: 'District', position: '1st' }) },
+        { centreId: centre.id, kind: 'holiday', title: 'Diwali break', date: '2026-11-08', status: 'holiday', parentVisible: true, data: JSON.stringify({ endDate: '2026-11-12', forWhom: 'Everyone' }) },
+        { centreId: centre.id, kind: 'event', title: 'Annual Day', date: '2026-12-20', status: 'planned', parentVisible: true, data: JSON.stringify({ time: '17:00', venue: 'Town Hall, Ranchi', inCharge: 'Sharma Sir' }) },
+        { centreId: centre.id, kind: 'lesson', title: 'Kinematics — equations of motion', date: new Date().toISOString().slice(0, 10), status: 'taught', parentVisible: true, data: JSON.stringify({ subject: 'Physics', batch: 'Class 12 PCM - Morning', teacher: 'Sharma Sir', homework: 'Ex 3.1 Q1–10' }) },
+        { centreId: centre.id, kind: 'item', title: 'Whiteboard markers', status: 'low', data: JSON.stringify({ category: 'Stationery', qty: 8, unit: 'pcs', minQty: 10, location: 'Store' }) },
+      ]);
+    }
   if (expert && student && !(await db.select().from(s.wellbeingRequests).where(eq(s.wellbeingRequests.centreId, centre.id))).length) {
     const [r1] = await db.insert(s.wellbeingRequests).values({ centreId: centre.id, studentId: aarav?.id, requesterId: student.id, requesterRole: 'STUDENT', category: 'exam-stress', text: 'JEE mock tests are coming and I cannot sleep properly. I keep thinking I will fail even after studying all day.', urgency: 'normal', status: 'in-progress', expertId: expert.id }).returning();
     await db.insert(s.wellbeingMessages).values([{ requestId: r1.id, senderId: student.id, senderRole: 'STUDENT', text: 'JEE mock tests are coming and I cannot sleep properly. I keep thinking I will fail even after studying all day.' }, { requestId: r1.id, senderId: expert.id, senderRole: 'EXPERT', text: 'Thank you for writing, Aarav. What you describe is very common before mocks. Let us talk for 20 minutes this week — meanwhile try the 4-7-8 breathing before bed. Would tomorrow 6 pm work?' }]);

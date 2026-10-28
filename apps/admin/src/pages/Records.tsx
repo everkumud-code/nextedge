@@ -1,0 +1,75 @@
+import { useEffect, useMemo, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { api, session } from '../api';
+const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
+const today = new Date().toISOString().slice(0, 10);
+
+/** One screen for every record kind (transport, library, inventory, visitors, discipline, health, achievements, events, planner, duties…). The kind’s definition drives the form, columns and filters. */
+export default function Records() {
+  const { kind } = useParams(); const [kinds, setKinds] = useState<any[]>([]); const kd = kinds.find((k) => k.key === kind);
+  const group = kinds.filter((k) => kd && k.group === kd.group);
+  const [rows, setRows] = useState<any[]>([]); const [students, setStudents] = useState<any[]>([]); const [staff, setStaff] = useState<any[]>([]); const [refs, setRefs] = useState<any[]>([]);
+  const [q, setQ] = useState(''); const [statusF, setStatusF] = useState(''); const [form, setForm] = useState<any | null>(null); const [msg, setMsg] = useState('');
+  const owner = ['ADMIN', 'SUPER_ADMIN'].includes(session.user?.role || '');
+  useEffect(() => { api('/records/kinds').then(setKinds); api('/students').then(setStudents).catch(() => {}); api('/staff').then(setStaff).catch(() => {}); }, []);
+  const load = () => { if (!kind) return; api(`/records/${kind}`).then(setRows).catch((e) => setMsg(e.message)); if (kd?.ref) api(`/records/${kd.ref.kind}`).then(setRefs).catch(() => {}); };
+  useEffect(() => { setRows([]); setForm(null); setMsg(''); setStatusF(''); load(); }, [kind, kd?.ref?.kind]);
+  const filtered = useMemo(() => rows.filter((r) => (!statusF || r.status === statusF) && (!q || JSON.stringify(r).toLowerCase().includes(q.toLowerCase()))), [rows, q, statusF]);
+  const counts = useMemo(() => { const c: Record<string, number> = {}; rows.forEach((r) => (c[r.status] = (c[r.status] || 0) + 1)); return c; }, [rows]);
+  if (!kd) return <p className="text-sm text-slate-500 mt-4">{msg || 'Loading…'}</p>;
+  const blank = () => ({ title: '', date: today, status: kd.statuses[0], studentId: '', staffId: '', refId: '', data: {}, parentVisible: !!kd.parentVisible, notifyParent: !!kd.notifyParentDefault, notifyAll: false });
+  async function save() {
+    try { const body = { ...form, data: Object.fromEntries(Object.entries(form.data).filter(([, v]) => v !== '' && v !== undefined)) };
+      if (form.id) await api(`/records/${kind}/${form.id}`, { method: 'PUT', body: JSON.stringify(body) }); else await api(`/records/${kind}`, { method: 'POST', body: JSON.stringify(body) });
+      setMsg(form.id ? 'Updated' : `Saved${form.notifyParent && form.studentId ? ' — parent notified' : form.notifyAll ? ' — everyone notified' : ''}`); setForm(null); load(); } catch (e: any) { setMsg(e.message); }
+  }
+  async function setStatus(r: any, status: string) { const extra: any = {}; if (kind === 'loan' && status === 'returned') extra.data = { returnedOn: today }; if (kind === 'visitor' && status === 'out') extra.data = { outTime: new Date().toTimeString().slice(0, 5) }; await api(`/records/${kind}/${r.id}`, { method: 'PUT', body: JSON.stringify({ status, ...extra }) }); load(); }
+  async function remove(r: any) { if (!confirm(`Delete "${r.title}"?`)) return; await api(`/records/${kind}/${r.id}`, { method: 'DELETE' }); load(); }
+  async function csv() { const res = await fetch(`${API}/records/${kind}/export.csv`, { headers: { Authorization: `Bearer ${session.token}` } }); const b = await res.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `${kind}.csv`; a.click(); }
+  const F = (f: any) => { const v = form.data[f.key] ?? ''; const set = (val: any) => setForm({ ...form, data: { ...form.data, [f.key]: val } }); const cls = 'input';
+    if (f.type === 'textarea') return <textarea className={cls} rows={3} value={v} onChange={(e) => set(e.target.value)} />;
+    if (f.type === 'select') return <select className={cls} value={v} onChange={(e) => set(e.target.value)}><option value="">—</option>{f.options.map((o: string) => <option key={o}>{o}</option>)}</select>;
+    return <input className={cls} type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'time' ? 'time' : f.type === 'url' ? 'url' : 'text'} maxLength={f.type === 'mobile' ? 10 : undefined} value={v} onChange={(e) => set(f.type === 'mobile' ? e.target.value.replace(/\D/g, '') : e.target.value)} />; };
+  const cols = kd.fields.filter((f: any) => f.type !== 'textarea' && f.type !== 'url').slice(0, 4);
+  const overdue = (r: any) => (kind === 'loan' && r.status === 'issued' && r.data.dueDate && r.data.dueDate < today) || (kind === 'duty' && r.status !== 'done' && r.data.dueDate && r.data.dueDate < today) || (kind === 'scheduled-service' && r.status !== 'done' && r.data.nextDue && r.data.nextDue < today);
+  return (
+    <div>
+      <div className="flex items-center justify-between flex-wrap gap-3"><div><div className="text-xs text-slate-500">{kd.group}</div><h1 className="text-2xl font-bold">{kd.label}</h1></div>
+        <div className="flex gap-2 flex-wrap">{group.map((g) => <a key={g.key} className={g.key === kind ? 'btn' : 'btn-quiet'} href={`/records/${g.key}`}>{g.label}</a>)}</div></div>
+      <p className="text-sm text-slate-600 mt-1">{kd.help}</p>
+      <div className="flex gap-3 mt-4 items-center flex-wrap">
+        <button className="btn" onClick={() => setForm(blank())}>+ Add {kd.label.toLowerCase().replace(/s$/, '')}</button>
+        <input className="input w-56" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className="flex gap-1">{['', ...kd.statuses].map((s) => <button key={s} className={`px-3 py-1 rounded-full border text-sm ${statusF === s ? 'border-edge-500 bg-edge-100' : 'border-slate-200'}`} onClick={() => setStatusF(s)}>{s || 'all'} {s ? counts[s] || 0 : rows.length}</button>)}</div>
+        <button className="btn-quiet ml-auto" onClick={csv}>Excel (CSV)</button>
+      </div>
+      {msg && <p className="text-sm mt-2 text-moss">{msg}</p>}
+      <table className="card w-full mt-4 text-sm"><thead><tr>{kd.dateLabel !== null && <th className="th">Date</th>}<th className="th">{kd.titleLabel}</th>{kd.about === 'student' && <th className="th">Student</th>}{kd.about === 'staff' && <th className="th">Staff</th>}{kd.ref && <th className="th">{kd.ref.label}</th>}{cols.map((c: any) => <th key={c.key} className="th">{c.label}</th>)}<th className="th">Status</th><th className="th"></th></tr></thead>
+        <tbody>{filtered.map((r) => <tr key={r.id} className={overdue(r) ? 'bg-brick/5' : ''}>
+          <td className="td whitespace-nowrap">{r.date ? new Date(r.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : ''}</td>
+          <td className="td font-medium">{r.title}{r.parentVisible && kd.about === 'student' && <span className="text-xs text-slate-400 ml-1" title="Visible to parent">👁</span>}</td>
+          {kd.about === 'student' && <td className="td">{r.studentName || <span className="text-slate-400">—</span>}{r.rollNo && <span className="text-xs text-slate-500"> {r.rollNo}</span>}</td>}
+          {kd.about === 'staff' && <td className="td">{r.staffName || '—'}</td>}
+          {kd.ref && <td className="td">{r.refTitle || '—'}</td>}
+          {cols.map((c: any) => <td key={c.key} className="td">{r.data[c.key] ?? ''}</td>)}
+          <td className="td"><select className="input py-0.5 text-xs w-32" value={r.status} onChange={(e) => setStatus(r, e.target.value)}>{kd.statuses.map((s: string) => <option key={s}>{s}</option>)}</select>{overdue(r) && <div className="text-xs text-brick">overdue</div>}</td>
+          <td className="td whitespace-nowrap"><button className="btn-quiet" onClick={() => setForm({ ...r, studentId: r.studentId || '', staffId: r.staffId || '', refId: r.refId || '', notifyParent: false, notifyAll: false })}>Edit</button> {owner && <button className="text-brick text-sm underline ml-1" onClick={() => remove(r)}>Delete</button>}</td>
+        </tr>)}</tbody></table>
+      {!filtered.length && <p className="text-sm text-slate-500 mt-3">Nothing here yet.</p>}
+      {form && <div className="fixed inset-0 bg-black/40 grid place-items-center z-50" onClick={() => setForm(null)}><div className="card p-5 w-full max-w-3xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-3"><h2 className="font-semibold">{form.id ? 'Edit' : 'New'} — {kd.label}</h2><button className="btn-quiet" onClick={() => setForm(null)}>Close</button></div>
+        <div className="grid grid-cols-3 gap-3">
+          <div className="col-span-2"><label className="text-sm font-medium">{kd.titleLabel}</label><input className="input" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} autoFocus /></div>
+          <div><label className="text-sm font-medium">{kd.dateLabel || 'Date'}</label><input className="input" type="date" value={form.date || ''} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
+          {kd.about === 'student' && <div><label className="text-sm font-medium">Student{kind === 'stock-move' ? ' (optional)' : ''}</label><select className="input" value={form.studentId} onChange={(e) => setForm({ ...form, studentId: e.target.value })}><option value="">—</option>{students.map((s) => <option key={s.id} value={s.id}>{s.name} {s.rollNo ? `(${s.rollNo})` : ''}</option>)}</select></div>}
+          {kd.about === 'staff' && <div><label className="text-sm font-medium">Staff member</label><select className="input" value={form.staffId} onChange={(e) => setForm({ ...form, staffId: e.target.value })}><option value="">—</option>{staff.map((s) => <option key={s.id} value={s.id}>{s.name} · {s.roleLabel || s.role}</option>)}</select></div>}
+          {kd.ref && <div><label className="text-sm font-medium">{kd.ref.label}</label><select className="input" value={form.refId} onChange={(e) => setForm({ ...form, refId: e.target.value })}><option value="">—</option>{refs.map((r) => <option key={r.id} value={r.id}>{r.title}</option>)}</select></div>}
+          <div><label className="text-sm font-medium">Status</label><select className="input" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>{kd.statuses.map((s: string) => <option key={s}>{s}</option>)}</select></div>
+          {kd.fields.map((f: any) => <div key={f.key} className={f.type === 'textarea' ? 'col-span-3' : ''}><label className="text-sm font-medium">{f.label}{f.required && ' *'}</label>{F(f)}</div>)}
+        </div>
+        <div className="flex gap-4 mt-3 text-sm flex-wrap">{kd.about === 'student' && <><label className="flex items-center gap-2"><input type="checkbox" checked={form.parentVisible} onChange={(e) => setForm({ ...form, parentVisible: e.target.checked })} /> Visible to parent in the app</label><label className="flex items-center gap-2"><input type="checkbox" checked={form.notifyParent} onChange={(e) => setForm({ ...form, notifyParent: e.target.checked })} /> Inform parent now (push/WhatsApp)</label></>}{['event', 'holiday'].includes(kind!) && <label className="flex items-center gap-2"><input type="checkbox" checked={form.notifyAll} onChange={(e) => setForm({ ...form, notifyAll: e.target.checked })} /> Notify everyone in the centre</label>}</div>
+        <div className="flex gap-2 mt-4"><button className="btn" onClick={save}>{form.id ? 'Save changes' : 'Save'}</button><button className="btn-quiet" onClick={() => setForm(null)}>Cancel</button></div>
+      </div></div>}
+    </div>
+  );
+}

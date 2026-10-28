@@ -24,6 +24,7 @@ import Subscription from './pages/Subscription';
 import StaffAttendance from './pages/StaffAttendance';
 import Counsellor from './pages/Counsellor';
 import PayWall from './pages/PayWall';
+import Records from './pages/Records';
 
 function Private({ children }: { children: JSX.Element }) { return session.token ? children : <Navigate to="/login" replace />; }
 
@@ -54,6 +55,7 @@ export default function App() {
         <Route path="subscription" element={<Subscription />} />
         <Route path="staff-attendance" element={<StaffAttendance />} />
         <Route path="counsellor" element={<Counsellor />} />
+        <Route path="records/:kind" element={<Records />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

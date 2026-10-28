@@ -433,3 +433,21 @@ export const platformSettings = pgTable('platform_settings', {
   manualPayInfo: text('manual_pay_info'), // shown on the payment wall: UPI id, bank details, WhatsApp number
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
+
+// ---------- Generic records (school modules: transport, library, inventory, discipline, health, events, ...) ----------
+export const records = pgTable('records', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  kind: text('kind').notNull(), // see src/records/kinds.ts
+  studentId: uuid('student_id').references(() => students.id),
+  staffId: uuid('staff_id').references(() => users.id),
+  refId: uuid('ref_id'), // link to another record (loan → book, assignment → route, stock move → item)
+  title: text('title').notNull(),
+  date: date('date'),
+  status: text('status').default('open').notNull(),
+  data: text('data').default('{}').notNull(), // JSON of the kind's fields
+  parentVisible: boolean('parent_visible').default(false).notNull(),
+  createdBy: uuid('created_by').references(() => users.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});

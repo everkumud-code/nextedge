@@ -8,7 +8,7 @@ const API = 'http://localhost:3500/api';
 async function login(centre: string, email: string) { const r = await fetch(API + '/auth/send-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ centreName: centre, email }) }).then((r) => r.json()).catch((e) => ({ err: String(e) })); if (!r.token) console.log('LOGIN FAILED', JSON.stringify(r).slice(0, 200)); session.set(r.token, r.user); }
 const errors: string[] = [];
 beforeAll(() => { window.console.error = (...a: any[]) => { const m = a.map(String).join(' '); if (!/act\(|Warning:/.test(m)) errors.push(m); }; });
-function show(Page: React.FC, path = '/') { return render(<MemoryRouter initialEntries={[path]}><Routes><Route path="*" element={<Page />} /></Routes></MemoryRouter>); }
+function show(Page: React.FC, path = '/') { return render(<MemoryRouter initialEntries={[path]}><Routes><Route path="/records/:kind" element={<Page />} /><Route path="*" element={<Page />} /></Routes></MemoryRouter>); }
 const settle = (ms = 1500) => new Promise((r) => setTimeout(r, ms));
 async function check(name: string, Page: React.FC, expects: (string | RegExp)[], path = '/') {
   errors.length = 0; const r = show(Page, path); await settle(); const text = r.container.textContent || '';
@@ -35,6 +35,12 @@ describe('owner pages', () => {
   it('StaffAttendance', async () => { const { default: P } = await import('../src/pages/StaffAttendance'); const r = await check('StaffAttendance', P, [/geofence|radius/i, 'Sharma Sir']); expect(r.missing).toEqual([]); });
   it('Subscription', async () => { const { default: P } = await import('../src/pages/Subscription'); const r = await check('Subscription', P, [/plan/i, /email/i, /PayU/i]); expect(r.missing).toEqual([]); });
   it('IdCards', async () => { const { default: P } = await import('../src/pages/IdCards'); const r = await check('IdCards', P, ['Aarav Kumar']); expect(r.missing).toEqual([]); });
+  it('Records/transport', async () => { const { default: P } = await import('../src/pages/Records'); const r = await check('Records/transport', P, ['Transport routes', 'Route 1', 'Ramesh', 'Student transport'], '/records/transport-route'); expect(r.missing).toEqual([]); });
+  it('Records/library', async () => { const { default: P } = await import('../src/pages/Records'); const r = await check('Records/library', P, ['Books', 'Verma', 'Book loans'], '/records/book'); expect(r.missing).toEqual([]); });
+  it('Records/discipline', async () => { const { default: P } = await import('../src/pages/Records'); const r = await check('Records/discipline', P, ['Discipline', 'Add'], '/records/discipline'); expect(r.missing).toEqual([]); });
+  it('Records/achievement', async () => { const { default: P } = await import('../src/pages/Records'); const r = await check('Records/achievement', P, ['Gold medal', 'Aarav'], '/records/achievement'); expect(r.missing).toEqual([]); });
+  it('Records/holiday', async () => { const { default: P } = await import('../src/pages/Records'); const r = await check('Records/holiday', P, ['Diwali break', 'holiday'], '/records/holiday'); expect(r.missing).toEqual([]); });
+  it('Records/item', async () => { const { default: P } = await import('../src/pages/Records'); const r = await check('Records/item', P, ['Whiteboard markers', 'low'], '/records/item'); expect(r.missing).toEqual([]); });
   it('PayWall', async () => { const { default: P } = await import('../src/pages/PayWall'); const r = await check('PayWall', P, [/pay/i, /manual/i]); expect(r.missing).toEqual([]); });
   it('Dashboard', async () => { const { default: P } = await import('../src/pages/Dashboard'); const r = await check('Dashboard', P, ['Today', 'Active students', 'batch', 'Attendance', 'Collected this month', 'Outstanding', 'Needs action', 'Latest notices', 'Wellbeing', 'Psychographic', 'Connect your coaching']); expect(r.missing).toEqual([]); });
 });
