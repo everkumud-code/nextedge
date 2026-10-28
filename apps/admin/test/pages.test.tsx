@@ -20,7 +20,7 @@ describe('owner pages', () => {
   beforeAll(async () => { await login('Demo', 'owner@demo.coaching'); });
   it('Students', async () => { const { default: P } = await import('../src/pages/Students'); const r = await check('Students', P, ['Aarav Kumar', 'Priya Singh', 'Add student', 'Import', /parent/i]); expect(r.missing).toEqual([]); });
   it('Batches', async () => { const { default: P } = await import('../src/pages/Batches'); const r = await check('Batches', P, ['Class 12 PCM', 'Students', 'Teachers', 'assign teacher', 'Edit']); expect(r.missing).toEqual([]); });
-  it('Attendance', async () => { const { default: P } = await import('../src/pages/Attendance'); const r = await check('Attendance', P, ['Aarav Kumar', /present/i, /%/]); expect(r.missing).toEqual([]); });
+  it('Attendance', async () => { const { default: P } = await import('../src/pages/Attendance'); const r = await check('Attendance', P, ['Aarav Kumar', 'Roll call', 'Gate scan', 'Monthly register', 'Below 75%', 'present', 'All present']); expect(r.missing).toEqual([]); });
   it('Fees', async () => { const { default: P } = await import('../src/pages/Fees'); const r = await check('Fees', P, ['Aarav Kumar', /due|outstanding/i, /record|payment/i]); expect(r.missing).toEqual([]); });
   it('Study', async () => { const { default: P } = await import('../src/pages/Study'); const r = await check('Study', P, [/subject|chapter/i]); expect(r.missing).toEqual([]); });
   it('Live', async () => { const { default: P } = await import('../src/pages/Live'); const r = await check('Live', P, [/live/i, /start|schedule/i]); expect(r.missing).toEqual([]); });
