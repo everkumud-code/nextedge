@@ -71,7 +71,9 @@ export class AttendanceController {
     const agg = await db.select({ studentId: attendance.studentId, present: sql<number>`count(*) filter (where ${attendance.status} in ('PRESENT','LATE'))`, total: sql<number>`count(*) filter (where ${attendance.status} <> 'LEAVE')` })
       .from(attendance).where(and(inArray(attendance.studentId, sts.map((s) => s.id)), gte(attendance.date, from))).groupBy(attendance.studentId);
     const m = new Map(agg.map((a) => [a.studentId, a]));
-    return sts.map((s) => { const a = m.get(s.id); const present = Number(a?.present || 0), total = Number(a?.total || 0); const pct = total ? Math.round((present / total) * 100) : null; return { ...s, present, total, pct, low: pct !== null && pct < 75 }; });
+    const td = await db.select({ studentId: attendance.studentId, status: attendance.status }).from(attendance).where(and(inArray(attendance.studentId, sts.map((s) => s.id)), eq(attendance.date, today())));
+    const tm = new Map(td.map((t) => [t.studentId, t.status]));
+    return sts.map((s) => { const a = m.get(s.id); const present = Number(a?.present || 0), total = Number(a?.total || 0); const pct = total ? Math.round((present / total) * 100) : null; return { ...s, present, total, pct, low: pct !== null && pct < 75, today: tm.get(s.id) || null }; });
   }
 
   /** Day-wise history for one student (parent/student app). */
