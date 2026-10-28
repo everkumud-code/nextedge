@@ -49,7 +49,7 @@ export class AuthService {
     if (channel === 'email' && !acct.email) throw new HttpException('No email on record. Ask the centre to add your email.', 400);
     const ident = (email || mobile || '').toLowerCase(); const key = `${centreId || 'any'}:${ident}`;
     // OTP_MODE=none: OTP system switched off — coaching + email logs straight in (demo only).
-    if ((process.env.OTP_MODE || '').trim() === 'none') return { sent: true, via: 'none', ...(await this.issue(acct)) };
+    if (!(await this.mail.otpEnabled())) return { sent: true, via: 'none', ...(await this.issue(acct)) };
     const sends = await this.redis.hit(`otp:sends:${key}`, 3600);
     if (sends > SEND_LIMIT) throw new HttpException('Too many OTP requests. Try again after an hour.', 429);
     const code = (process.env.OTP_MODE || '').trim() === 'dev' ? '123456' : String(Math.floor(100000 + Math.random() * 900000));

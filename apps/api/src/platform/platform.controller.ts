@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { centreSettings, centres, students, subscriptionInvoices } from '../db/schema';
+import { centreSettings, centres, platformSettings, students, subscriptionInvoices } from '../db/schema';
 import { Roles } from '../common/auth.guard';
 import { MODULES } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
@@ -13,12 +13,27 @@ import { MailService } from '../notifications/mail.service';
 @Controller('platform')
 @Roles('SUPER_ADMIN')
 export class PlatformController {
-  constructor(private dbs: DbService, private svc: PlatformService) {}
+  constructor(private dbs: DbService, private svc: PlatformService, private mail: MailService) {}
 
   @Get('modules') modules() { return MODULES; }
-  /** Is the BoomBites platform mailbox configured on the server? */
-  @Get('email-status') emailStatus() { const p = process.env.PLATFORM_SMTP_HOST && process.env.PLATFORM_SMTP_USER; return { configured: !!p, from: p ? (process.env.PLATFORM_SMTP_FROM || process.env.PLATFORM_SMTP_USER) : null }; }
-  @Post('email-test') async emailTest(@Body() b: { to: string }) { try { const ok = await sendEmailVia((await import('../integrations/email')).platformSmtp(), b.to, 'NextEdge platform email test', 'Platform mailbox is working.'); return { ok }; } catch (e: any) { return { ok: false, error: e.message }; } }
+  /** Super-admin mailbox (Gmail App Password) + OTP switch, managed from the Platform page. */
+  @Get('email-status') async emailStatus() { const p = await this.mail.platform(); const box = await this.mail.platformMailbox(); return { configured: !!box, from: box?.from || null, user: p?.smtpUser || process.env.PLATFORM_SMTP_USER || null, verifiedAt: p?.smtpVerifiedAt || null, otpEnabled: await this.mail.otpEnabled(), otpModeEnv: (process.env.OTP_MODE || '').trim() || null, presets: SMTP_PRESETS }; }
+  @Put('email') async setEmail(@Body() b: { provider: string; host?: string; port?: number; user: string; pass: string; fromName?: string; testTo?: string }) {
+    const preset = SMTP_PRESETS[b.provider] || SMTP_PRESETS.gmail; const host = b.host || preset.host; const port = Number(b.port || preset.port);
+    if (!host || !b.user || !b.pass) return { ok: false, error: 'Email and app password are required' };
+    const smtp = { host, port, user: b.user.trim(), pass: b.pass.replace(/\s+/g, ''), from: `${b.fromName || 'NextEdge'} <${b.user.trim()}>` };
+    try { await verifySmtp(smtp); await sendEmailVia(smtp, b.testTo || b.user, 'NextEdge: platform mailbox connected', 'Super-admin mails, invoices, renewals and fallback OTPs will go from this mailbox.'); }
+    catch (e: any) { return { ok: false, error: `Could not connect: ${e.message}. ${preset.note} (Hosting that blocks SMTP, such as Render free, times out here.)` }; }
+    await this.mail.platform();
+    await this.dbs.db.update(platformSettings).set({ smtpHost: host, smtpPort: port, smtpUser: smtp.user, smtpPass: smtp.pass, smtpFrom: smtp.from, smtpVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(platformSettings.id, 'platform'));
+    this.mail.invalidate(); return { ok: true };
+  }
+  @Put('otp') async setOtp(@Body() b: { enabled: boolean }) {
+    if (b.enabled && !(await this.mail.platformMailbox())) return { ok: false, error: 'Connect the platform mailbox first, so OTPs have a way to go out.' };
+    await this.mail.platform(); await this.dbs.db.update(platformSettings).set({ otpEnabled: !!b.enabled, updatedAt: new Date() }).where(eq(platformSettings.id, 'platform')); this.mail.invalidate();
+    return { ok: true, otpEnabled: await this.mail.otpEnabled(), note: (process.env.OTP_MODE || '').trim() ? `Server env OTP_MODE=${process.env.OTP_MODE} overrides this switch - clear it to use the switch.` : undefined };
+  }
+  @Post('email-test') async emailTest(@Body() b: { to: string }) { try { const ok = await sendEmailVia(await this.mail.platformMailbox(), b.to, 'NextEdge platform email test', 'Platform mailbox is working.'); return { ok }; } catch (e: any) { return { ok: false, error: e.message }; } }
   @Get('plans') plans() { return PLAN_PRESETS; }
 
   /** All centres with settings, student count, open invoice. */
@@ -66,11 +81,11 @@ export class SubscriptionController {
   @Put('email') @Roles('ADMIN') async setEmail(@CurrentUser() u: JwtUser, @Body() b: { provider: string; host?: string; port?: number; user: string; pass: string; fromName?: string; testTo?: string }) {
     const preset = SMTP_PRESETS[b.provider] || SMTP_PRESETS.custom; const host = b.host || preset.host; const port = Number(b.port || preset.port);
     if (!host || !b.user || !b.pass) return { ok: false, error: 'Email, password and provider are required' };
-    const smtp = { host, port, user: b.user.trim(), pass: b.pass, from: `${b.fromName || 'Coaching'} <${b.user.trim()}>` };
+    const smtp = { host, port, user: b.user.trim(), pass: b.pass.replace(/\s+/g, ''), from: `${b.fromName || 'Coaching'} <${b.user.trim()}>` };
     try { await verifySmtp(smtp); await sendEmailVia(smtp, b.testTo || b.user, 'NextEdge: email connected ✅', 'Your coaching’s emails (OTPs, notices, receipts) will now be sent from this mailbox.'); }
     catch (e: any) { return { ok: false, error: `Could not connect: ${e.message}. ${preset.note}` }; }
     await this.svc.settings(u.centreId!);
-    await this.dbs.db.update(centreSettings).set({ smtpHost: host, smtpPort: port, smtpUser: smtp.user, smtpPass: b.pass, smtpFrom: smtp.from, smtpVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(centreSettings.centreId, u.centreId!));
+    await this.dbs.db.update(centreSettings).set({ smtpHost: host, smtpPort: port, smtpUser: smtp.user, smtpPass: smtp.pass, smtpFrom: smtp.from, smtpVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(centreSettings.centreId, u.centreId!));
     return { ok: true };
   }
   @Put('email/remove') @Roles('ADMIN') async removeEmail(@CurrentUser() u: JwtUser) { await this.dbs.db.update(centreSettings).set({ smtpHost: null, smtpPort: null, smtpUser: null, smtpPass: null, smtpFrom: null, smtpVerifiedAt: null }).where(eq(centreSettings.centreId, u.centreId!)); return { ok: true }; }

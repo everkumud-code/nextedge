@@ -418,3 +418,11 @@ export const wellbeingPosts = pgTable('wellbeing_posts', {
   audience: text('audience').default('all').notNull(), // all | students | parents
   publishedAt: timestamp('published_at').defaultNow().notNull(),
 });
+
+// ---------- Platform settings (single row id='platform'): super-admin mailbox + OTP switch ----------
+export const platformSettings = pgTable('platform_settings', {
+  id: text('id').primaryKey(), // 'platform'
+  smtpHost: text('smtp_host'), smtpPort: integer('smtp_port'), smtpUser: text('smtp_user'), smtpPass: text('smtp_pass'), smtpFrom: text('smtp_from'), smtpVerifiedAt: timestamp('smtp_verified_at'),
+  otpEnabled: boolean('otp_enabled').default(false).notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});

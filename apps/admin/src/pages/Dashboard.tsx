@@ -3,8 +3,8 @@ import { api, session } from '../api';
 
 export default function Dashboard() {
   const [students, setStudents] = useState<any[]>([]); const [batches, setBatches] = useState<any[]>([]);
-  const [fees, setFees] = useState<{ collectedThisMonth: number; collectedTotal: number } | null>(null); const [notices, setNotices] = useState<any[]>([]); const [wb, setWb] = useState<any>(null);
-  useEffect(() => { api('/students').then(setStudents); api('/batches').then(setBatches); api('/fees/summary').then(setFees); api('/notices').then(setNotices); api('/wellbeing/summary').then(setWb).catch(() => {}); }, []);
+  const [fees, setFees] = useState<{ collectedThisMonth: number; collectedTotal: number } | null>(null); const [notices, setNotices] = useState<any[]>([]); const [wb, setWb] = useState<any>(null); const [sub, setSub] = useState<any>(null);
+  useEffect(() => { api('/students').then(setStudents); api('/batches').then(setBatches); api('/fees/summary').then(setFees); api('/notices').then(setNotices); api('/wellbeing/summary').then(setWb).catch(() => {}); if (session.user?.role === 'ADMIN') api('/subscription').then(setSub).catch(() => {}); }, []);
   const active = students.filter((s) => s.active).length;
   return (
     <div>
@@ -14,6 +14,7 @@ export default function Dashboard() {
           <a className="underline font-semibold" href="/subscription">Subscription</a>
         </div>
       )}
+      {sub && !sub.smtpUser && <div className="card p-3 mb-4 text-sm border-marigold-500 bg-marigold-100">Connect your coaching’s Gmail so OTPs, notices and receipts go out in your name — <a className="underline font-semibold" href="/subscription">Subscription & settings → Your coaching’s email</a></div>}
       <h1 className="text-2xl font-bold">Today</h1>
       <p className="text-slate-600 mt-1">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
       <div className="grid grid-cols-3 gap-4 mt-6">
