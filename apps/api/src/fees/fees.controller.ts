@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Headers, Param, Post, Query, Req, Res, NotFoundException } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Req, Res, NotFoundException, BadRequestException } from '@nestjs/common';
 import { receiptPdf } from './receipt';
 import { batches, centres } from '../db/schema';
 import { IsIn, IsNumberString, IsOptional, IsString } from 'class-validator';
@@ -27,19 +27,69 @@ function dueSoFar(cycle: string, amount: number, discount: number, startDate: st
   return Math.max(0, n * (amount - discount));
 }
 
+/** Date of the next instalment after today. */
+function nextDue(cycle: string, startDate: string): string | null {
+  if (cycle === 'one-time') return startDate > today() ? startDate : null;
+  const step = cycle === 'quarterly' ? 3 : 1; const d = new Date(startDate + 'T00:00:00Z'); const t = today();
+  for (let i = 0; i < 120; i++) { const iso = d.toISOString().slice(0, 10); if (iso > t) return iso; d.setUTCMonth(d.getUTCMonth() + step); }
+  return null;
+}
+
 @Controller('fees')
 @Mod('fees')
 export class FeesController {
   constructor(private dbs: DbService, private notify: NotificationsService, private platform: PlatformService) {}
 
-  @Get('plans') @Roles('SUPER_ADMIN', 'ADMIN') plans(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
-    return this.dbs.db.select().from(feePlans).where(eq(feePlans.centreId, centreOf(u, c)));
+  @Get('plans') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF') async plans(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
+    const rows = await this.dbs.db.select().from(feePlans).where(eq(feePlans.centreId, centreOf(u, c)));
+    const counts = rows.length ? await this.dbs.db.select({ planId: studentFeePlans.planId, n: sql<number>`count(*)` }).from(studentFeePlans).where(inArray(studentFeePlans.planId, rows.map((r) => r.id))).groupBy(studentFeePlans.planId) : [];
+    return rows.map((r) => ({ ...r, students: Number(counts.find((x) => x.planId === r.id)?.n || 0) }));
   }
-  @Post('plans') @Roles('SUPER_ADMIN', 'ADMIN') async createPlan(@CurrentUser() u: JwtUser, @Body() dto: PlanDto, @Query('centreId') c?: string) {
+  @Post('plans') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF') async createPlan(@CurrentUser() u: JwtUser, @Body() dto: PlanDto, @Query('centreId') c?: string) {
     const [row] = await this.dbs.db.insert(feePlans).values({ ...dto, centreId: centreOf(u, c) }).returning(); return row;
   }
   /** Assign a plan to a student (replaces any existing assignment). */
-  @Post('assign') @Roles('SUPER_ADMIN', 'ADMIN') async assign(@CurrentUser() u: JwtUser, @Body() dto: AssignDto, @Query('centreId') c?: string) {
+  @Put('plans/:id') @Roles('SUPER_ADMIN', 'ADMIN') async updatePlan(@CurrentUser() u: JwtUser, @Param('id') id: string, @Body() dto: Partial<PlanDto>, @Query('centreId') c?: string) {
+    const set: any = {}; if (dto.name) set.name = dto.name; if (dto.amount) set.amount = dto.amount; if (dto.cycle) set.cycle = dto.cycle; if (dto.batchId !== undefined) set.batchId = dto.batchId || null;
+    const [row] = await this.dbs.db.update(feePlans).set(set).where(and(eq(feePlans.id, id), eq(feePlans.centreId, centreOf(u, c)))).returning(); if (!row) throw new NotFoundException(); return row;
+  }
+  @Delete('plans/:id') @Roles('SUPER_ADMIN', 'ADMIN') async deletePlan(@CurrentUser() u: JwtUser, @Param('id') id: string, @Query('centreId') c?: string) {
+    const used = await this.dbs.db.select({ id: studentFeePlans.id }).from(studentFeePlans).where(eq(studentFeePlans.planId, id)); if (used.length) throw new BadRequestException(`${used.length} students are on this plan. Move them first.`);
+    await this.dbs.db.delete(feePlans).where(and(eq(feePlans.id, id), eq(feePlans.centreId, centreOf(u, c)))); return { ok: true };
+  }
+  /** Put every active student of a batch on a plan (skips students who already have one unless replace=true). */
+  @Post('assign-batch') @Roles('SUPER_ADMIN', 'ADMIN') async assignBatch(@CurrentUser() u: JwtUser, @Body() b: { batchId: string; planId: string; startDate: string; replace?: boolean }, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); const db = this.dbs.db; const sts = await db.select({ id: students.id }).from(students).where(and(eq(students.centreId, centreId), eq(students.batchId, b.batchId), eq(students.active, true)));
+    let n = 0; for (const s of sts) { const [ex] = await db.select().from(studentFeePlans).where(eq(studentFeePlans.studentId, s.id)); if (ex && !b.replace) continue; await db.delete(studentFeePlans).where(eq(studentFeePlans.studentId, s.id)); await db.insert(studentFeePlans).values({ centreId, studentId: s.id, planId: b.planId, startDate: b.startDate }); n++; }
+    return { assigned: n, total: sts.length };
+  }
+  @Delete('assign/:studentId') @Roles('SUPER_ADMIN', 'ADMIN') async unassign(@CurrentUser() u: JwtUser, @Param('studentId') studentId: string, @Query('centreId') c?: string) { await this.dbs.db.delete(studentFeePlans).where(and(eq(studentFeePlans.studentId, studentId), eq(studentFeePlans.centreId, centreOf(u, c)))); return { ok: true }; }
+
+  /** Remind one parent. */
+  @Post('remind/:studentId') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF') async remindOne(@CurrentUser() u: JwtUser, @Param('studentId') studentId: string, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); const r = (await this.ledger(u, c)).find((x) => x.studentId === studentId); if (!r || r.balance <= 0) return { reminded: 0 };
+    const [p] = await this.dbs.db.select({ id: users.id }).from(users).where(and(eq(users.centreId, centreId), eq(users.mobile, r.parentMobile), eq(users.role, 'PARENT')));
+    if (p) this.notify.notifyUsers(centreId, [p.id], `Fee due: ₹${r.balance.toLocaleString('en-IN')}`, `${r.name}'s fee balance is ₹${r.balance.toLocaleString('en-IN')}. Please pay at the centre or through the app.`, { data: { type: 'fee', studentId } });
+    return { reminded: p ? 1 : 0 };
+  }
+
+  /** Collection report for a date range: totals by mode, by day, by batch; outstanding by batch. */
+  @Get('report') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF') async report(@CurrentUser() u: JwtUser, @Query('from') from?: string, @Query('to') to?: string, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); const db = this.dbs.db; const f = from || today().slice(0, 7) + '-01', t = to || today();
+    const rows = await db.select({ amount: feePayments.amount, mode: feePayments.mode, paidOn: feePayments.paidOn, batchId: students.batchId }).from(feePayments).innerJoin(students, eq(students.id, feePayments.studentId)).where(and(eq(feePayments.centreId, centreId), sql`${feePayments.paidOn} between ${f} and ${t}`));
+    const byMode: Record<string, number> = {}, byDay: Record<string, number> = {}, byBatch: Record<string, number> = {}; let total = 0;
+    rows.forEach((r) => { const a = Number(r.amount); total += a; byMode[r.mode] = (byMode[r.mode] || 0) + a; byDay[r.paidOn] = (byDay[r.paidOn] || 0) + a; byBatch[r.batchId || 'none'] = (byBatch[r.batchId || 'none'] || 0) + a; });
+    const led = await this.ledger(u, c); const outstandingByBatch: Record<string, number> = {}; led.forEach((r) => { outstandingByBatch[r.batchId || 'none'] = (outstandingByBatch[r.batchId || 'none'] || 0) + r.balance; });
+    const bs = await db.select({ id: batches.id, name: batches.name }).from(batches).where(eq(batches.centreId, centreId)); const name = (id: string) => bs.find((b) => b.id === id)?.name || 'No batch';
+    return { from: f, to: t, total, count: rows.length, byMode, byDay, byBatch: Object.entries(byBatch).map(([id, v]) => ({ batch: name(id), collected: v, outstanding: outstandingByBatch[id] || 0 })).concat(Object.entries(outstandingByBatch).filter(([id]) => !byBatch[id]).map(([id, v]) => ({ batch: name(id), collected: 0, outstanding: v }))), defaulters: led.filter((r) => r.balance > 0).length, noPlan: led.filter((r) => !r.plan).length };
+  }
+
+  /** Void a wrongly entered payment (owner only). */
+  @Delete('payments/:id') @Roles('SUPER_ADMIN', 'ADMIN') async voidPayment(@CurrentUser() u: JwtUser, @Param('id') id: string, @Query('centreId') c?: string) {
+    const [p] = await this.dbs.db.delete(feePayments).where(and(eq(feePayments.id, id), eq(feePayments.centreId, centreOf(u, c)))).returning(); if (!p) throw new NotFoundException(); return { ok: true };
+  }
+
+  @Post('assign') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF') async assign(@CurrentUser() u: JwtUser, @Body() dto: AssignDto, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c);
     await this.dbs.db.delete(studentFeePlans).where(and(eq(studentFeePlans.centreId, centreId), eq(studentFeePlans.studentId, dto.studentId)));
     const [row] = await this.dbs.db.insert(studentFeePlans).values({ centreId, studentId: dto.studentId, planId: dto.planId, startDate: dto.startDate, discount: dto.discount || '0' }).returning(); return row;
@@ -57,17 +107,19 @@ export class FeesController {
     const assigns = await db.select({ studentId: studentFeePlans.studentId, startDate: studentFeePlans.startDate, discount: studentFeePlans.discount, planName: feePlans.name, amount: feePlans.amount, cycle: feePlans.cycle })
       .from(studentFeePlans).innerJoin(feePlans, eq(feePlans.id, studentFeePlans.planId)).where(inArray(studentFeePlans.studentId, ids));
     const paid = await db.select({ studentId: feePayments.studentId, total: sql<string>`sum(${feePayments.amount})` }).from(feePayments).where(inArray(feePayments.studentId, ids)).groupBy(feePayments.studentId);
+    const last = await db.select({ studentId: feePayments.studentId, on: sql<string>`max(${feePayments.paidOn})` }).from(feePayments).where(inArray(feePayments.studentId, ids)).groupBy(feePayments.studentId);
+    const lm = new Map(last.map((l) => [l.studentId, l.on]));
     const pm = new Map(paid.map((p) => [p.studentId, Number(p.total)])); const am = new Map(assigns.map((a) => [a.studentId, a]));
     return sts.map((s) => { const a = am.get(s.id); const due = a ? dueSoFar(a.cycle, Number(a.amount), Number(a.discount), a.startDate) : 0; const paidAmt = pm.get(s.id) || 0;
       return { studentId: s.id, name: s.name, rollNo: s.rollNo, batchId: s.batchId, parentMobile: s.parentMobile, plan: a ? { name: a.planName, amount: Number(a.amount), cycle: a.cycle, startDate: a.startDate, discount: Number(a.discount) } : null, due, paid: paidAmt, balance: due - paidAmt }; });
   }
 
-  @Get('defaulters') @Roles('SUPER_ADMIN', 'ADMIN') async defaulters(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
+  @Get('defaulters') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF') async defaulters(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
     return (await this.ledger(u, c)).filter((r) => r.balance > 0).sort((a, b) => b.balance - a.balance);
   }
 
   /** Send a reminder to every parent with a balance (push → WhatsApp). Admin triggers it or a daily cron hits this. */
-  @Post('remind') @Roles('SUPER_ADMIN', 'ADMIN') async remind(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
+  @Post('remind') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF') async remind(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c); const rows = await this.defaulters(u, c); let n = 0;
     for (const r of rows) {
       const [p] = await this.dbs.db.select({ id: users.id }).from(users).where(and(eq(users.centreId, centreId), eq(users.mobile, r.parentMobile), eq(users.role, 'PARENT')));
@@ -76,7 +128,7 @@ export class FeesController {
     return { reminded: n };
   }
 
-  @Get('payments') @Roles('SUPER_ADMIN', 'ADMIN') payments(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
+  @Get('payments') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF') payments(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
     return this.dbs.db.select({ id: feePayments.id, studentId: feePayments.studentId, studentName: students.name, amount: feePayments.amount, mode: feePayments.mode, paidOn: feePayments.paidOn, receiptNo: feePayments.receiptNo, reference: feePayments.reference })
       .from(feePayments).innerJoin(students, eq(students.id, feePayments.studentId)).where(eq(feePayments.centreId, centreOf(u, c))).orderBy(desc(feePayments.paidOn)).limit(300);
   }
@@ -85,7 +137,7 @@ export class FeesController {
     return this.dbs.db.select().from(feePayments).where(and(eq(feePayments.centreId, centreOf(u, c)), eq(feePayments.studentId, studentId))).orderBy(desc(feePayments.paidOn));
   }
 
-  @Post('payments') @Roles('SUPER_ADMIN', 'ADMIN') async record(@CurrentUser() u: JwtUser, @Body() dto: PaymentDto, @Query('centreId') c?: string) {
+  @Post('payments') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF') async record(@CurrentUser() u: JwtUser, @Body() dto: PaymentDto, @Query('centreId') c?: string) {
     return this.insertPayment(centreOf(u, c), dto.studentId, Number(dto.amount), dto.mode, dto.paidOn, dto.reference, u.id);
   }
 
@@ -124,7 +176,7 @@ export class FeesController {
     res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', `inline; filename="${p.receiptNo}.pdf"`); res.end(pdf);
   }
 
-  @Get('summary') @Roles('SUPER_ADMIN', 'ADMIN') async summary(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
+  @Get('summary') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF') async summary(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c);
     const [m] = await this.dbs.db.select({ month: sql<string>`coalesce(sum(${feePayments.amount}) filter (where date_trunc('month', ${feePayments.paidOn}) = date_trunc('month', current_date)), 0)`, total: sql<string>`coalesce(sum(${feePayments.amount}), 0)` }).from(feePayments).where(eq(feePayments.centreId, centreId));
     const outstanding = (await this.defaulters(u, c)).reduce((a, r) => a + r.balance, 0);
