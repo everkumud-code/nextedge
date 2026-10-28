@@ -23,6 +23,7 @@ import Platform from './pages/Platform';
 import Subscription from './pages/Subscription';
 import StaffAttendance from './pages/StaffAttendance';
 import Counsellor from './pages/Counsellor';
+import PayWall from './pages/PayWall';
 
 function Private({ children }: { children: JSX.Element }) { return session.token ? children : <Navigate to="/login" replace />; }
 
@@ -30,6 +31,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/pay" element={<Private><PayWall /></Private>} />
       <Route path="/" element={<Private><Layout /></Private>}>
         <Route index element={<Dashboard />} />
         <Route path="students" element={<Students />} />

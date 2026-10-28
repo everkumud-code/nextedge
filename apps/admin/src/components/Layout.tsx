@@ -9,7 +9,8 @@ const nav: [string, string, string][] = [
 ];
 
 export default function Layout() {
-  const user = session.user; const go = useNavigate(); const [bell, setBell] = useState<{ unread: number; items: any[] } | null>(null); const [open, setOpen] = useState(false);
+  const user = session.user; const go = useNavigate();
+  useEffect(() => { if (user?.role === 'ADMIN' && user.subscriptionStatus === 'suspended' && !location.pathname.startsWith('/subscription')) go('/pay'); }, []); const [bell, setBell] = useState<{ unread: number; items: any[] } | null>(null); const [open, setOpen] = useState(false);
   useEffect(() => { const f = () => api('/notifications/mine').then(setBell).catch(() => {}); f(); const t = setInterval(f, 60000); return () => clearInterval(t); }, []);
   return (
     <div className="flex min-h-screen">

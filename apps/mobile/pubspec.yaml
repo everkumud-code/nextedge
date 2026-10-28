@@ -25,6 +25,7 @@ flutter:
   assets:
     - assets/nextedge-logo.png
     - assets/icon.png
+    - assets/brand-logo.png
 
 flutter_launcher_icons:
   android: true

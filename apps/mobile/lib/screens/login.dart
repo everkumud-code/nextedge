@@ -14,13 +14,13 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final coaching = TextEditingController(), email = TextEditingController(), otp = TextEditingController();
   int step = 0; bool busy = false; String? error, hint;
-  bool get valid => coaching.text.trim().length > 1 && RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email.text.trim());
+  bool get valid => (AppConfig.whiteLabel || coaching.text.trim().length > 1) && RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email.text.trim());
 
   @override void initState() { super.initState(); SharedPreferences.getInstance().then((p) { coaching.text = p.getString('coaching') ?? ''; email.text = p.getString('email') ?? ''; if (mounted) setState(() {}); }); }
 
   Future<void> send() async {
     setState(() { busy = true; error = null; });
-    try { final r = await Api.post('/auth/send-otp', {'centreName': coaching.text.trim(), 'email': email.text.trim().toLowerCase()}, auth: false);
+    try { final r = await Api.post('/auth/send-otp', {if (AppConfig.whiteLabel) 'centreId': AppConfig.centreId else 'centreName': coaching.text.trim(), 'email': email.text.trim().toLowerCase()}, auth: false);
       if (r['token'] != null) { await _finish(r); return; }
       setState(() { step = 1; hint = r['devHint'] != null ? 'Dev OTP: ${r['devHint']}' : 'OTP sent to ${r['to'] ?? email.text}. Check spam too.'; }); }
     catch (e) { setState(() => error = e.toString().replaceFirst('Exception: ', '')); } finally { setState(() => busy = false); }
@@ -29,7 +29,7 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> verify() async {
     setState(() { busy = true; error = null; });
     try {
-      var r = await Api.post('/auth/verify-otp', {'centreName': coaching.text.trim(), 'email': email.text.trim().toLowerCase(), 'otp': otp.text}, auth: false);
+      var r = await Api.post('/auth/verify-otp', {if (AppConfig.whiteLabel) 'centreId': AppConfig.centreId else 'centreName': coaching.text.trim(), 'email': email.text.trim().toLowerCase(), 'otp': otp.text}, auth: false);
       if (r['choose'] == true && mounted) {
         final opts = r['options'] as List;
         final picked = await showDialog<String>(context: context, builder: (_) => SimpleDialog(title: const Text('Which account?'), children: opts.map((o) => SimpleDialogOption(onPressed: () => Navigator.pop(context, o['userId'] as String), child: ListTile(title: Text(o['centreName']), subtitle: Text('${o['name']} · ${(o['role'] as String).toLowerCase()}')))).toList()));
@@ -54,20 +54,19 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(AppConfig.appName)),
         body: Padding(padding: const EdgeInsets.all(20), child: ListView(children: [
-          Center(child: Padding(padding: const EdgeInsets.symmetric(vertical: 24), child: Image.asset('assets/nextedge-logo.png', height: 64))),
+          Center(child: Padding(padding: const EdgeInsets.symmetric(vertical: 24), child: Image.asset(AppConfig.whiteLabel ? 'assets/brand-logo.png' : 'assets/nextedge-logo.png', height: 64, errorBuilder: (_, __, ___) => Image.asset('assets/nextedge-logo.png', height: 64)))),
           if (step == 0) ...[
             const Text('Sign in with the email registered at your coaching', style: TextStyle(fontSize: 15)),
             const SizedBox(height: 16),
-            TextField(controller: coaching, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Coaching name', hintText: 'e.g. Sharma Classes', border: OutlineInputBorder()), onChanged: (_) => setState(() {})),
-            const SizedBox(height: 12),
+            if (!AppConfig.whiteLabel) ...[TextField(controller: coaching, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Coaching name', hintText: 'e.g. Sharma Classes', border: OutlineInputBorder()), onChanged: (_) => setState(() {})), const SizedBox(height: 12)],
             TextField(controller: email, keyboardType: TextInputType.emailAddress, autocorrect: false, decoration: const InputDecoration(labelText: 'Email', border: OutlineInputBorder()), onChanged: (_) => setState(() {}), onSubmitted: (_) => valid ? send() : null),
             const SizedBox(height: 16),
             FilledButton(onPressed: busy || !valid ? null : send, child: Text(busy ? 'Sending…' : 'Login')),
             const SizedBox(height: 8),
-            const Text('Platform admin? Type "Platform" as the coaching name.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            if (!AppConfig.whiteLabel) const Text('Platform admin? Type "Platform" as the coaching name.', style: TextStyle(fontSize: 12, color: Colors.grey)),
           ],
           if (step == 1) ...[
-            Text('${coaching.text.trim()} · ${email.text.trim()}', style: const TextStyle(fontWeight: FontWeight.w600)),
+            Text('${AppConfig.whiteLabel ? AppConfig.centreName : coaching.text.trim()} · ${email.text.trim()}', style: const TextStyle(fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             TextField(controller: otp, keyboardType: TextInputType.number, maxLength: 6, decoration: InputDecoration(labelText: 'Enter the OTP from your email', helperText: hint, helperMaxLines: 3, border: const OutlineInputBorder()), autofocus: true, onChanged: (_) => setState(() {}), onSubmitted: (_) => otp.text.length == 6 ? verify() : null),
             FilledButton(onPressed: busy || otp.text.length != 6 ? null : verify, child: const Text('Verify & sign in')),
