@@ -65,14 +65,14 @@ describe('owner pages', () => {
   it('Records/holiday', async () => { const { default: P } = await import('../src/pages/Records'); const r = await check('Records/holiday', P, ['Diwali break', 'holiday'], '/records/holiday'); expect(r.missing).toEqual([]); });
   it('Records/item', async () => { const { default: P } = await import('../src/pages/Records'); const r = await check('Records/item', P, ['Whiteboard markers', 'low'], '/records/item'); expect(r.missing).toEqual([]); });
   it('PayWall', async () => { const { default: P } = await import('../src/pages/PayWall'); const r = await check('PayWall', P, [/pay/i, /manual/i]); expect(r.missing).toEqual([]); });
-  it('Dashboard', async () => { const { default: P } = await import('../src/pages/Dashboard'); const r = await check('Dashboard', P, ['Today', 'Active students', 'batch', 'Attendance', 'Collected this month', 'Outstanding', 'Needs action', 'Latest notices', 'Wellbeing', 'Psychographic', 'Connect your coaching']); expect(r.missing).toEqual([]); });
+  it('Dashboard', async () => { const { default: P } = await import('../src/pages/Dashboard'); const r = await check('Dashboard', P, ['Today', 'Active students', 'batch', 'Attendance', 'Collected this month', 'Outstanding', 'Needs action', 'Latest notices', 'Wellbeing', 'Connect your coaching']); expect(r.missing).toEqual([]); });
 });
 
 describe('super admin pages', () => {
   beforeAll(async () => { await login('Platform', 'ever.kumud@gmail.com'); });
   it('Centres', async () => { const { default: P } = await import('../src/pages/Centres'); const r = await check('Centres', P, ['Demo Coaching Centre', /create centre/i]); expect(r.missing).toEqual([]); });
   it('Platform', async () => { const { default: P } = await import('../src/pages/Platform'); const r = await check('Platform', P, ['Demo Coaching Centre', /Platform mailbox/i, /PayU/i, /Login OTP/i]); expect(r.missing).toEqual([]); });
-  it('Counsellor', async () => { const { default: P } = await import('../src/pages/Counsellor'); const r = await check('Counsellor', P, [/Counsellor console/i, /Psychographic/i, /exam stress|focus/i]); expect(r.missing).toEqual([]); });
+  it('Counsellor', async () => { const { default: P } = await import('../src/pages/Counsellor'); const r = await check('Counsellor', P, [/Counsellor console/i, /exam stress|focus/i]); expect(r.missing).toEqual([]); });
 });
 describe('teacher pages', () => {
   beforeAll(async () => { await login('Demo Coaching Centre', 'teacher@demo.coaching'); });

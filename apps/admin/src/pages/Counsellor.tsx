@@ -11,7 +11,7 @@ export default function Counsellor() {
   const r = rows.find((x) => x.id === open);
   return (
     <div>
-      <h1 className="text-2xl font-bold">Counsellor console <span className="text-sm font-normal text-slate-500 italic">· Powered by Psychographic Society</span></h1><p className="text-slate-600 text-sm">Confidential. Coaching owners never see these conversations.</p>
+      <h1 className="text-2xl font-bold">Counsellor console</h1><p className="text-slate-600 text-sm">Confidential. Coaching owners never see these conversations.</p>
       <div className="flex gap-2 mt-4">{(['queue', 'mine', 'closed', 'posts', 'experts'] as const).map((t) => <button key={t} className={tab === t ? 'btn' : 'btn-quiet'} onClick={() => { setTab(t); setOpen(null); }}>{t === 'queue' ? 'Open requests' : t === 'mine' ? 'Assigned to me' : t === 'closed' ? 'Closed' : t === 'posts' ? 'Tips & posts' : 'Experts'}</button>)}</div>
       {msg && <p className="text-sm mt-2">{msg}</p>}
       {['queue', 'mine', 'closed'].includes(tab) && <div className="grid grid-cols-5 gap-4 mt-4">

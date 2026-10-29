@@ -56,7 +56,7 @@ export default function Dashboard() {
           {notices.length === 0 ? <p className="text-sm text-slate-500">None yet.</p> : <ul className="text-sm divide-y divide-slate-100">{notices.slice(0, 5).map((n) => <li key={n.id} className="py-2 flex justify-between gap-3"><span>{n.pinned && '📌 '}<b>{n.title}</b> <span className="text-slate-600">— {String(n.body || '').slice(0, 80)}</span></span><span className="text-xs text-slate-500 whitespace-nowrap">{new Date(n.publishedAt).toLocaleDateString('en-IN')}</span></li>)}</ul>}
         </div>
       </div>
-      {wb && wb.total > 0 && <div className="card mt-6 p-4"><b>Wellbeing & counselling</b> <span className="text-xs italic text-slate-500">Powered by Psychographic Society</span> <span className="text-sm text-slate-600">— {wb.total} requests from your students/parents · {wb.byStatus.closed || 0} closed · {Object.entries(wb.byCategory).map(([k, v]) => `${k} ${v}`).join(', ')}</span><p className="text-xs text-slate-500 mt-1">{wb.note}</p></div>}
+      {wb && wb.total > 0 && <div className="card mt-6 p-4"><b>Wellbeing & counselling</b> <span className="text-sm text-slate-600">— {wb.total} requests from your students/parents · {wb.byStatus.closed || 0} closed · {Object.entries(wb.byCategory).map(([k, v]) => `${k} ${v}`).join(', ')}</span><p className="text-xs text-slate-500 mt-1">{wb.note}</p></div>}
       {students.length === 0 && <div className="card mt-8 p-6"><p className="font-semibold">No students yet.</p><p className="text-slate-600 text-sm mt-1">Add your first batch, then add students to it. Parents get their login the moment a student is added.</p></div>}
     </div>
   );

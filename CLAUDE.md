@@ -57,7 +57,7 @@ Super-admin for this (and every) project: ever.kumud@gmail.com — seeded as SUP
 
 - [x] Wellbeing & counselling (module `wellbeing`): students/parents open confidential requests → platform experts (role EXPERT, centreId null, login coaching "Platform" + email); threaded messages, session scheduling (Jitsi room), expert-only notes, tips/posts to all centres; owners get counts only (`/wellbeing/summary`). Admin: Counsellor console (super-admin + experts). Mobile: Wellbeing tab in Support.
 
-- [x] Current affairs & news: `/news?category=` from free public RSS (Google News search feeds + PIB), 30-min server cache, 7 categories incl. Hindi and Jharkhand; `/news/today` IST date/time. Mobile News tab (student + parent). Wellbeing is branded "Powered by Psychographic Society". Live clock in every app bar.
+- [x] Current affairs & news: `/news?category=` from free public RSS (Google News search feeds + PIB), 30-min server cache, 7 categories incl. Hindi and Jharkhand; `/news/today` IST date/time. Mobile News tab (student + parent). Live clock in every app bar.
 
 - [x] Mail system: `platform_settings` row holds the super-admin mailbox (Gmail App Password, set from Platform page, env PLATFORM_SMTP_* as fallback) and the OTP switch (`otpEnabled`); each centre connects its own Gmail/App Password on /subscription. `MailService.otpEnabled()` decides login OTP (env OTP_MODE=none/dev/live overrides). OTP mail goes from the centre mailbox, else platform mailbox. Needs a host with outbound SMTP.
 

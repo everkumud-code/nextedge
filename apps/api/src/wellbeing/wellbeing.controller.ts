@@ -26,7 +26,7 @@ const roomUrl = (id: string) => `https://${process.env.JITSI_HOST || 'meet.jit.s
 export class WellbeingController {
   constructor(private dbs: DbService, private notify: NotificationsService) {}
 
-  @Get('categories') categories() { return { poweredBy: 'Psychographic Society', categories: CATEGORIES.map((c) => ({ key: c, label: LABELS[c] })) }; }
+  @Get('categories') categories() { return { categories: CATEGORIES.map((c) => ({ key: c, label: LABELS[c] })) }; }
 
   /** Student / parent: create a request. */
   @Post('requests') async create(@CurrentUser() u: JwtUser, @Body() dto: RequestDto, @Query('centreId') c?: string) {
