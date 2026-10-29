@@ -55,3 +55,11 @@ services:
     envVars:
       - key: VITE_API_URL
         value: https://coaching-connect-api.onrender.com
+
+  # The whole Flutter app as a website: open in iPhone Safari / Android Chrome and "Add to Home Screen".
+  # Installs Flutter during the build (about 2 minutes). No push notifications on the web version.
+  - type: web
+    name: coaching-connect-app
+    runtime: static
+    buildCommand: bash apps/mobile/render_build.sh
+    staticPublishPath: apps/mobile/build/web

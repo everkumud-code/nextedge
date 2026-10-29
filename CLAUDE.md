@@ -101,3 +101,10 @@ npm run dev:admin                         # http://localhost:5173
 - **Firebase key** can be pasted on Messaging (platform scope) → `platform_settings.firebase_json`, verified with Google before saving; env `FIREBASE_SERVICE_ACCOUNT_JSON` still works. Test overrides: `GOOGLE_TOKEN_URL`, `FCM_BASE_URL`.
 - **Backup** (`backup/backup.controller.ts`): `/backup/centre` (secrets in settings rows masked, login log and device tokens skipped) and `/backup/platform` (super admin). JSON, streamed table by table. Restore is by pg_dump/pg_restore, see `deploy/MIGRATE-FROM-RENDER.md`.
 - Mobile: `screens/bus.dart` (parent "Where is the bus?", staff "Share bus location") is NOT compiled yet: check the next Codemagic log.
+
+## Lessons (do not repeat)
+- **Seed/demo blocks must not sit inside a first-time `if`.** The demo bus driver (`driver@demo.school`) was inserted inside the `transport-route` block, so it only existed on empty databases; Render's already-filled database never got it. Test demo-fill on a database that is already filled, not only a fresh one.
+- **Every role needs a home screen in `apps/mobile/lib/screens/home.dart`.** A role with no case falls back to the login screen and looks like "login does not work". STAFF → `staff_home.dart`.
+- Web app of the whole Flutter app: Render static site `coaching-connect-app` (`apps/mobile/render_build.sh`). Its build log is the quickest Dart compile check (read it with the Render MCP `list_logs`, type `build`). Web has no push (`push.dart` returns early on web).
+- API CORS always allows `https://coaching-connect-*.onrender.com` even when `CORS_ORIGIN` lists specific origins.
+- Render's free Postgres expires 2026-11-18 (see `deploy/MIGRATE-FROM-RENDER.md`).
