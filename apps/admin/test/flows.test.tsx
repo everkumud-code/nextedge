@@ -27,7 +27,7 @@ describe('records modules, used through the screen', () => {
       const r = render(<MemoryRouter initialEntries={['/records/' + key]}><Routes><Route path="/records/:kind" element={<Records />} /></Routes></MemoryRouter>); await settle(900);
       const add = btn(r.container, /^\+ Add/); if (!add) { fail('no "+ Add" button'); cleanup(); continue; }
       fireEvent.click(add); await settle(300);
-      const form = r.container; const titleLabel = k.titleLabel; set(ctl(form, titleLabel), title); set(ctl(form, k.dateLabel || 'Date'), today);
+      const form = ([...r.container.querySelectorAll('.fixed')].pop() || r.container) as HTMLElement; const titleLabel = k.titleLabel; set(ctl(form, titleLabel), title); set(ctl(form, k.dateLabel || 'Date'), today);
       if (k.about === 'student') pickFirst(ctl(form, 'Student') || ctl(form, 'Student (optional)')); if (k.about === 'staff') pickFirst(ctl(form, 'Staff member')); if (k.ref) pickFirst(ctl(form, k.ref.label));
       for (const f of k.fields) { const el: any = ctl(form, f.label); if (!el) { fail(`field "${f.label}" not on the form`); continue; } if (el.tagName === 'SELECT') pickFirst(el); else set(el, f.type === 'number' ? '7' : f.type === 'date' ? today : f.type === 'time' ? '10:30' : f.type === 'mobile' ? '9000012345' : f.type === 'url' ? 'https://example.com/a' : 'sample'); }
       const save = btn(form, 'Save'); if (!save) { fail('no Save button'); cleanup(); continue; } fireEvent.click(save); await settle(700);
