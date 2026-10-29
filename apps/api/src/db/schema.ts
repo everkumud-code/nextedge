@@ -358,6 +358,7 @@ export const centreSettings = pgTable('centre_settings', {
   // Centre's own PayU for student fee collection
   payuKey: text('payu_key'), payuSalt: text('payu_salt'), payuTest: boolean('payu_test').default(true).notNull(), manualPayInfo: text('manual_pay_info'),
   lat: numeric('lat', { precision: 10, scale: 7 }), lng: numeric('lng', { precision: 10, scale: 7 }), geofenceM: integer('geofence_m').default(15).notNull(), gpsToleranceM: integer('gps_tolerance_m').default(5).notNull(),
+  channels: text('channels').default('{}').notNull(), // JSON: this centre's own SMS / WhatsApp account (overrides the platform's)
   workStart: text('work_start').default('09:00').notNull(), lateAfterMin: integer('late_after_min').default(15).notNull(), halfDayMin: integer('half_day_min').default(240).notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -438,6 +439,7 @@ export const platformSettings = pgTable('platform_settings', {
   otpEnabled: boolean('otp_enabled').default(false).notNull(),
   payuKey: text('payu_key'), payuSalt: text('payu_salt'), payuTest: boolean('payu_test').default(true).notNull(),
   manualPayInfo: text('manual_pay_info'), // shown on the payment wall: UPI id, bank details, WhatsApp number
+  channels: text('channels').default('{}').notNull(), // JSON: { sms: SmsCfg, whatsapp: WaCfg } platform defaults
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
@@ -524,5 +526,17 @@ export const loginLog = pgTable('login_log', {
   id: uuid('id').primaryKey().defaultRandom(),
   centreId: uuid('centre_id'), userId: uuid('user_id'), name: text('name'), role: text('role'),
   channel: text('channel'), ok: boolean('ok').default(true).notNull(), note: text('note'), ip: text('ip'), device: text('device'),
+  at: timestamp('at').defaultNow().notNull(),
+});
+
+// ---------- Message log: every SMS / WhatsApp / email the system tried to send, with the provider's answer ----------
+export const messageLog = pgTable('message_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id'),
+  channel: text('channel').notNull(), // sms | whatsapp | email
+  kind: text('kind').notNull(), // otp | notice | test | admission
+  toMasked: text('to_masked'), provider: text('provider'),
+  status: text('status').notNull(), // sent | failed | skipped
+  error: text('error'), ref: text('ref'),
   at: timestamp('at').defaultNow().notNull(),
 });

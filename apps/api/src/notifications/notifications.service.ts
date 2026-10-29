@@ -3,15 +3,15 @@ import { and, eq, inArray } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { deviceTokens, notificationLog, students, users } from '../db/schema';
 import { sendPush } from '../integrations/push';
-import { sendWhatsApp } from '../integrations/whatsapp';
 import { MailService } from './mail.service';
+import { MessagingService } from '../messaging/messaging.service';
 
 const QUIET = (h: number) => h >= 22 || h < 7; // IST quiet hours 10pm-7am
 
 @Injectable()
 export class NotificationsService {
   private log = new Logger('Notify');
-  constructor(private dbs: DbService, private mail: MailService) {}
+  constructor(private dbs: DbService, private mail: MailService, private msg: MessagingService) {}
 
   /** Push first; WhatsApp template fallback when the user has no device token. Urgent bypasses quiet hours. Fire-and-forget. */
   notifyUsers(centreId: string, userIds: string[], title: string, body: string, opts: { urgent?: boolean; waTemplate?: string; data?: Record<string, string> } = {}) {
@@ -44,7 +44,8 @@ export class NotificationsService {
       let status = 'skipped', channel = 'push', error: string | undefined;
       try {
         if (mine.length) { const ok = await Promise.all(mine.map((t) => sendPush(t.token, title, body, opts.data))); status = ok.some(Boolean) ? 'sent' : 'skipped'; if (status === 'skipped') error = 'FCM not configured'; }
-        if (status !== 'sent') { channel = 'whatsapp'; const ok = await sendWhatsApp(p.mobile, opts.waTemplate || process.env.WA_TEMPLATE_NOTICE || 'cc_notice', [title, body]); status = ok ? 'sent' : 'skipped'; if (!ok) error = error ? error + '; WhatsApp not configured' : 'WhatsApp not configured'; }
+        if (status !== 'sent') { channel = 'whatsapp'; const r = await this.msg.sendWhatsApp(centreId, p.mobile, 'notice', { title, body, text: `${title}\n${body}` }); status = r.sent ? 'sent' : 'skipped'; if (!r.sent) error = (error ? error + '; ' : '') + 'WhatsApp: ' + r.reason; }
+        if (status !== 'sent') { const pol = await this.msg.smsPolicy(centreId); if (pol === 'all' || (pol === 'urgent' && opts.urgent)) { channel = 'sms'; const r = await this.msg.sendSms(centreId, p.mobile, 'notice', { title, body, text: `${title}: ${body}`.slice(0, 300) }); status = r.sent ? 'sent' : 'skipped'; if (!r.sent) error = (error ? error + '; ' : '') + 'SMS: ' + r.reason; } }
         if (status !== 'sent' && p.email) { channel = 'email'; try { const ok = await this.mail.send(centreId, p.email, title, body); status = ok ? 'sent' : 'skipped'; } catch (e: any) { error = (error ? error + '; ' : '') + 'email: ' + e.message; } }
       } catch (e: any) { status = 'failed'; error = e.message; }
       // The in-app feed always gets it; channel/status say whether push or WhatsApp also went out.

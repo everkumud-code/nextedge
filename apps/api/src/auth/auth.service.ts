@@ -6,8 +6,8 @@ import { centres, staffPermissions, users } from '../db/schema';
 import { FACULTY_DEFAULT, MODULES } from '../common/permissions';
 import { PlatformService } from '../platform/platform.service';
 import { RedisService } from '../common/redis.service';
-import { sendSms } from '../integrations/sms';
 import { MailService } from '../notifications/mail.service';
+import { MessagingService } from '../messaging/messaging.service';
 
 const OTP_TTL = 5 * 60, SEND_LIMIT = 5, VERIFY_LIMIT = 5;
 type Account = { id: string; name: string; role: any; centreId: string | null; email: string | null; mobile: string };
@@ -15,7 +15,7 @@ type Account = { id: string; name: string; role: any; centreId: string | null; e
 /** Login = choose coaching → mobile → OTP by SMS or email. OTP_MODE=dev → OTP is always 123456. */
 @Injectable()
 export class AuthService {
-  constructor(private dbs: DbService, private jwt: JwtService, private redis: RedisService, private platform: PlatformService, private mail: MailService) {}
+  constructor(private dbs: DbService, private jwt: JwtService, private redis: RedisService, private platform: PlatformService, private mail: MailService, private msg: MessagingService) {}
 
   /** Public list for the login screen. */
   async centres(q?: string) {
@@ -42,10 +42,10 @@ export class AuthService {
     return u || null;
   }
 
-  async sendOtp(mobile: string | undefined, centreId?: string, channel: 'sms' | 'email' = 'email', email?: string) {
+  async sendOtp(mobile: string | undefined, centreId?: string, channel?: 'sms' | 'email' | 'whatsapp', email?: string) {
     const acct = await this.account(centreId, mobile, email);
     if (!acct) throw new UnauthorizedException(email ? 'This email is not registered at this coaching. Ask the centre to add it to your profile.' : 'This mobile number is not registered at this coaching.');
-    if (email) channel = 'email';
+    if (!channel) channel = email || acct.email ? 'email' : 'sms';
     if (channel === 'email' && !acct.email) throw new HttpException('No email on record. Ask the centre to add your email.', 400);
     const ident = (email || mobile || '').toLowerCase(); const key = `${centreId || 'any'}:${ident}`;
     // OTP_MODE=none: OTP system switched off — coaching + email logs straight in (demo only).
@@ -56,11 +56,13 @@ export class AuthService {
     await this.redis.set(`otp:code:${key}`, code, OTP_TTL); await this.redis.del(`otp:fails:${key}`);
     let delivered = 'dev';
     if (process.env.OTP_MODE !== 'dev') {
-      if (channel === 'email') { let ok = false; try { ok = await this.mail.send(acct.centreId, acct.email!, `${code} is your login OTP`, `Your login OTP is ${code}. It is valid for 5 minutes.`); } catch (e: any) { console.error('Email send failed:', e.message); throw new HttpException('Could not send the OTP email right now. Please try again in a minute.', 503); } delivered = ok ? 'email' : 'none'; if (!ok) throw new HttpException('Email is not configured on the server yet.', 503); }
-      else { try { await sendSms(acct.mobile, `${code} is your login OTP for NextEdge. Valid for 5 minutes.`, code); delivered = 'sms'; } catch (e: any) { if (acct.email) { const ok = await this.mail.send(acct.centreId, acct.email, `${code} is your login OTP`, `Your login OTP is ${code}. It is valid for 5 minutes.`); delivered = ok ? 'email' : 'none'; } if (delivered === 'none') throw new HttpException('SMS is not set up yet. Choose "Email" to receive the OTP by email.', 503); } }
+      const text = `${code} is your login OTP for NextEdge. Valid for 5 minutes. Do not share it.`; const fail = async (why: string) => { await this.redis.del(`otp:code:${key}`); throw new HttpException(why, 502); };
+      if (channel === 'email') { const r = await this.msg.sendEmail(acct.centreId, acct.email!, `${code} is your login OTP`, `Your login OTP is ${code}. It is valid for 5 minutes.`, 'otp'); if (!r.sent) return fail(`Could not email the OTP (${r.reason}). Try SMS or WhatsApp, or ask the centre to check the mailbox settings.`); delivered = 'email'; }
+      else if (channel === 'whatsapp') { const r = await this.msg.sendWhatsApp(acct.centreId, acct.mobile, 'otp', { code, text }); if (!r.sent) return fail(`Could not send the WhatsApp OTP (${r.reason}). Try email or SMS.`); delivered = 'whatsapp'; }
+      else { const r = await this.msg.sendSms(acct.centreId, acct.mobile, 'otp', { code, text }); if (!r.sent) { if (acct.email) { const e = await this.msg.sendEmail(acct.centreId, acct.email, `${code} is your login OTP`, `Your login OTP is ${code}. It is valid for 5 minutes. (SMS could not be sent.)`, 'otp'); if (!e.sent) return fail(`Could not send the OTP by SMS (${r.reason}) or email.`); delivered = 'email'; } else return fail(`Could not send the SMS OTP (${r.reason}).`); } else delivered = 'sms'; }
     }
     const mask = (e?: string | null) => e ? e.replace(/^(.{2}).*(@.*)$/, '$1***$2') : undefined;
-    return { sent: true, via: delivered, to: delivered === 'email' ? mask(acct.email) : delivered === 'sms' ? `***${acct.mobile.slice(-4)}` : undefined, expiresIn: OTP_TTL, devHint: process.env.OTP_MODE === 'dev' ? '123456' : undefined };
+    return { sent: true, via: delivered, to: delivered === 'email' ? mask(acct.email) : delivered === 'sms' || delivered === 'whatsapp' ? `******${acct.mobile.slice(-4)}` : undefined, expiresIn: OTP_TTL, devHint: process.env.OTP_MODE === 'dev' ? '123456' : undefined };
   }
 
   async verifyOtp(mobile: string | undefined, code: string, centreId?: string, email?: string) {
