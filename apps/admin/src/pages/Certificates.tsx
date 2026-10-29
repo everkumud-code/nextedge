@@ -1,0 +1,34 @@
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { api, session } from '../api';
+const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
+async function openPdf(path: string) { const r = await fetch(API + path, { headers: { Authorization: `Bearer ${session.token}` } }); if (!r.ok) { alert('Could not open the certificate'); return; } window.open(URL.createObjectURL(await r.blob()), '_blank'); }
+const dt = (d?: string) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+
+/** Certificates: Transfer (TC), Bonafide, Character, Study, Fee — serial-numbered, registered, printable. */
+export default function Certificates() {
+  const [sp] = useSearchParams(); const [types, setTypes] = useState<any[]>([]); const [students, setStudents] = useState<any[]>([]); const [reg, setReg] = useState<any[]>([]); const [q, setQ] = useState(''); const [sid, setSid] = useState(sp.get('student') || ''); const [type, setType] = useState('bonafide'); const [data, setData] = useState<Record<string, any>>({}); const [markLeft, setMarkLeft] = useState(true); const [force, setForce] = useState(false); const [msg, setMsg] = useState(''); const [err, setErr] = useState(''); const [last, setLast] = useState<any>(null);
+  const owner = ['ADMIN', 'SUPER_ADMIN'].includes(session.user?.role || '');
+  const load = () => api('/certificates').then(setReg); useEffect(() => { api('/certificates/types').then(setTypes); api('/students').then((s) => setStudents(s.filter((x: any) => x.active))); load(); }, []);
+  const T = types.find((t) => t.key === type); const st = students.find((s) => s.id === sid);
+  useEffect(() => { if (!T) return; const d: Record<string, any> = {}; T.fields.forEach((f: any) => { if (f.default) d[f.key] = f.default; if (f.type === 'date') d[f.key] = new Date().toISOString().slice(0, 10); }); setData(d); setErr(''); setForce(false); }, [type, types.length]);
+  const matches = q ? students.filter((s) => `${s.name} ${s.rollNo} ${s.admissionNo || ''}`.toLowerCase().includes(q.toLowerCase())).slice(0, 8) : [];
+  async function issue() { setErr(''); setMsg(''); try { const r = await api('/certificates', { method: 'POST', body: JSON.stringify({ studentId: sid, type, data, markLeft, force }) }); setLast(r); setMsg(`${T.label} issued — ${r.serial}`); load(); openPdf(`/certificates/${r.id}.pdf`); } catch (e: any) { setErr(e.message); } }
+  return (
+    <div>
+      <h1 className="text-2xl font-bold">Certificates</h1><p className="text-sm text-slate-600">Each certificate gets a serial number, is recorded in the register below, and prints on the school letterhead (set it in <a className="underline" href="/school-profile">School profile</a>).</p>
+      <div className="card p-5 mt-4"><div className="grid grid-cols-3 gap-4">
+        <div className="relative"><label className="text-sm font-medium">Student</label>{st ? <div className="input flex justify-between items-center"><span>{st.name} · {st.className || ''} · {st.admissionNo || st.rollNo || ''}</span><button className="underline text-xs" onClick={() => { setSid(''); setQ(''); }}>change</button></div> : <><input className="input" placeholder="Search name / admission no / roll" value={q} onChange={(e) => setQ(e.target.value)} />{matches.length > 0 && <div className="absolute z-10 left-0 right-0 bg-white border border-slate-200 rounded shadow-lg mt-1">{matches.map((s) => <button key={s.id} className="block w-full text-left px-3 py-2 text-sm hover:bg-edge-100" onClick={() => { setSid(s.id); setQ(''); }}>{s.name} <span className="text-slate-500">· {s.className} · {s.admissionNo || s.rollNo}</span></button>)}</div>}</>}</div>
+        <div><label className="text-sm font-medium">Certificate</label><select className="input" value={type} onChange={(e) => setType(e.target.value)}>{types.map((t) => <option key={t.key} value={t.key}>{t.label}</option>)}</select></div>
+        <div className="text-sm text-slate-600 self-end">{type === 'transfer' ? 'TC is blocked while fees are pending unless forced; it can also mark the student as left.' : ''}</div>
+        {T?.fields.map((f: any) => <div key={f.key}><label className="text-sm font-medium">{f.label}</label>{f.type === 'select' ? <select className="input" value={data[f.key] || ''} onChange={(e) => setData({ ...data, [f.key]: e.target.value })}><option value="">—</option>{f.options.map((o: string) => <option key={o}>{o}</option>)}</select> : <input className="input" type={f.type === 'date' ? 'date' : f.type === 'number' ? 'number' : 'text'} value={data[f.key] ?? ''} onChange={(e) => setData({ ...data, [f.key]: e.target.value })} />}</div>)}
+      </div>
+        {type === 'transfer' && <div className="flex gap-6 mt-3 text-sm"><label className="flex items-center gap-2"><input type="checkbox" checked={markLeft} onChange={(e) => setMarkLeft(e.target.checked)} /> Mark student as left the school</label>{owner && <label className="flex items-center gap-2"><input type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} /> Issue even if fees are pending (owner)</label>}</div>}
+        <div className="flex items-center gap-3 mt-4"><button className="btn" disabled={!sid} onClick={issue}>Issue & open PDF</button>{last && <button className="btn-quiet" onClick={() => openPdf(`/certificates/${last.id}.pdf`)}>Print again</button>}{msg && <span className="text-sm text-moss">{msg}</span>}</div>{err && <p className="text-sm text-brick mt-2">{err}</p>}</div>
+      <h2 className="font-semibold mt-6 mb-2">Register</h2>
+      <table className="card w-full text-sm"><thead><tr><th className="th">Serial</th><th className="th">Date</th><th className="th">Student</th><th className="th">Certificate</th><th className="th">Purpose / reason</th><th className="th">Status</th><th className="th"></th></tr></thead>
+        <tbody>{reg.map((r) => <tr key={r.id} className={r.status === 'cancelled' ? 'opacity-50' : ''}><td className="td font-mono">{r.data.serial}</td><td className="td">{dt(r.date)}</td><td className="td">{r.studentName}</td><td className="td">{r.title}</td><td className="td text-slate-600">{r.data.purpose}</td><td className="td"><span className="tag">{r.status}</span></td><td className="td whitespace-nowrap"><button className="btn-quiet" onClick={() => openPdf(`/certificates/${r.id}.pdf`)}>Print</button>{owner && r.status === 'issued' && <button className="text-brick underline text-sm ml-2" onClick={async () => { if (confirm('Cancel this certificate? It will print with a CANCELLED mark.')) { await api(`/certificates/${r.id}/cancel`, { method: 'POST' }); load(); } }}>Cancel</button>}</td></tr>)}</tbody></table>
+      {!reg.length && <p className="text-sm text-slate-500 mt-2">No certificates issued yet.</p>}
+    </div>
+  );
+}

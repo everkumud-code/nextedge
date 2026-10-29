@@ -25,6 +25,14 @@ import StaffAttendance from './pages/StaffAttendance';
 import Counsellor from './pages/Counsellor';
 import PayWall from './pages/PayWall';
 import Records from './pages/Records';
+import StudentProfile from './pages/StudentProfile';
+import Exams from './pages/Exams';
+import Certificates from './pages/Certificates';
+import Payroll from './pages/Payroll';
+import Biometric from './pages/Biometric';
+import Insights from './pages/Insights';
+import SchoolProfile from './pages/SchoolProfile';
+import Apply from './pages/Apply';
 
 function Private({ children }: { children: JSX.Element }) { return session.token ? children : <Navigate to="/login" replace />; }
 
@@ -32,10 +40,18 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/apply/:centreId" element={<Apply />} />
       <Route path="/pay" element={<Private><PayWall /></Private>} />
       <Route path="/" element={<Private><Layout /></Private>}>
         <Route index element={<Dashboard />} />
         <Route path="students" element={<Students />} />
+        <Route path="students/:id" element={<StudentProfile />} />
+        <Route path="exams" element={<Exams />} />
+        <Route path="certificates" element={<Certificates />} />
+        <Route path="payroll" element={<Payroll />} />
+        <Route path="biometric" element={<Biometric />} />
+        <Route path="insights" element={<Insights />} />
+        <Route path="school-profile" element={<SchoolProfile />} />
         <Route path="batches" element={<Batches />} />
         <Route path="attendance" element={<Attendance />} />
         <Route path="fees" element={<Fees />} />

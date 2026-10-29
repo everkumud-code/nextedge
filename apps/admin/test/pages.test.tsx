@@ -16,8 +16,31 @@ async function check(name: string, Page: React.FC, expects: (string | RegExp)[],
   const report = `${name}: ${missing.length ? 'MISSING ' + JSON.stringify(missing) : 'ok'}${errors.length ? ' | ERRORS ' + errors.slice(0, 2).join(' ; ').slice(0, 300) : ''} | len=${text.length}`;
   console.log(report); r.unmount(); return { missing, text };
 }
+describe('school pages', () => {
+  beforeAll(async () => { await login('Demo Public School', 'principal@demo.school'); });
+  it('Students (school)', async () => { const { default: P } = await import('../src/pages/Students'); const r = await check('Students/school', P, ['Add student', 'Class & section', 'Adm. no', 'Import from Excel', /\d+ shown/, 'Profile']); expect(r.missing).toEqual([]); });
+  it('StudentProfile', async () => { const st = await fetch(API + '/students', { headers: { Authorization: `Bearer ${session.token}` } }).then((r) => r.json()); const { default: P } = await import('../src/pages/StudentProfile'); const Wrap = () => <Routes><Route path="/students/:id" element={<P />} /></Routes>; errors.length = 0; const r = render(<MemoryRouter initialEntries={['/students/' + st[0].id]}><Wrap /></MemoryRouter>); await settle(2500); const text = r.container.textContent || ''; const miss = ['Attendance', 'Fee balance', 'Latest exam', 'Conduct', 'Basics', 'Recent highlights', 'Issue certificate'].filter((x) => !text.includes(x)); console.log('StudentProfile: ' + (miss.length ? 'MISSING ' + JSON.stringify(miss) : 'ok') + ' | len=' + text.length + (errors.length ? ' | ERRORS ' + errors[0].slice(0, 200) : '')); expect(miss).toEqual([]); });
+});
+describe('school pages 2', () => {
+  beforeAll(async () => { await login('Demo Public School', 'principal@demo.school'); });
+  it('Batches (school)', async () => { const { default: P } = await import('../src/pages/Batches'); const r = await check('Batches/school', P, ['Create classes & sections in one go', 'Class 5 - A', 'Class teacher', 'Promote', 'Anita Verma']); expect(r.missing).toEqual([]); });
+  it('Exams', async () => { const { default: P } = await import('../src/pages/Exams'); errors.length = 0; const r = show(P); await settle(); expect(r.container.textContent).toContain('Half-yearly'); const btn = [...r.container.querySelectorAll('button')].find((b) => b.textContent?.includes('Half-yearly')) as HTMLElement; fireEvent.click(btn); await settle(1500); const text = r.container.textContent || ''; const miss = ['Enter marks', 'Analysis & ranks', 'Report cards', 'All saved', 'Maths', 'Total'].filter((x) => !text.includes(x)); console.log('Exams: ' + (miss.length ? 'MISSING ' + JSON.stringify(miss) : 'ok') + ' | inputs=' + r.container.querySelectorAll('input').length + (errors.length ? ' | ERRORS ' + errors[0].slice(0, 200) : '')); expect(miss).toEqual([]); });
+  it('Certificates', async () => { const { default: P } = await import('../src/pages/Certificates'); const r = await check('Certificates', P, ['Certificates', 'Register', 'Issue & open PDF', 'BF/', 'TC/']); expect(r.missing).toEqual([]); });
+});
+describe('school pages 3', () => {
+  beforeAll(async () => { await login('Demo Public School', 'principal@demo.school'); });
+  it('Payroll', async () => { const { default: P } = await import('../src/pages/Payroll'); const r = await check('Payroll', P, ['Payroll', 'payslips', 'Gross payable', 'Net payable']); expect(r.missing).toEqual([]); });
+  it('Biometric', async () => { const { default: P } = await import('../src/pages/Biometric'); const r = await check('Biometric', P, ['Biometric', 'Endpoint', 'API key', 'import an exported log']); expect(r.missing).toEqual([]); });
+  it('Insights', async () => { const { default: P } = await import('../src/pages/Insights'); const r = await check('Insights', P, ['Reports & graphs', 'Fee collection', 'Strength by class', 'UDISE', 'Enrolment by class']); expect(r.missing).toEqual([]); });
+  it('SchoolProfile', async () => { const { default: P } = await import('../src/pages/SchoolProfile'); errors.length = 0; const r = show(P); await settle(); const vals = [...r.container.querySelectorAll('input')].map((i: any) => i.value).join('|'); console.log('SchoolProfile: ' + (vals.includes('Dr. Meera Sinha') && vals.includes('2026-27') && vals.includes('CBSE') ? 'ok' : 'MISSING values ' + vals.slice(0, 120)) + (errors.length ? ' | ERRORS ' + errors[0].slice(0, 150) : '')); expect(vals).toContain('Dr. Meera Sinha'); });
+  it('Records/admission', async () => { const { default: P } = await import('../src/pages/Records'); const r = await check('Records/admission', P, ['Admission applications', 'Online admission form', '/apply/', 'Copy link', 'Test Applicant'], '/records/admission'); expect(r.missing).toEqual([]); });
+  it('Records/ptm', async () => { const { default: P } = await import('../src/pages/Records'); const r = await check('Records/ptm', P, ['Publish my PTM slots', 'PTM slots'], '/records/ptm-slot'); expect(r.missing).toEqual([]); });
+  it('Records/employee', async () => { const { default: P } = await import('../src/pages/Records'); const r = await check('Records/employee', P, ['Employees', 'Anita Verma', 'TGT Maths'], '/records/employee'); expect(r.missing).toEqual([]); });
+  it('Apply (public)', async () => { const { default: P } = await import('../src/pages/Apply'); const me = JSON.parse(localStorage.getItem('user') || '{}'); errors.length = 0; const r = render(<MemoryRouter initialEntries={['/apply/' + me.centreId]}><Routes><Route path="/apply/:centreId" element={<P />} /></Routes></MemoryRouter>); await settle(); const t = r.container.textContent || ''; const miss = ['Demo Public School', 'Admission application', 'Class applying for', 'Submit application'].filter((x) => !t.includes(x)); console.log('Apply: ' + (miss.length ? 'MISSING ' + JSON.stringify(miss) : 'ok')); expect(miss).toEqual([]); });
+  it('Fees fine UI', async () => { const { default: P } = await import('../src/pages/Fees'); const r = show(P); await settle(); fireEvent.click([...r.container.querySelectorAll('button')].find((b) => b.textContent?.startsWith('Defaulters')) as HTMLElement); await settle(300); const t = r.container.textContent || ''; console.log('FeesFine: ' + (t.includes('Apply late fine') ? 'ok' : 'MISSING Apply late fine')); expect(t).toContain('Apply late fine'); });
+});
 describe('owner pages', () => {
-  beforeAll(async () => { await login('Demo', 'owner@demo.coaching'); });
+  beforeAll(async () => { await login('Demo Coaching Centre', 'owner@demo.coaching'); });
   it('Students', async () => { const { default: P } = await import('../src/pages/Students'); const r = await check('Students', P, ['Aarav Kumar', 'Priya Singh', 'Add student', 'Import', /parent/i]); expect(r.missing).toEqual([]); });
   it('Batches', async () => { const { default: P } = await import('../src/pages/Batches'); const r = await check('Batches', P, ['Class 12 PCM', 'Students', 'Teachers', 'assign teacher', 'Edit']); expect(r.missing).toEqual([]); });
   it('Attendance', async () => { const { default: P } = await import('../src/pages/Attendance'); const r = await check('Attendance', P, ['Aarav Kumar', 'Roll call', 'Gate scan', 'Monthly register', 'Below 75%', 'present', 'All present']); expect(r.missing).toEqual([]); });
@@ -52,7 +75,7 @@ describe('super admin pages', () => {
   it('Counsellor', async () => { const { default: P } = await import('../src/pages/Counsellor'); const r = await check('Counsellor', P, [/Counsellor console/i, /Psychographic/i, /exam stress|focus/i]); expect(r.missing).toEqual([]); });
 });
 describe('teacher pages', () => {
-  beforeAll(async () => { await login('Demo', 'teacher@demo.coaching'); });
+  beforeAll(async () => { await login('Demo Coaching Centre', 'teacher@demo.coaching'); });
   it('Attendance (teacher)', async () => { const { default: P } = await import('../src/pages/Attendance'); const r = await check('Attendance/teacher', P, ['Aarav Kumar']); expect(r.missing).toEqual([]); });
   it('Tests (teacher)', async () => { const { default: P } = await import('../src/pages/Tests'); const r = await check('Tests/teacher', P, ['Weekly test 1']); expect(r.missing).toEqual([]); });
   it('Dashboard (teacher)', async () => { const { default: P } = await import('../src/pages/Dashboard'); const r = await check('Dashboard/teacher', P, ['Today', 'Active students']); expect(r.missing).toEqual([]); });

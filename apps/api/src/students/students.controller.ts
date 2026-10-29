@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/common';
-import { IsOptional, IsString, Length } from 'class-validator';
+import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
 import { and, eq } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { batches, students, users } from '../db/schema';
@@ -25,6 +25,13 @@ class StudentDto {
   @IsOptional() @IsString() dob?: string;
   @IsOptional() @IsString() gender?: string; @IsOptional() @IsString() admissionNo?: string; @IsOptional() @IsString() admissionDate?: string; @IsOptional() @IsString() fatherName?: string; @IsOptional() @IsString() motherName?: string; @IsOptional() @IsString() address?: string; @IsOptional() @IsString() category?: string; @IsOptional() @IsString() religion?: string; @IsOptional() @IsString() bloodGroup?: string; @IsOptional() @IsString() previousSchool?: string; @IsOptional() @IsString() photoUrl?: string;
   @IsOptional() @IsString() leftOn?: string; @IsOptional() @IsString() leftReason?: string; @IsOptional() active?: boolean;
+}
+
+class UpdateStudentDto {
+  @IsOptional() @IsString() name?: string; @IsOptional() @IsString() parentName?: string; @IsOptional() @IsString() parentMobile?: string; @IsOptional() @IsString() parentEmail?: string; @IsOptional() @IsString() email?: string; @IsOptional() @IsString() mobile?: string;
+  @IsOptional() @IsString() className?: string; @IsOptional() @IsString() rollNo?: string; @IsOptional() @IsString() batchId?: string; @IsOptional() @IsString() dob?: string;
+  @IsOptional() @IsString() gender?: string; @IsOptional() @IsString() admissionNo?: string; @IsOptional() @IsString() admissionDate?: string; @IsOptional() @IsString() fatherName?: string; @IsOptional() @IsString() motherName?: string; @IsOptional() @IsString() address?: string; @IsOptional() @IsString() category?: string; @IsOptional() @IsString() religion?: string; @IsOptional() @IsString() bloodGroup?: string; @IsOptional() @IsString() previousSchool?: string; @IsOptional() @IsString() photoUrl?: string;
+  @IsOptional() @IsString() leftOn?: string; @IsOptional() @IsString() leftReason?: string; @IsOptional() @IsBoolean() active?: boolean;
 }
 
 @Controller('students')
@@ -56,8 +63,8 @@ export class StudentsController {
   }
 
   @Put(':id') @Roles('SUPER_ADMIN', 'ADMIN')
-  async update(@CurrentUser() u: JwtUser, @Param('id') id: string, @Body() dto: Partial<StudentDto>, @Query('centreId') c?: string) {
-    const { parentEmail, email, ...rest } = dto as any; const set: any = { ...rest }; Object.keys(set).forEach((k) => set[k] === '' && (set[k] = null)); if (rest.name === null) delete set.name; if (rest.parentMobile === null) delete set.parentMobile;
+  async update(@CurrentUser() u: JwtUser, @Param('id') id: string, @Body() dto: UpdateStudentDto, @Query('centreId') c?: string) {
+    const { parentEmail, email, ...rest } = dto as any; const set: any = { ...rest }; Object.keys(set).forEach((k) => set[k] === '' && (set[k] = null)); if (set.name === null) delete set.name; if (set.parentMobile === null) delete set.parentMobile;
     if (rest.batchId) { const [b] = await this.dbs.db.select({ name: batches.name, className: batches.className }).from(batches).where(eq(batches.id, rest.batchId)); if (b) set.className = b.className || b.name; }
     const [row] = await this.dbs.db.update(students).set(set).where(and(eq(students.id, id), eq(students.centreId, centreOf(u, c)))).returning();
     if (row?.userId && (rest.name || email)) { const upd: any = {}; if (rest.name) upd.name = rest.name; if (email) upd.email = String(email).trim().toLowerCase(); await this.dbs.db.update(users).set(upd).where(eq(users.id, row.userId)); }
