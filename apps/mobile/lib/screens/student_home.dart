@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import '../api.dart';
 import '../widgets.dart';
 import 'home.dart';
@@ -45,7 +46,7 @@ class _S extends State<StudentHome> {
       const ChatScreen(),
     ];
     return Scaffold(
-      appBar: AppBar(title: const Text('NextEdge'), actions: [const Padding(padding: EdgeInsets.only(right: 8), child: Clock()), const BellAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
+      appBar: AppBar(title: const Text('NextEdge'), actions: [const Padding(padding: EdgeInsets.only(right: 8), child: Clock()), const BellAction(), const ThemeAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
       body: pages[tab],
       bottomNavigationBar: NavigationBar(selectedIndex: tab, labelBehavior: NavigationDestinationLabelBehavior.alwaysShow, onDestinationSelected: (i) => setState(() => tab = i), destinations: const [
         NavigationDestination(icon: Icon(Icons.today), label: 'Today'), NavigationDestination(icon: Icon(Icons.menu_book), label: 'Study'), NavigationDestination(icon: Icon(Icons.videocam_outlined), label: 'Live'), NavigationDestination(icon: Icon(Icons.quiz_outlined), label: 'Tests'), NavigationDestination(icon: Icon(Icons.assignment_outlined), label: 'Homework'), NavigationDestination(icon: Icon(Icons.help_outline), label: 'Doubts'), NavigationDestination(icon: Icon(Icons.school), label: 'School'), NavigationDestination(icon: Icon(Icons.newspaper), label: 'News'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Chat')]),

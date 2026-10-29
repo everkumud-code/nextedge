@@ -1,6 +1,8 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { RequestMethod, ValidationPipe } from '@nestjs/common';
+import { HttpAdapterHost } from '@nestjs/core';
+import { SafeInputFilter } from './common/safe-input.filter';
 import { AppModule } from './app.module';
 import { PlatformService } from './platform/platform.service';
 
@@ -14,6 +16,7 @@ async function bootstrap() {
   app.useBodyParser('json', { limit: '12mb' });
   const co = process.env.CORS_ORIGIN; const listed = co && co !== '*' ? co.split(',').map((x) => x.trim()) : null; const own = /^https:\/\/coaching-connect-[a-z0-9-]+\.onrender\.com$/; /* our own admin panel and web app on Render are always allowed */ app.enableCors({ origin: listed ? (o: string | undefined, cb: (e: Error | null, ok?: boolean) => void) => cb(null, !o || listed.includes(o) || own.test(o)) : true, credentials: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
+  app.useGlobalFilters(new SafeInputFilter(app.get(HttpAdapterHost).httpAdapter));
   app.use('/iclock', require('express').text({ type: () => true, limit: '2mb' })); // biometric machines send plain text
   app.setGlobalPrefix('api', { exclude: [{ path: 'iclock/cdata', method: RequestMethod.ALL }, { path: 'iclock/getrequest', method: RequestMethod.ALL }, { path: 'iclock/devicecmd', method: RequestMethod.ALL }] });
   try { await app.get(PlatformService).migrateFeatures(); } catch (e) { console.error('Feature migration failed', e); }

@@ -1,10 +1,62 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-body { @apply bg-paper text-ink font-sans antialiased; }
-.btn { @apply inline-flex items-center gap-2 rounded-md bg-edge-500 px-4 py-2 font-semibold text-white hover:bg-edge-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-800 disabled:opacity-50; }
-.btn-quiet { @apply inline-flex items-center rounded-md border border-teal-100 bg-white px-3 py-2 text-sm font-medium hover:bg-teal-100; }
-.input { @apply w-full rounded-md border border-slate-300 bg-white px-3 py-2 focus:border-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-100; }
-.card { @apply rounded-lg border border-slate-200 bg-white; }
-.th { @apply px-4 py-2 text-left text-sm font-semibold text-slate-600; }
-.td { @apply px-4 py-2 text-sm border-t border-slate-100; }
+
+/* ---- Themes: colours (RGB triplets) and the shape of buttons, cards and boxes. Classic is the default and equals the old look. ---- */
+:root {
+  --paper: 243 245 248; --ink: 26 31 38; --surface: 255 255 255; --line: 226 232 240; --muted: 71 85 105;
+  --teal-100: 220 235 238; --teal-200: 153 246 228; --teal-700: 15 118 110; --teal-800: 23 70 81; --teal-900: 17 52 60;
+  --edge-50: 245 249 254; --edge-100: 220 234 251; --edge-500: 22 115 217; --edge-600: 18 95 179; --edge-700: 14 78 150;
+  --marigold-100: 253 241 220; --marigold-500: 242 169 59; --marigold-600: 217 143 31; --moss: 47 143 91; --brick: 196 65 43;
+  --btn-radius: 6px; --btn-bg: rgb(var(--edge-500)); --btn-bg-hover: rgb(var(--edge-600)); --btn-shadow: none; --card-radius: 8px; --card-shadow: none; --input-radius: 6px;
+}
+/* Crimson: soft raised cards, round pill buttons (first reference) */
+[data-theme='crimson'] {
+  --paper: 252 244 247; --ink: 42 26 34; --line: 244 214 224; --muted: 110 70 86;
+  --teal-100: 251 227 236; --teal-200: 243 183 203; --teal-700: 189 29 86; --teal-800: 165 19 74; --teal-900: 139 11 58;
+  --edge-50: 255 244 248; --edge-100: 252 228 236; --edge-500: 216 27 92; --edge-600: 184 23 74; --edge-700: 150 17 60;
+  --marigold-100: 254 240 214; --marigold-500: 240 170 60; --marigold-600: 214 140 30;
+  --btn-radius: 9999px; --btn-shadow: 0 6px 14px -4px rgb(216 27 92 / .45), inset 0 -2px 0 rgb(0 0 0 / .08); --card-radius: 18px; --card-shadow: 0 8px 24px -10px rgb(139 11 58 / .28); --input-radius: 14px;
+}
+/* Forest: calm green, square-round tiles (second reference) */
+[data-theme='forest'] {
+  --paper: 241 245 239; --ink: 28 38 28; --line: 214 226 208; --muted: 72 92 70;
+  --teal-100: 227 238 221; --teal-200: 207 224 200; --teal-700: 78 126 77; --teal-800: 52 96 56; --teal-900: 38 74 42;
+  --edge-50: 241 247 238; --edge-100: 227 238 221; --edge-500: 76 124 74; --edge-600: 62 106 61; --edge-700: 38 74 42;
+  --marigold-100: 247 243 214; --marigold-500: 217 200 107; --marigold-600: 185 168 70;
+  --btn-radius: 14px; --btn-shadow: inset 0 -2px 0 rgb(0 0 0 / .12); --card-radius: 20px; --card-shadow: 0 2px 0 rgb(47 90 51 / .1); --input-radius: 12px;
+}
+/* Midnight: dark, glowing blue gradient buttons (third reference) */
+[data-theme='midnight'] {
+  --paper: 15 18 24; --ink: 231 234 240; --surface: 24 28 36; --line: 42 48 60; --muted: 165 173 188;
+  --teal-100: 224 232 247; --teal-200: 150 178 220; --teal-700: 120 160 255; --teal-800: 28 33 43; --teal-900: 10 13 18;
+  --edge-50: 22 32 54; --edge-100: 26 40 74; --edge-500: 44 107 240; --edge-600: 31 90 214; --edge-700: 120 170 255;
+  --marigold-100: 56 44 22; --marigold-500: 242 169 59; --marigold-600: 217 143 31; --moss: 74 200 130; --brick: 255 107 91;
+  --btn-radius: 12px; --btn-bg: linear-gradient(135deg, #2250D6, #2C70EC); --btn-bg-hover: linear-gradient(135deg, #1B44BE, #2562D6); --btn-shadow: 0 8px 22px -6px rgb(44 112 236 / .65);
+  --card-radius: 16px; --card-shadow: 0 10px 30px -14px rgb(0 0 0 / .8), inset 0 1px 0 rgb(255 255 255 / .04); --input-radius: 12px;
+}
+
+body { @apply font-sans antialiased; background-color: rgb(var(--paper)); color: rgb(var(--ink)); }
+.btn { @apply inline-flex items-center gap-2 px-4 py-2 font-semibold text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-teal-800 disabled:opacity-50; border-radius: var(--btn-radius); background: var(--btn-bg); box-shadow: var(--btn-shadow); transition: background .15s, transform .1s; }
+.btn:hover:not(:disabled) { background: var(--btn-bg-hover); }
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn-quiet { @apply inline-flex items-center border border-teal-100 px-3 py-2 text-sm font-medium hover:bg-teal-100; border-radius: var(--btn-radius); background-color: rgb(var(--surface)); }
+.input { @apply w-full border px-3 py-2 focus:border-teal-800 focus:outline-none focus:ring-2 focus:ring-teal-100; border-radius: var(--input-radius); background-color: rgb(var(--surface)); border-color: rgb(var(--line)); }
+.card { border: 1px solid rgb(var(--line)); border-radius: var(--card-radius); box-shadow: var(--card-shadow); background-color: rgb(var(--surface)); }
+.th { @apply px-4 py-2 text-left text-sm font-semibold; color: rgb(var(--muted)); }
+.td { @apply px-4 py-2 text-sm border-t; border-color: rgb(var(--line) / .6); }
+
+/* Midnight is a real dark mode: the panel still uses plain light utility classes in many places, so those are re-pointed here. */
+html[data-theme='midnight'] { color-scheme: dark; }
+[data-theme='midnight'] .bg-white { background-color: rgb(var(--surface)); }
+[data-theme='midnight'] .bg-slate-50, [data-theme='midnight'] .bg-slate-100, [data-theme='midnight'] .hover\:bg-slate-50:hover { background-color: rgb(32 37 47); }
+[data-theme='midnight'] .bg-teal-100, [data-theme='midnight'] .hover\:bg-teal-100:hover { background-color: rgb(32 40 56); }
+[data-theme='midnight'] .border-slate-100, [data-theme='midnight'] .border-slate-200, [data-theme='midnight'] .border-slate-300, [data-theme='midnight'] .border-teal-100 { border-color: rgb(var(--line)); }
+[data-theme='midnight'] .text-slate-400 { color: rgb(120 129 146); } [data-theme='midnight'] .text-slate-500 { color: rgb(140 149 166); }
+[data-theme='midnight'] .text-slate-600 { color: rgb(165 173 188); } [data-theme='midnight'] .text-slate-700 { color: rgb(190 197 210); }
+[data-theme='midnight'] .text-slate-800, [data-theme='midnight'] .text-slate-900 { color: rgb(215 220 230); }
+[data-theme='midnight'] .bg-green-100, [data-theme='midnight'] .bg-green-50 { background-color: rgb(20 50 36); }
+[data-theme='midnight'] .bg-red-100, [data-theme='midnight'] .bg-red-50 { background-color: rgb(60 28 26); }
+[data-theme='midnight'] .bg-amber-100, [data-theme='midnight'] .bg-amber-50, [data-theme='midnight'] .bg-yellow-100, [data-theme='midnight'] .bg-yellow-50 { background-color: rgb(60 44 20); }
+[data-theme='midnight'] .bg-blue-100, [data-theme='midnight'] .bg-blue-50 { background-color: rgb(22 36 64); }
+[data-theme='midnight'] .placeholder\:text-slate-400::placeholder, [data-theme='midnight'] ::placeholder { color: rgb(120 129 146); }

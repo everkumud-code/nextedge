@@ -1,13 +1,17 @@
-/** Palette: marigold accent on deep teal — chosen for coaching centres, not a generic SaaS kit. */
+/** Palette comes from CSS variables (see src/index.css), so one switch (data-theme on <html>) re-colours the whole panel. Classic = the original marigold-on-teal look. */
+const v = (n) => `rgb(var(--${n}) / <alpha-value>)`;
 export default {
   content: ['./index.html', './src/**/*.{ts,tsx}'],
   theme: {
     extend: {
       colors: {
-        paper: '#F3F5F8', ink: '#1A1F26', teal: { 900: '#11343C', 800: '#174651', 100: '#DCEBEE' },
-        marigold: { 500: '#F2A93B', 600: '#D98F1F', 100: '#FDF1DC' }, edge: { 500: '#1673D9', 600: '#125FB3', 100: '#DCEAFB' }, moss: '#2F8F5B', brick: '#C4412B',
+        paper: v('paper'), ink: v('ink'),
+        teal: { 100: v('teal-100'), 200: v('teal-200'), 700: v('teal-700'), 800: v('teal-800'), 900: v('teal-900') },
+        marigold: { 100: v('marigold-100'), 500: v('marigold-500'), 600: v('marigold-600') },
+        edge: { 50: v('edge-50'), 100: v('edge-100'), 500: v('edge-500'), 600: v('edge-600'), 700: v('edge-700') },
+        moss: v('moss'), brick: v('brick'),
       },
-      fontFamily: { sans: ['"Hanken Grotesk"', 'system-ui', 'sans-serif'] },
+      fontFamily: { sans: ['var(--font-body)', '"Hanken Grotesk"', 'system-ui', 'sans-serif'] },
     },
   },
   plugins: [],

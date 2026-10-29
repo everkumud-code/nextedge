@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import ThemePicker from '../components/ThemePicker';
 import { api, session } from '../api';
 
 type Channel = 'email' | 'sms' | 'whatsapp';
@@ -31,7 +32,7 @@ export default function Login() {
   async function pick(userId: string) { setBusy(true); try { const r = await api('/auth/choose', { method: 'POST', body: JSON.stringify({ choiceToken: choice!.choiceToken, userId }) }); session.set(r.token, r.user); go('/'); } catch (e: any) { setErr(e.message); } finally { setBusy(false); } }
 
   return (
-    <div className="min-h-screen grid place-items-center bg-teal-900">
+    <div className="min-h-screen grid place-items-center bg-teal-900 relative"><div className="absolute top-3 right-3"><ThemePicker floating up={false} /></div>
       <div className="w-full max-w-sm card p-8">
         <img src="/nextedge-logo.png" alt="NextEdge" className="h-12 mb-2" />
         {step === 'login' && <>

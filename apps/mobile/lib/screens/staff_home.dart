@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme.dart';
 import '../widgets.dart';
 import 'home.dart';
 import 'notifications.dart';
@@ -13,7 +14,7 @@ class StaffHome extends StatelessWidget {
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(
           title: const Text('NextEdge'),
-          actions: [const Padding(padding: EdgeInsets.only(right: 8), child: Clock()), const BellAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))],
+          actions: [const Padding(padding: EdgeInsets.only(right: 8), child: Clock()), const BellAction(), const ThemeAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))],
         ),
         body: Column(children: [
           Padding(

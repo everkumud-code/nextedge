@@ -5,6 +5,7 @@ import 'student_home.dart';
 import 'parent_home.dart';
 import 'faculty_home.dart';
 import 'staff_home.dart';
+import '../theme.dart';
 
 /// Routes to the right home by role after login.
 class HomeScreen extends StatelessWidget {
@@ -28,7 +29,8 @@ class HomeScreen extends StatelessWidget {
 }
 
 Future<void> logout(BuildContext context) async {
-  (await SharedPreferences.getInstance()).clear();
+  await (await SharedPreferences.getInstance()).clear();
+  await AppTheme.save();
   if (context.mounted) Navigator.of(context).pushAndRemoveUntil(MaterialPageRoute(builder: (_) => const LoginScreen()), (_) => false);
 }
 

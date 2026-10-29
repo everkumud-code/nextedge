@@ -1,3 +1,4 @@
+import ThemePicker from './ThemePicker';
 import Assistant from './Assistant';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
@@ -50,6 +51,7 @@ export default function Layout() {
             ))}
           </div>)}
         </nav>
+        <ThemePicker />
         <button onClick={() => { session.clear(); go('/login'); }} className="px-5 py-3 text-left text-sm text-teal-100/80 hover:text-white border-t border-teal-800">Log out</button>
       </aside>
       <main className="flex-1 p-8 max-w-7xl relative min-w-0">
