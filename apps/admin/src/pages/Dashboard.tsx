@@ -34,7 +34,7 @@ export default function Dashboard() {
       )}
       {sub && !sub.smtpUser && <div className="card p-3 mb-4 text-sm border-marigold-500 bg-marigold-100">Connect your coaching’s Gmail so OTPs, notices and receipts go out in your name — <Link className="underline font-semibold" to="/subscription">Subscription & settings → Your coaching’s email</Link></div>}
       <h1 className="text-2xl font-bold">Today</h1>
-      <p className="text-slate-600 mt-1">{new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} · {new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</p>
+      <ClockCard />
       <div className="grid grid-cols-4 gap-4 mt-6">
         <Stat label="Active students" value={active} note={`${batches.length} batch${batches.length === 1 ? '' : 'es'}`} to="/students" />
         {can('attendance') && <Stat label="Attendance" value={avgPct === null ? '—' : `${avgPct}%`} note={`${presentToday} present today · ${low.length} below 75%`} to="/attendance" />}
@@ -64,4 +64,33 @@ export default function Dashboard() {
 function Stat({ label, value, note, to }: { label: string; value: string | number; note?: string; to?: string }) {
   const inner = <><div className="text-sm text-slate-600">{label}</div><div className="text-3xl font-bold mt-1">{value}</div>{note && <div className="text-xs text-slate-500 mt-1">{note}</div>}</>;
   return to ? <Link to={to} className="card p-5 block hover:border-edge-500">{inner}</Link> : <div className="card p-5">{inner}</div>;
+}
+
+const TZ = 'Asia/Kolkata';
+/** Live clock, today's day and date, and a small calendar of this month with today highlighted (Indian time). */
+function ClockCard() {
+  const [now, setNow] = useState(new Date());
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
+  const time = now.toLocaleTimeString('en-IN', { timeZone: TZ, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  const weekday = now.toLocaleDateString('en-IN', { timeZone: TZ, weekday: 'long' });
+  const weekdayHi = now.toLocaleDateString('hi-IN', { timeZone: TZ, weekday: 'long' });
+  const date = now.toLocaleDateString('en-IN', { timeZone: TZ, day: 'numeric', month: 'long', year: 'numeric' });
+  const [y, m, d] = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now).split('-').map(Number);
+  const offset = new Date(Date.UTC(y, m - 1, 1)).getUTCDay(); const dim = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const cells: (number | null)[] = [...Array(offset).fill(null), ...Array.from({ length: dim }, (_, i) => i + 1)];
+  const monthName = new Date(Date.UTC(y, m - 1, 1)).toLocaleDateString('en-IN', { timeZone: 'UTC', month: 'long', year: 'numeric' });
+  return (
+    <div className="card mt-3 p-5 flex items-center justify-between gap-8 flex-wrap" data-testid="clock-card">
+      <div>
+        <div className="text-5xl font-bold tabular-nums text-edge-600" aria-label="Current time">{time}</div>
+        <div className="text-2xl font-semibold mt-2">{weekday} <span className="text-base font-normal text-slate-500">· {weekdayHi}</span></div>
+        <div className="text-slate-600 mt-0.5">{date}</div>
+      </div>
+      <div className="w-64">
+        <div className="text-sm font-semibold text-slate-700 mb-1">{monthName}</div>
+        <div className="grid grid-cols-7 text-center text-[11px] text-slate-400">{['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((x, i) => <div key={i}>{x}</div>)}</div>
+        <div className="grid grid-cols-7 text-center text-sm gap-y-0.5 mt-0.5">{cells.map((c, i) => <div key={i} className={c === d ? 'bg-edge-500 text-white rounded-full font-bold' : c && (i % 7 === 0) ? 'text-brick' : 'text-slate-700'}>{c ?? ''}</div>)}</div>
+      </div>
+    </div>
+  );
 }

@@ -479,3 +479,14 @@ export const examMarks = pgTable('exam_marks', {
   marks: numeric('marks', { precision: 6, scale: 2 }),
   absent: boolean('absent').default(false).notNull(),
 });
+
+// ---------- Audit of platform support access (super admin acting inside a centre) ----------
+export const auditLog = pgTable('audit_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull(),
+  userId: uuid('user_id').notNull(),
+  userName: text('user_name'),
+  method: text('method').notNull(),
+  path: text('path').notNull(),
+  at: timestamp('at').defaultNow().notNull(),
+});

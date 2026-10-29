@@ -2,6 +2,8 @@ import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, Forbi
 import { JwtService } from '@nestjs/jwt';
 import { Reflector } from '@nestjs/core';
 import { PlatformService } from '../platform/platform.service';
+import { DbService } from '../db/db.service';
+import { auditLog } from '../db/schema';
 
 export const Roles = (...roles: string[]) => SetMetadata('roles', roles);
 export const Public = () => SetMetadata('public', true);
@@ -9,7 +11,7 @@ export const Public = () => SetMetadata('public', true);
 // Verifies the JWT, attaches req.user, enforces @Roles(). Every tenant query must then filter by user.centreId.
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private jwt: JwtService, private reflector: Reflector, private platform: PlatformService) {}
+  constructor(private jwt: JwtService, private reflector: Reflector, private platform: PlatformService, private dbs: DbService) {}
   async canActivate(ctx: ExecutionContext) {
     if (this.reflector.getAllAndOverride<boolean>('public', [ctx.getHandler(), ctx.getClass()])) return true;
     const req = ctx.switchToHttp().getRequest();
@@ -19,10 +21,12 @@ export class AuthGuard implements CanActivate {
     if (!token) throw new UnauthorizedException('Login required');
     try { req.user = await this.jwt.verifyAsync(token); } catch { throw new UnauthorizedException('Session expired, login again'); }
     const roles = this.reflector.getAllAndOverride<string[]>('roles', [ctx.getHandler(), ctx.getClass()]);
+    // Support mode: a platform super admin who names a centre (?centreId=) acts inside it with owner rights. Every change is written to the audit log (visible to that centre's owner).
+    if (req.user.role === 'SUPER_ADMIN') { const qc = req.query?.centreId as string | undefined; if (qc && /^[0-9a-f-]{36}$/i.test(qc)) { req.user = { ...req.user, centreId: qc, support: true }; if (req.method !== 'GET') this.dbs.db.insert(auditLog).values({ centreId: qc, userId: req.user.id, userName: req.user.name, method: req.method, path: String(req.url).replace(/([?&])(t|token)=[^&]*/g, '$1').slice(0, 300) }).catch(() => {}); } }
     const u = req.user;
     // STAFF counts as FACULTY for role checks; what they may actually touch is decided by their module list.
     const effRole = u.role === 'STAFF' ? 'FACULTY' : u.role;
-    if (roles?.length && !roles.includes(effRole) && !roles.includes(u.role)) throw new ForbiddenException('Not allowed for your role');
+    if (roles?.length && !roles.includes(effRole) && !roles.includes(u.role) && !(u.support && roles.includes('ADMIN'))) throw new ForbiddenException('Not allowed for your role');
     const mod = this.reflector.getAllAndOverride<string>('module', [ctx.getHandler(), ctx.getClass()]);
     const mods: string[] = u.modules || [];
     // Reading the student/batch list is needed by every teaching module (roll call, marks, homework), so a GET on 'students' passes when any of those is granted.

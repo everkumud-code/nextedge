@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { and, desc, eq, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { centreSettings, centres, platformSettings, students, subscriptionInvoices } from '../db/schema';
+import { auditLog, centreSettings, centres, platformSettings, students, subscriptionInvoices, users } from '../db/schema';
 import { Roles } from '../common/auth.guard';
 import { MODULES } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
@@ -42,7 +42,8 @@ export class PlatformController {
     const db = this.dbs.db; const rows = await db.select().from(centres).orderBy(centres.name); const out = [];
     for (const c of rows) { const s = await this.svc.settings(c.id); const n = await this.svc.activeStudents(c.id);
       const [inv] = await db.select().from(subscriptionInvoices).where(and(eq(subscriptionInvoices.centreId, c.id), eq(subscriptionInvoices.status, 'due')));
-      out.push({ ...c, settings: s, activeStudents: n, openInvoice: inv || null }); }
+      const [ow] = await db.select({ id: users.id, name: users.name, email: users.email, mobile: users.mobile }).from(users).where(and(eq(users.centreId, c.id), eq(users.role, 'ADMIN'))).orderBy(users.createdAt).limit(1);
+      out.push({ ...c, settings: s, activeStudents: n, openInvoice: inv || null, owner: ow || null }); }
     return out;
   }
 
@@ -62,6 +63,16 @@ export class PlatformController {
     const slug = (c.name || 'nextedge').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 20) || 'nextedge';
     return { CENTRE_ID: id, APP_NAME: s.appName || c.name, PACKAGE_ID: s.packageId || `in.nextedge.${slug}`, APP_COLOUR: s.appColour || c.primaryColour || '#1673D9', APP_LOGO_URL: s.appLogoUrl || '', APP_ICON_URL: s.appIconUrl || s.appLogoUrl || '', API_BASE: (process.env.PUBLIC_API_URL || 'https://coaching-connect-api.onrender.com') + '/api', note: 'Codemagic → coaching-connect → workflow "White-label release" → Start new build → set these as environment variables (or add them to the Codemagic app’s environment group for this client).' };
   }
+
+  /** Edit a client: name, city and the owner's login details. */
+  @Put('centres/:id/info') async info(@Param('id') id: string, @Body() b: { name?: string; city?: string; ownerName?: string; ownerEmail?: string; ownerMobile?: string }) {
+    const db = this.dbs.db; const set: any = {}; if (b.name?.trim()) set.name = b.name.trim(); if (b.city !== undefined) set.city = b.city || null; if (Object.keys(set).length) await db.update(centres).set(set).where(eq(centres.id, id));
+    const [ow] = await db.select().from(users).where(and(eq(users.centreId, id), eq(users.role, 'ADMIN'))).orderBy(users.createdAt).limit(1);
+    if (ow) { const u: any = {}; if (b.ownerName?.trim()) u.name = b.ownerName.trim(); if (b.ownerEmail !== undefined) { const em = b.ownerEmail.trim().toLowerCase(); if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return { ok: false, error: 'Owner email is not valid' }; u.email = em || null; } if (b.ownerMobile) { const m = b.ownerMobile.replace(/\D/g, '').slice(-10); if (m.length !== 10) return { ok: false, error: 'Owner mobile must be 10 digits' }; u.mobile = m; } if (Object.keys(u).length) await db.update(users).set(u).where(eq(users.id, ow.id)); }
+    return { ok: true };
+  }
+  /** What the platform team did inside this centre (changes only). */
+  @Get('centres/:id/audit') audit(@Param('id') id: string) { return this.dbs.db.select().from(auditLog).where(eq(auditLog.centreId, id)).orderBy(desc(auditLog.at)).limit(100); }
 
   /** Switch a centre between coaching and school; optionally re-apply that type's module set. */
   @Put('centres/:id/type') async setType(@Param('id') id: string, @Body() b: { type: 'coaching' | 'school'; applyFeatures?: boolean }) {
@@ -92,6 +103,8 @@ export class SubscriptionController {
   constructor(private dbs: DbService, private svc: PlatformService, private mail: MailService) {}
 
   @Get('email-presets') presets() { return SMTP_PRESETS; }
+  /** Owner: changes the NextEdge support team made in my centre. */
+  @Get('audit') @Roles('ADMIN') audit(@CurrentUser() u: JwtUser) { return this.dbs.db.select().from(auditLog).where(eq(auditLog.centreId, u.centreId!)).orderBy(desc(auditLog.at)).limit(50); }
   /** Owner: school profile used on certificates and report cards. */
   @Put('profile') @Roles('ADMIN') async setProfile(@CurrentUser() u: JwtUser, @Body() b: { academicSession?: string; board?: string; udiseCode?: string; affiliationNo?: string; principalName?: string; address?: string; phone?: string; website?: string }) {
     await this.svc.settings(u.centreId!); const set: any = { updatedAt: new Date() }; for (const k of ['academicSession', 'board', 'udiseCode', 'affiliationNo', 'principalName', 'address', 'phone', 'website'] as const) if ((b as any)[k] !== undefined) set[k] = (b as any)[k] || null;
