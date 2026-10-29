@@ -26,10 +26,20 @@ workflows:
           sed -i.bak 's#android:label="coaching_connect"#android:label="NextEdge"#' android/app/src/main/AndroidManifest.xml
           sed -i.bak 's#<string>coaching_connect</string>#<string>NextEdge</string>#; s#<string>Coaching Connect</string>#<string>NextEdge</string>#' ios/Runner/Info.plist
           dart run flutter_launcher_icons || true
+      - name: Check the launcher icon was applied
+        script: |
+          cd apps/mobile
+          if [ -f android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml ] && ls android/app/src/main/res/drawable-*/ic_launcher_foreground.png >/dev/null 2>&1; then echo "ICON CHECK: OK - the NextEdge X icon (adaptive and legacy) is in place"; else echo "ICON CHECK: NOT APPLIED - the app would show the default Flutter icon. Read the log of the step 'App name + launcher icon'."; fi
       - name: Analyze
         script: cd apps/mobile && (flutter analyze --no-fatal-infos --no-fatal-warnings || echo 'ANALYZE REPORTED ISSUES - see above; continuing to build')
       - name: Build APK
         script: cd apps/mobile && flutter build apk --debug
+      - name: Check the APK contains the icon
+        script: |
+          cd apps/mobile
+          APK=$(ls build/app/outputs/flutter-apk/*.apk | head -1)
+          echo "APK: $APK ($(du -h "$APK" | cut -f1))"
+          unzip -l "$APK" | grep -E "ic_launcher" | head -12 || echo "WARNING: no ic_launcher files found inside the APK"
     artifacts:
       - apps/mobile/build/app/outputs/flutter-apk/*.apk
     publishing:
