@@ -26,7 +26,7 @@ export default function Batches() {
         <div className="col-span-2"><label className="text-sm font-medium">Batch name</label><input className="input" placeholder="Class 12 PCM - Morning" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
         <div><label className="text-sm font-medium">Course</label><input className="input" placeholder="JEE Foundation" value={form.course} onChange={(e) => setForm({ ...form, course: e.target.value })} /></div>
         <div><label className="text-sm font-medium">Capacity</label><input className="input" type="number" value={form.capacity} onChange={(e) => setForm({ ...form, capacity: Number(e.target.value) })} /></div>
-        <button className="btn" disabled={!form.name || !form.course} onClick={add}>Add batch</button>
+        <button className="btn" disabled={!form.name} onClick={add}>Add batch</button>
       </div>}
       {err && <p className="text-brick text-sm mt-2">{err}</p>}
       <table className="card w-full mt-6"><thead><tr><th className="th">Batch</th><th className="th">Course</th><th className="th">Students</th>{school() && <th className="th">Class teacher</th>}<th className="th">Teachers</th><th className="th">Timetable</th>{owner && <th className="th"></th>}</tr></thead>

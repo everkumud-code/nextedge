@@ -11,6 +11,9 @@ import Notices from './pages/Notices';
 import Study from './pages/Study';
 import Timetable from './pages/Timetable';
 import Clients from './pages/Clients';
+import TimetableSchool from './pages/TimetableSchool';
+import Alerts from './pages/Alerts';
+import Access from './pages/Access';
 import ClientDetail from './pages/ClientDetail';
 import Tests from './pages/Tests';
 import Homework from './pages/Homework';
@@ -35,6 +38,7 @@ import Insights from './pages/Insights';
 import SchoolProfile from './pages/SchoolProfile';
 import Apply from './pages/Apply';
 
+function TimetableSwitch() { return session.user?.institutionType === 'school' ? <TimetableSchool /> : <Timetable />; }
 function Private({ children }: { children: JSX.Element }) { return session.token ? children : <Navigate to="/login" replace />; }
 
 export default function App() {
@@ -58,7 +62,9 @@ export default function App() {
         <Route path="fees" element={<Fees />} />
         <Route path="notices" element={<Notices />} />
         <Route path="study" element={<Study />} />
-        <Route path="timetable" element={<Timetable />} />
+        <Route path="timetable" element={<TimetableSwitch />} />
+        <Route path="alerts" element={<Alerts />} />
+        <Route path="access" element={<Access />} />
         <Route path="clients" element={<Clients />} />
         <Route path="clients/:id" element={<ClientDetail />} />
         <Route path="centres" element={<Navigate to="/clients" replace />} />

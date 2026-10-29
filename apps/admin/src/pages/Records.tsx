@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { api, session } from '../api';
+import { api, session, uploadFile } from '../api';
 const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
 const today = new Date().toISOString().slice(0, 10);
 
@@ -32,6 +32,7 @@ export default function Records() {
   const F = (f: any) => { const v = form.data[f.key] ?? ''; const set = (val: any) => setForm({ ...form, data: { ...form.data, [f.key]: val } }); const cls = 'input';
     if (f.type === 'textarea') return <textarea className={cls} rows={3} value={v} onChange={(e) => set(e.target.value)} />;
     if (f.type === 'select') return <select className={cls} value={v} onChange={(e) => set(e.target.value)}><option value="">—</option>{f.options.map((o: string) => <option key={o}>{o}</option>)}</select>;
+    if (f.type === 'url') return <div className="flex gap-2"><input className={cls} type="url" placeholder="https://… or upload" value={v} onChange={(e) => set(e.target.value)} /><label className="btn-quiet cursor-pointer whitespace-nowrap">Upload<input type="file" accept="image/*,application/pdf" className="hidden" onChange={async (e) => { const file = e.target.files?.[0]; if (!file) return; try { const r = await uploadFile(file, kind === 'gallery' ? 'gallery' : 'other'); set(`${API.replace(/\/api$/, '')}${r.url}`); } catch (x: any) { alert(x.message); } }} /></label></div>;
     return <input className={cls} type={f.type === 'number' ? 'number' : f.type === 'date' ? 'date' : f.type === 'time' ? 'time' : f.type === 'url' ? 'url' : 'text'} maxLength={f.type === 'mobile' ? 10 : undefined} value={v} onChange={(e) => set(f.type === 'mobile' ? e.target.value.replace(/\D/g, '') : e.target.value)} />; };
   const cols = kd.fields.filter((f: any) => f.type !== 'textarea' && f.type !== 'url').slice(0, 4);
   const overdue = (r: any) => (kind === 'loan' && r.status === 'issued' && r.data.dueDate && r.data.dueDate < today) || (kind === 'duty' && r.status !== 'done' && r.data.dueDate && r.data.dueDate < today) || (kind === 'scheduled-service' && r.status !== 'done' && r.data.nextDue && r.data.nextDue < today);

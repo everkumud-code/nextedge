@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { and, eq, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { centreSettings, centres, students, subscriptionInvoices, users } from '../db/schema';
@@ -12,7 +12,10 @@ export const PLAN_PRESETS: Record<string, { price: number; features: string[] }>
   starter: { price: 25, features: ['students', 'attendance', 'fees', 'study', 'tests', 'homework', 'notices', 'chat', 'timetable', 'doubts', 'leaves', 'feedback', 'reports'] },
   standard: { price: 40, features: [...MODULES] },
   pro: { price: 60, features: [...MODULES] },
+  // Demo package: every module (school and coaching alike), free, never billed, never expires. For demos, trials-with-everything and internal testing.
+  demo: { price: 0, features: [...MODULES] },
 };
+export const DEMO_CENTRE_NAMES = ['Demo Coaching Centre', 'Demo Public School'];
 
 @Injectable()
 export class PlatformService {
@@ -26,8 +29,14 @@ export class PlatformService {
   }
   /** Boot-time catch-up: centres created before a module existed get it if their type includes it (a coaching centre never gets school-only modules). */
   async migrateFeatures() {
-    const db = this.dbs.db; const rows = await db.select({ id: centreSettings.centreId, f: centreSettings.features, t: centres.institutionType }).from(centreSettings).innerJoin(centres, eq(centres.id, centreSettings.centreId));
-    for (const r of rows) { const cur: string[] = JSON.parse(r.f || '[]'); if (!cur.length) continue; const want = featuresFor(r.t || 'coaching').filter((m) => !cur.includes(m) && m === 'academics'); if (want.length) await db.update(centreSettings).set({ features: JSON.stringify([...cur, ...want]) }).where(eq(centreSettings.centreId, r.id)); }
+    const db = this.dbs.db;
+    // The two built-in demo clients run on the demo package so their logins never expire.
+    for (const name of DEMO_CENTRE_NAMES) { const [c] = await db.select().from(centres).where(eq(centres.name, name)); if (c && c.plan !== 'demo') await db.update(centres).set({ plan: 'demo' }).where(eq(centres.id, c.id)); }
+    const rows = await db.select({ id: centreSettings.centreId, f: centreSettings.features, t: centres.institutionType, plan: centres.plan, status: centreSettings.status }).from(centreSettings).innerJoin(centres, eq(centres.id, centreSettings.centreId));
+    for (const r of rows) {
+      if (r.plan === 'demo') { await db.update(centreSettings).set({ features: JSON.stringify([...MODULES]), status: 'active', pricePerStudent: '0', minStudents: 0, trialEndsAt: null, paidUntil: null, updatedAt: new Date() }).where(eq(centreSettings.centreId, r.id)); continue; }
+      const cur: string[] = JSON.parse(r.f || '[]'); if (!cur.length) continue; const want = featuresFor(r.t || 'coaching').filter((m) => !cur.includes(m) && m === 'academics'); if (want.length) await db.update(centreSettings).set({ features: JSON.stringify([...cur, ...want]) }).where(eq(centreSettings.centreId, r.id));
+    }
   }
   /** Modules this centre may use; empty list means everything. */
   async enabledModules(centreId: string): Promise<string[]> { const s = await this.settings(centreId); return s.features.length ? s.features : [...MODULES]; }
@@ -36,7 +45,7 @@ export class PlatformService {
 
   /** Creates (or returns) the invoice for the next period. */
   async raiseInvoice(centreId: string) {
-    const db = this.dbs.db; const s = await this.settings(centreId); const n = Math.max(s.minStudents, await this.activeStudents(centreId));
+    const db = this.dbs.db; const [pc] = await db.select({ plan: centres.plan }).from(centres).where(eq(centres.id, centreId)); if (pc?.plan === 'demo') throw new BadRequestException('The demo package is free and is never billed.'); const s = await this.settings(centreId); const n = Math.max(s.minStudents, await this.activeStudents(centreId));
     const from = s.paidUntil ? addDays(s.paidUntil, 1) : today(); const to = s.billingCycle === 'annual' ? addDays(from, 365) : addDays(from, 30);
     const [existing] = await db.select().from(subscriptionInvoices).where(and(eq(subscriptionInvoices.centreId, centreId), eq(subscriptionInvoices.status, 'due')));
     if (existing) return existing;
@@ -61,7 +70,9 @@ export class PlatformService {
   /** Daily: reminders at 7/3/1 days before expiry, on expiry → grace (7 days), after grace → suspended. */
   async renewalSweep() {
     const db = this.dbs.db; const all = await db.select().from(centreSettings); const t = today(); let touched = 0;
+    const demoIds = new Set((await db.select({ id: centres.id }).from(centres).where(eq(centres.plan, 'demo'))).map((c) => c.id));
     for (const s of all) {
+      if (demoIds.has(s.centreId)) continue; // demo package never expires
       const end = s.status === 'trial' ? s.trialEndsAt : s.paidUntil; if (!end) continue;
       const daysLeft = Math.round((new Date(end).getTime() - new Date(t).getTime()) / 864e5);
       const admins = (await db.select({ id: users.id }).from(users).where(and(eq(users.centreId, s.centreId), eq(users.role, 'ADMIN')))).map((a) => a.id);

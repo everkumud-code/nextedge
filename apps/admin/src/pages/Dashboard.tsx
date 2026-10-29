@@ -35,6 +35,7 @@ export default function Dashboard() {
       {sub && !sub.smtpUser && <div className="card p-3 mb-4 text-sm border-marigold-500 bg-marigold-100">Connect your coaching’s Gmail so OTPs, notices and receipts go out in your name — <Link className="underline font-semibold" to="/subscription">Subscription & settings → Your coaching’s email</Link></div>}
       <h1 className="text-2xl font-bold">Today</h1>
       <ClockCard />
+      {['ADMIN', 'SUPER_ADMIN', 'STAFF'].includes(u?.role || '') && <AlertsWidget />}
       <div className="grid grid-cols-4 gap-4 mt-6">
         <Stat label="Active students" value={active} note={`${batches.length} batch${batches.length === 1 ? '' : 'es'}`} to="/students" />
         {can('attendance') && <Stat label="Attendance" value={avgPct === null ? '—' : `${avgPct}%`} note={`${presentToday} present today · ${low.length} below 75%`} to="/attendance" />}
@@ -92,5 +93,15 @@ function ClockCard() {
         <div className="grid grid-cols-7 text-center text-sm gap-y-0.5 mt-0.5">{cells.map((c, i) => <div key={i} className={c === d ? 'bg-edge-500 text-white rounded-full font-bold' : c && (i % 7 === 0) ? 'text-brick' : 'text-slate-700'}>{c ?? ''}</div>)}</div>
       </div>
     </div>
+  );
+}
+
+/** Top alerts for today with a link to the full alert centre. */
+function AlertsWidget() {
+  const [d, setD] = useState<any>(null); useEffect(() => { api('/alerts').then(setD).catch(() => {}); }, []);
+  if (!d || !d.alerts.length) return null; const top = d.alerts.filter((a: any) => a.severity !== 'info').slice(0, 4);
+  return (
+    <div className="card mt-4 p-4" data-testid="alerts-widget"><div className="flex items-center justify-between mb-2"><b>Needs your attention</b><Link to="/alerts" className="text-sm text-edge-600 underline">All alerts ({d.alerts.length})</Link></div>
+      <div className="grid grid-cols-4 gap-3">{top.map((a: any) => <Link key={a.key} to={a.path} className={`rounded border-l-4 p-3 bg-slate-50 hover:bg-slate-100 ${a.severity === 'high' ? 'border-brick' : 'border-marigold-500'}`}><div className="text-2xl font-bold leading-none">{a.count}</div><div className="text-sm mt-1">{a.label}</div></Link>)}</div></div>
   );
 }

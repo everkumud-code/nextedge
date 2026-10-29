@@ -1,9 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, session } from '../api';
+import { api, session, openPdf } from '../api';
 const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
 const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
-async function openPdf(path: string) { const r = await fetch(API + path, { headers: { Authorization: `Bearer ${session.token}` } }); if (!r.ok) { alert('Could not open the payslip'); return; } window.open(URL.createObjectURL(await r.blob()), '_blank'); }
 
 /** Payroll: salary structure (Employees) + staff attendance + approved leave → monthly payslips → pay. Owner only. */
 export default function Payroll() {

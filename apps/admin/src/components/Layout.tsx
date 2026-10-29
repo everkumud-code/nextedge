@@ -7,16 +7,16 @@ const SCHOOL_ROLE: Record<string, string> = { ADMIN: 'Principal', FACULTY: 'Teac
 // [path, label, module key (feature flag + staff privilege)]; grouped. A user only sees pages their plan and owner allow.
 type Item = [string, string, string, string?]; // 4th = school-specific label
 const groups: { name: string; items: Item[] }[] = [
-  { name: '', items: [['/', 'Today', ''], ['/inbox', 'Inbox', 'doubts']] },
+  { name: '', items: [['/', 'Today', ''], ['/alerts', 'Alerts', ''], ['/inbox', 'Inbox', 'doubts']] },
   { name: 'People', items: [['/students', 'Students', 'students'], ['/batches', 'Batches', 'students', 'Classes & sections'], ['/records/admission', 'Admissions', 'admissions'], ['/enquiries', 'Enquiries', 'enquiries', 'Admission enquiries'], ['/staff', 'Staff & privileges', 'staff'], ['/id-cards', 'ID cards', 'students']] },
-  { name: 'Academics', items: [['/attendance', 'Attendance', 'attendance'], ['/timetable', 'Timetable', 'timetable', 'Period timetable'], ['/exams', 'Exams & report cards', 'exams'], ['/tests', 'Online tests', 'tests'], ['/homework', 'Homework', 'homework'], ['/study', 'Study material', 'study'], ['/live', 'Live classes', 'live'], ['/records/lesson', 'Lesson diary & planner', 'planner']] },
+  { name: 'Academics', items: [['/attendance', 'Attendance', 'attendance'], ['/timetable', 'Timetable', 'timetable', 'Period timetable'], ['/exams', 'Exams & report cards', 'exams'], ['/tests', 'Online tests', 'tests'], ['/homework', 'Homework', 'homework'], ['/study', 'Study material', 'study'], ['/live', 'Live classes', 'live'], ['/records/lesson', 'Lesson diary & planner', 'planner'], ['/records/subject', 'Subjects & syllabus', 'academics']] },
   { name: 'Fees & office', items: [['/fees', 'Fees', 'fees'], ['/certificates', 'Certificates', 'certificates'], ['/records/visitor', 'Front desk', 'visitors'], ['/records/transport-route', 'Transport', 'transport'], ['/records/book', 'Library', 'library'], ['/records/item', 'Inventory', 'inventory']] },
-  { name: 'Student welfare', items: [['/records/discipline', 'Discipline', 'discipline'], ['/records/health', 'Health & medical', 'health'], ['/records/achievement', 'Activities & awards', 'activities']] },
+  { name: 'Student welfare', items: [['/records/discipline', 'Discipline', 'discipline'], ['/records/behaviour', 'Behaviour', 'discipline'], ['/records/health', 'Health & medical', 'health'], ['/records/achievement', 'Activities & awards', 'activities']] },
   { name: 'Communication', items: [['/notices', 'Notices', 'notices'], ['/wishes', 'Wishes', 'notices'], ['/records/event', 'Events & gallery', 'events'], ['/records/ptm-slot', 'PTM slots', 'events'], ['/records/teacher-feedback', 'Teacher feedback', 'feedback']] },
   { name: 'HR & payroll', items: [['/records/employee', 'Employees', 'hr'], ['/staff-attendance', 'Staff attendance', 'staff'], ['/records/staff-leave', 'Staff leave', 'hr'], ['/payroll', 'Payroll', 'hr'], ['/records/job-opening', 'Recruitment', 'hr'], ['/records/duty', 'Duties & services', 'duties']] },
-  { name: 'Reports & settings', items: [['/insights', 'Reports & graphs', 'reports'], ['/school-profile', 'School profile', 'students'], ['/biometric', 'Biometric', 'biometric'], ['/subscription', 'Subscription & email', '']] },
+  { name: 'Reports & settings', items: [['/insights', 'Reports & graphs', 'reports'], ['/school-profile', 'School profile', 'students'], ['/biometric', 'Biometric', 'biometric'], ['/access', 'Access & security', ''], ['/subscription', 'Subscription & email', '']] },
 ];
-const adminOnly = new Set(['/subscription', '/school-profile', '/payroll', '/insights']);
+const adminOnly = new Set(['/subscription', '/school-profile', '/payroll', '/insights', '/access']);
 
 export default function Layout() {
   const user = session.user; const go = useNavigate(); const school = user?.institutionType === 'school'; const isSuper = user?.role === 'SUPER_ADMIN'; const viewing = isSuper ? session.viewCentre : null; const [centres, setCentres] = useState<any[]>([]);
@@ -27,7 +27,7 @@ export default function Layout() {
   const [bell, setBell] = useState<{ unread: number; items: any[] } | null>(null); const [open, setOpen] = useState(false);
   useEffect(() => { const f = () => api('/notifications/mine').then(setBell).catch(() => {}); f(); const t = setInterval(f, 60000); return () => clearInterval(t); }, []);
   const owner = ['ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
-  const allowed = (it: Item) => { const [to, , m] = it; if (adminOnly.has(to) && !owner && to !== '/insights') return false; if (to === '/insights' && !owner && !(user?.modules || []).includes('reports')) return false; if (!m) return true; return (owner || !user?.modules || user.modules.includes(m)) && (user?.role === 'SUPER_ADMIN' || !user?.features || user.features.includes(m)); };
+  const allowed = (it: Item) => { const [to, , m] = it; if (adminOnly.has(to) && !owner && to !== '/insights') return false; if (to === '/insights' && !owner && !(user?.modules || []).includes('reports')) return false; if (to === '/timetable') return user?.role !== 'PARENT' && user?.role !== 'STUDENT' && (user?.role === 'SUPER_ADMIN' || !user?.features || user.features.includes('timetable')); if (to === '/alerts') return owner || user?.role === 'STAFF'; if (!m) return true; return (owner || !user?.modules || user.modules.includes(m)) && (user?.role === 'SUPER_ADMIN' || !user?.features || user.features.includes(m)); };
   const platform: Item[] = user?.role === 'SUPER_ADMIN' ? [['/clients', 'Clients', ''], ['/platform', 'Billing & plans', ''], ['/counsellor', 'Counsellors', '']] : [];
   const platformOnly = isSuper && !viewing;
   const visible = user?.role === 'EXPERT' ? [{ name: '', items: [['/counsellor', 'Counsellor console', ''] as Item] }] : [...(platformOnly ? [] : groups.map((g) => ({ ...g, items: g.items.filter(allowed) })).filter((g) => g.items.length)), ...(platform.length ? [{ name: 'Platform', items: platform }] : [])];

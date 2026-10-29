@@ -49,7 +49,11 @@ export class PlatformController {
 
   @Put('centres/:id/settings') async update(@Param('id') id: string, @Body() b: Partial<{ features: string[]; pricePerStudent: number; minStudents: number; billingCycle: string; plan: string; status: string; paidUntil: string; trialEndsAt: string; liveProvider: string; zoomAccountId: string; zoomClientId: string; zoomClientSecret: string; defaultMeetingUrl: string }>) {
     const db = this.dbs.db; await this.svc.settings(id); const set: any = { updatedAt: new Date() };
-    if (b.plan && PLAN_PRESETS[b.plan]) { await db.update(centres).set({ plan: b.plan }).where(eq(centres.id, id)); set.pricePerStudent = String(PLAN_PRESETS[b.plan].price); set.features = JSON.stringify(PLAN_PRESETS[b.plan].features); }
+    if (b.plan && PLAN_PRESETS[b.plan]) {
+      const [cur] = await db.select({ plan: centres.plan }).from(centres).where(eq(centres.id, id)); await db.update(centres).set({ plan: b.plan }).where(eq(centres.id, id)); set.pricePerStudent = String(PLAN_PRESETS[b.plan].price); set.features = JSON.stringify(PLAN_PRESETS[b.plan].features);
+      if (b.plan === 'demo') { set.status = 'active'; set.minStudents = 0; set.trialEndsAt = null; set.paidUntil = null; set.features = JSON.stringify([...MODULES]); }
+      else if (cur?.plan === 'demo') { set.status = 'trial'; set.trialEndsAt = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10); set.paidUntil = null; set.minStudents = set.minStudents ?? 10; } // leaving the demo package starts a normal 30-day trial
+    }
     if (b.features) set.features = JSON.stringify(b.features.filter((m) => (MODULES as readonly string[]).includes(m)));
     if (b.pricePerStudent !== undefined) set.pricePerStudent = String(b.pricePerStudent);
     for (const k of ['minStudents', 'billingCycle', 'status', 'paidUntil', 'trialEndsAt', 'liveProvider', 'zoomAccountId', 'zoomClientId', 'zoomClientSecret', 'defaultMeetingUrl', 'appName', 'packageId', 'appColour', 'appLogoUrl', 'appIconUrl', 'playStoreUrl'] as const) if ((b as any)[k] !== undefined) set[k] = (b as any)[k];
@@ -127,7 +131,7 @@ export class PlatformController {
   /** Switch a centre between coaching and school; optionally re-apply that type's module set. */
   @Put('centres/:id/type') async setType(@Param('id') id: string, @Body() b: { type: 'coaching' | 'school'; applyFeatures?: boolean }) {
     const type = b.type === 'school' ? 'school' : 'coaching'; await this.dbs.db.update(centres).set({ institutionType: type }).where(eq(centres.id, id));
-    if (b.applyFeatures) { await this.svc.settings(id); await this.dbs.db.update(centreSettings).set({ features: JSON.stringify(featuresFor(type)), updatedAt: new Date() }).where(eq(centreSettings.centreId, id)); }
+    if (b.applyFeatures) { await this.svc.settings(id); const [pc] = await this.dbs.db.select({ plan: centres.plan }).from(centres).where(eq(centres.id, id)); await this.dbs.db.update(centreSettings).set({ features: JSON.stringify(featuresFor(type, pc?.plan)), updatedAt: new Date() }).where(eq(centreSettings.centreId, id)); }
     return { ok: true, type };
   }
 
@@ -176,7 +180,8 @@ export class SubscriptionController {
     if (!u.centreId) return null; const s = await this.svc.settings(u.centreId); const n = await this.svc.activeStudents(u.centreId);
     const [inv] = await this.dbs.db.select().from(subscriptionInvoices).where(and(eq(subscriptionInvoices.centreId, u.centreId), eq(subscriptionInvoices.status, 'due')));
     const { zoomClientSecret, zoomClientId, zoomAccountId, smtpPass, payuSalt, ...safe } = s as any;
-    return { ...safe, activeStudents: n, openInvoice: inv || null, estimateNext: Math.max(s.minStudents, n) * Number(s.pricePerStudent) * (s.billingCycle === 'annual' ? 10 : 1) };
+    const [pc] = await this.dbs.db.select({ plan: centres.plan }).from(centres).where(eq(centres.id, u.centreId));
+    return { ...safe, plan: pc?.plan, activeStudents: n, openInvoice: inv || null, estimateNext: Math.max(s.minStudents, n) * Number(s.pricePerStudent) * (s.billingCycle === 'annual' ? 10 : 1) };
   }
   @Post('invoice') @Roles('ADMIN') async raise(@CurrentUser() u: JwtUser) { return this.svc.raiseInvoice(u.centreId!); }
   /** Owner picks how live classes run: jitsi | zoom (needs Zoom S2S keys) | meet | teams | custom (standing link). */

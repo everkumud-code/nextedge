@@ -212,6 +212,18 @@ export async function schoolExams(c: Ctx) {
 const R = (c: Ctx, kind: string, o: any) => ({ centreId: c.centre.id, kind, title: o.title, date: o.date ?? null, status: o.status, studentId: o.student?.id ?? null, staffId: o.staff?.id ?? null, refId: o.ref?.id ?? null, data: JSON.stringify(o.data || {}), parentVisible: o.pv ?? false });
 async function has(c: Ctx, kind: string, min = 1) { const [{ n }] = await c.db.select({ n: sql<number>`count(*)` }).from(s.records).where(and(eq(s.records.centreId, c.centre.id), eq(s.records.kind, kind))); return Number(n) >= min; }
 
+
+/** Demo school: a standard bell schedule and a Monday–Saturday period grid, so the Timetable screens are alive on day one. */
+export async function schoolTimetable(c: Ctx) {
+  const { db } = c; if (c.type !== 'school') return;
+  const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(s.bellPeriods).where(eq(s.bellPeriods.centreId, c.centre.id)); if (Number(n) > 0) return;
+  const f = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; const defs: { name: string; a: string; b: string; brk: boolean }[] = []; let t = 8 * 60;
+  for (let i = 1; i <= 8; i++) { defs.push({ name: `Period ${i}`, a: f(t), b: f(t + 40), brk: false }); t += 40; if (i === 3) { defs.push({ name: 'Short break', a: f(t), b: f(t + 15), brk: true }); t += 15; } if (i === 5) { defs.push({ name: 'Lunch', a: f(t), b: f(t + 30), brk: true }); t += 30; } }
+  const periods = defs.map((p, i) => ({ centreId: c.centre.id, no: i + 1, name: p.name, startTime: p.a, endTime: p.b, isBreak: p.brk })); await ins(db, s.bellPeriods, periods);
+  const bs = await db.select().from(s.batches).where(eq(s.batches.centreId, c.centre.id)); const subjects = ['English', 'Hindi', 'Mathematics', 'Science', 'Social Science', 'Computer', 'Art & craft', 'Moral science'];
+  const slots: any[] = []; bs.forEach((b: any, bi: number) => { for (let wd = 1; wd <= 6; wd++) { let k = 0; for (const p of periods) { if (p.isBreak) continue; slots.push({ centreId: c.centre.id, batchId: b.id, weekday: wd, startTime: p.startTime, endTime: p.endTime, subject: subjects[(k + wd + bi) % subjects.length], facultyId: b.classTeacherId || null, period: p.no }); k++; } } });
+  await ins(db, s.timetableSlots, slots);
+}
 export async function schoolRecords(c: Ctx) {
   const { db, rnd } = c; const school = c.type === 'school'; const st = (i: number) => c.students[(i * 7 + 3) % c.students.length]; const T = c.teachers; const t = (i: number) => T[i % T.length]; const d = (n: number) => addDays(c.today, n);
   if (school && !(await has(c, 'transport-route'))) { const routes = await ins(db, s.records, [R(c, 'transport-route', { title: 'Route 1 — Lalpur to Kanke Road', status: 'active', data: { vehicle: 'JH01AB1234', driver: 'Ramesh Yadav', driverMobile: '9876500099', helper: 'Sunil', stops: 'Lalpur 7:10\nKokar 7:20\nBariatu 7:30\nKanke Road 7:45', fee: 1200, capacity: 40 } }), R(c, 'transport-route', { title: 'Route 2 — Doranda to Harmu', status: 'active', data: { vehicle: 'JH01CD5678', driver: 'Mohan Munda', driverMobile: '9876500098', stops: 'Doranda 7:05\nHarmu 7:20\nAshok Nagar 7:35', fee: 1000, capacity: 35 } }), R(c, 'transport-route', { title: 'Route 3 — Morabadi to Argora', status: 'active', data: { vehicle: 'JH01EF9012', driver: 'Prakash Toppo', driverMobile: '9876500097', stops: 'Morabadi 7:15\nHinoo 7:30\nArgora 7:40', fee: 1100, capacity: 30 } })]);
@@ -297,7 +309,7 @@ export async function fillDemoData() {
       const step = async (label: string, fn: () => Promise<any>) => { try { await fn(); } catch (e: any) { console.error(`[demo-fill] ${name} · ${label} failed:`, e?.message || e); } };
       await step('people', () => (type === 'school' ? schoolPeople(c) : coachingPeople(c))); if (!c.students.length) continue;
       await step('parents', () => ensureParents(c)); await step('payments', () => payments(c)); await step('attendance', () => attendance(c)); await step('homework', () => homework(c)); await step('tests', () => tests(c, type === 'school' ? (b: any) => /Class [678] - [AB]/.test(b.name) : () => true)); await step('study+live', () => studyAndLive(c)); await step('communication', () => communication(c));
-      if (type === 'school') await step('exams', () => schoolExams(c)); await step('records', () => schoolRecords(c)); await step('office+HR', () => schoolOffice(c)); await step('showcase', () => showcase(c));
+      if (type === 'school') await step('exams', () => schoolExams(c)); if (type === 'school') await step('timetable', () => schoolTimetable(c)); await step('records', () => schoolRecords(c)); await step('office+HR', () => schoolOffice(c)); await step('showcase', () => showcase(c));
       console.log(`[demo-fill] ${name}: ${c.students.length} students, ${c.batches.length} batches, ${c.teachers.length} teachers ready`);
     }
     console.log(`[demo-fill] done in ${Math.round((Date.now() - t0) / 1000)}s`);

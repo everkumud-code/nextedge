@@ -7,4 +7,4 @@ export const Mod = (m: ModuleKey) => SetMetadata('module', m);
 
 /** Module sets by institution type. Coaching centres get everything except school-only modules; schools get everything. The super-admin can still switch any module per centre. */
 export const SCHOOL_ONLY: ModuleKey[] = ['academics', 'transport', 'library', 'inventory', 'visitors', 'discipline', 'health', 'exams', 'certificates', 'admissions', 'hr', 'biometric'];
-export const featuresFor = (type: string, plan = 'standard'): ModuleKey[] => (type === 'school' ? [...MODULES] : MODULES.filter((m) => !SCHOOL_ONLY.includes(m)));
+export const featuresFor = (type: string, plan = 'standard'): ModuleKey[] => (type === 'school' || plan === 'demo' ? [...MODULES] : MODULES.filter((m) => !SCHOOL_ONLY.includes(m)));

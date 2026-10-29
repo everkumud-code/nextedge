@@ -11,6 +11,7 @@ export default function Subscription() {
       <h1 className="text-2xl font-bold">Subscription & settings</h1>
       <div className="grid grid-cols-2 gap-4 mt-6">
         <div className="card p-4"><h2 className="font-semibold mb-2">Your plan</h2>
+          {s.plan === 'demo' && <div className="mb-2 p-3 rounded bg-edge-50 text-sm"><b>Demo package</b> — every feature is switched on for you. It is free and never expires.</div>}
           <div className="text-sm space-y-1"><div>Status: <b className={s.status === 'active' ? 'text-moss' : s.status === 'suspended' ? 'text-brick' : ''}>{s.status}</b>{end && <> · {s.status === 'trial' ? 'trial ends' : 'paid until'} <b>{end}</b></>}</div><div>Active students: <b>{s.activeStudents}</b> (billed minimum {s.minStudents})</div><div>Rate: <b>{inr(s.pricePerStudent)}</b> per student per month · {s.billingCycle}</div><div>Next renewal estimate: <b>{inr(s.estimateNext)}</b></div></div>
           {s.openInvoice ? <div className="mt-3 p-3 rounded bg-marigold-100 text-sm"><b>Invoice due: {inr(s.openInvoice.amount)}</b> for {s.openInvoice.periodFrom} → {s.openInvoice.periodTo}.{s.openInvoice.paymentLink ? <> <a className="underline font-semibold" href={s.openInvoice.paymentLink} target="_blank" rel="noreferrer">Pay online</a></> : ' Pay by UPI/bank transfer and share the reference with support.'}</div>
             : <a className="btn mt-3 inline-block" href="/pay">Renew / pay now</a>}

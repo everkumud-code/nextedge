@@ -21,3 +21,16 @@ export async function api<T = any>(path: string, opts: RequestInit = {}): Promis
   if (!res.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Request failed');
   return data;
 }
+
+export const fileUrl = (id: string) => `${BASE}/files/${id}`;
+/** Opens a PDF/file from the API in a new tab (sends the login, and the chosen centre when a super admin is in support mode). */
+export async function openPdf(path: string, err = 'Could not open the file') {
+  const vc = session.user?.role === 'SUPER_ADMIN' ? session.viewCentre : null; if (vc && !/[?&]centreId=/.test(path)) path += (path.includes('?') ? '&' : '?') + 'centreId=' + vc;
+  const r = await fetch(BASE + path, { headers: { Authorization: `Bearer ${session.token}` } }); if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || err); return; }
+  window.open(URL.createObjectURL(await r.blob()), '_blank');
+}
+/** Reads a picked file as base64 and stores it (photos are shrunk by the server). */
+export async function uploadFile(file: File, ownerKind: string, ownerId?: string): Promise<{ id: string; url: string; name: string }> {
+  const data: string = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = () => rej(new Error('Could not read the file')); fr.readAsDataURL(file); });
+  return api('/files', { method: 'POST', body: JSON.stringify({ ownerKind, ownerId, name: file.name, mime: file.type || 'application/octet-stream', data }) });
+}

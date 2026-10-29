@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { api, session } from '../api';
+import { api, session, openPdf } from '../api';
 const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
-async function openPdf(path: string) { const r = await fetch(API + path, { headers: { Authorization: `Bearer ${session.token}` } }); if (!r.ok) { alert('Could not open the certificate'); return; } window.open(URL.createObjectURL(await r.blob()), '_blank'); }
 const dt = (d?: string) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '');
 
 /** Certificates: Transfer (TC), Bonafide, Character, Study, Fee — serial-numbered, registered, printable. */

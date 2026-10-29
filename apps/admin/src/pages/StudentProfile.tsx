@@ -1,15 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { api, session } from '../api';
+import { api, session, openPdf, fileUrl, uploadFile } from '../api';
 const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
 const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 const dt = (d?: string) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
-async function openPdf(path: string) { const r = await fetch(API + path, { headers: { Authorization: `Bearer ${session.token}` } }); if (!r.ok) { alert('Could not open the document'); return; } window.open(URL.createObjectURL(await r.blob()), '_blank'); }
 
 /** Student 360°: everything the institution knows about one student, printable. */
 export default function StudentProfile() {
   const { id } = useParams(); const [d, setD] = useState<any>(null); const [tab, setTab] = useState('overview'); const [err, setErr] = useState('');
   const school = session.user?.institutionType === 'school';
+  const [photo, setPhoto] = useState<string | null>(null); const loadPhoto = () => api('/files/photo-map?kind=student-photo').then((m) => setPhoto(m[id as string] || null)).catch(() => {}); useEffect(() => { loadPhoto(); }, [id]);
   useEffect(() => { api(`/students/${id}/dossier`).then(setD).catch((e) => setErr(e.message)); }, [id]);
   if (err) return <p className="text-brick">{err}</p>; if (!d) return <p className="text-slate-500">Loading…</p>;
   const s = d.student; const led = d.fees.ledger; const tabs = ['overview', 'profile', 'attendance', 'fees', 'academics', 'conduct', 'services'];
@@ -17,9 +17,9 @@ export default function StudentProfile() {
   const lastExam = d.exams[d.exams.length - 1];
   return (
     <div>
-      <div className="flex items-start justify-between flex-wrap gap-3 print:hidden"><div className="flex items-center gap-4"><div className="w-16 h-16 rounded-full bg-edge-100 text-edge-600 grid place-items-center text-2xl font-bold">{s.name.split(' ').map((x: string) => x[0]).slice(0, 2).join('')}</div>
+      <div className="flex items-start justify-between flex-wrap gap-3 print:hidden"><div className="flex items-center gap-4">{photo ? <img src={fileUrl(photo)} alt="" className="w-16 h-16 rounded-full object-cover border" /> : <div className="w-16 h-16 rounded-full bg-edge-100 text-edge-600 grid place-items-center text-2xl font-bold">{s.name.split(' ').map((x: string) => x[0]).slice(0, 2).join('')}</div>}
         <div><h1 className="text-2xl font-bold">{s.name} {!s.active && <span className="tag">left {s.leftOn ? dt(s.leftOn) : ''}</span>}</h1><p className="text-slate-600 text-sm">{[s.batchName, s.rollNo && `Roll ${s.rollNo}`, s.admissionNo, s.classTeacher && `Class teacher: ${s.classTeacher}`].filter(Boolean).join(' · ')}</p></div></div>
-        <div className="flex gap-2 flex-wrap"><button className="btn-quiet" onClick={() => window.print()}>Print</button>{school && lastExam && <button className="btn-quiet" onClick={() => openPdf(`/exams/report-card/${id}.pdf?term=${encodeURIComponent(lastExam.term)}`)}>Report card</button>}{school && <Link className="btn-quiet" to={`/certificates?student=${id}`}>Issue certificate</Link>}<Link className="btn-quiet" to="/students">← Students</Link></div></div>
+        <div className="flex gap-2 flex-wrap"><button className="btn-quiet" onClick={() => window.print()}>Print</button><label className="btn-quiet cursor-pointer">{photo ? 'Change photo' : 'Add photo'}<input type="file" accept="image/*" className="hidden" onChange={async (e) => { const f = e.target.files?.[0]; if (!f) return; try { await uploadFile(f, 'student-photo', id); loadPhoto(); } catch (x: any) { alert(x.message); } }} /></label><button className="btn-quiet" onClick={() => openPdf(`/idcards/student/${id}.pdf`, 'Could not create the ID card')}>ID card</button>{school && lastExam && <button className="btn-quiet" onClick={() => openPdf(`/exams/report-card/${id}.pdf?term=${encodeURIComponent(lastExam.term)}`)}>Report card</button>}{school && <Link className="btn-quiet" to={`/certificates?student=${id}`}>Issue certificate</Link>}<Link className="btn-quiet" to="/students">← Students</Link></div></div>
       <div className="flex gap-1 mt-4 border-b border-slate-200 print:hidden">{tabs.filter((t) => school || !['conduct', 'services'].includes(t) || t === 'conduct').map((t) => <button key={t} onClick={() => setTab(t)} className={`px-4 py-2 text-sm capitalize border-b-2 ${tab === t ? 'border-edge-500 font-semibold' : 'border-transparent text-slate-600'}`}>{t}</button>)}</div>
 
       {(tab === 'overview') && <div className="grid grid-cols-4 gap-4 mt-5">
