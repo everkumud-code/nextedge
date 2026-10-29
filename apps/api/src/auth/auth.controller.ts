@@ -1,4 +1,6 @@
-import { Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { DbService } from '../db/db.service';
+import { loginLog } from '../db/schema';
+import { Req, Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { IsEmail, IsIn, IsOptional, IsString, Length } from 'class-validator';
 import { AuthService } from './auth.service';
 import { MailService } from '../notifications/mail.service';
@@ -12,7 +14,7 @@ class ChooseDto { @IsString() choiceToken: string; @IsString() userId: string; }
 
 @Controller('auth')
 export class AuthController {
-  constructor(private auth: AuthService, private mail: MailService, private jwt: JwtService) {}
+  constructor(private auth: AuthService, private mail: MailService, private jwt: JwtService, private dbs: DbService) {}
   /** Login screen step 1: list of coachings (search by name). */
   /** Public: which OTP mode the server is running (none | dev | live). */
   /** 10-minute token for opening a PDF (report card, receipt, certificate, payslip) in the phone's browser. */
@@ -20,8 +22,17 @@ export class AuthController {
   @Public() @Get('mode') async mode() { return { otpMode: (process.env.OTP_MODE || 'db').trim(), otpEnabled: await this.mail.otpEnabled() }; }
   @Public() @Get('centres') centres(@Query('q') q?: string) { return this.auth.centres(q); }
   /** Login step 1: coaching name (typed) + email → OTP by email. (mobile + centreId still accepted for older app builds.) */
-  @Public() @Post('send-otp') async sendOtp(@Body() dto: SendOtpDto) { const centreId = await this.auth.resolveCentre(dto.centreName, dto.centreId); return this.auth.sendOtp(dto.mobile, centreId, dto.channel || 'email', dto.email); }
-  @Public() @Post('verify-otp') async verify(@Body() dto: VerifyOtpDto) { const centreId = await this.auth.resolveCentre(dto.centreName, dto.centreId); return this.auth.verifyOtp(dto.mobile, dto.otp, centreId, dto.email); }
+  @Public() @Post('send-otp') async sendOtp(@Body() dto: SendOtpDto, @Req() req: any) {
+    const centreId = await this.auth.resolveCentre(dto.centreName, dto.centreId); const r: any = await this.auth.sendOtp(dto.mobile, centreId, dto.channel || 'email', dto.email);
+    // OTP switched off: this call logs the person in directly, so record it here.
+    if (r?.user) this.dbs.db.insert(loginLog).values({ centreId: r.user.centreId, userId: r.user.id, name: r.user.name, role: r.user.role, channel: 'direct', ok: true, ip: String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim(), device: String(req.headers['user-agent'] || '').slice(0, 160) }).catch(() => {}); return r;
+  }
+  @Public() @Post('verify-otp') async verify(@Body() dto: VerifyOtpDto, @Req() req: any) {
+    const ip = String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim(); const device = String(req.headers['user-agent'] || '').slice(0, 160); const centreId = await this.auth.resolveCentre(dto.centreName, dto.centreId);
+    try { const r: any = await this.auth.verifyOtp(dto.mobile, dto.otp, centreId, dto.email); ;
+      if (r?.user) this.dbs.db.insert(loginLog).values({ centreId: r.user.centreId, userId: r.user.id, name: r.user.name, role: r.user.role, channel: 'otp', ok: true, ip, device }).catch(() => {}); return r;
+    } catch (e: any) { this.dbs.db.insert(loginLog).values({ centreId, name: String(dto.mobile || '').slice(0, 40), ok: false, note: String(e?.message || 'failed').slice(0, 120), ip, device }).catch(() => {}); throw e; }
+  }
   @Public() @Post('choose') choose(@Body() dto: ChooseDto) { return this.auth.choose(dto.choiceToken, dto.userId); }
   @Get('me') me(@CurrentUser() user: JwtUser) { return user; }
 }

@@ -16,7 +16,7 @@ export class AuthGuard implements CanActivate {
     if (this.reflector.getAllAndOverride<boolean>('public', [ctx.getHandler(), ctx.getClass()])) return true;
     const req = ctx.switchToHttp().getRequest();
     // PDFs opened by the phone's browser carry a short-lived link token (?t=) instead of a header — only for GET …pdf routes.
-    const linkTok = req.method === 'GET' && /\.pdf(\?|$)/.test(req.url || '') ? (req.query?.t as string | undefined) : undefined;
+    const linkTok = req.method === 'GET' && /(\.pdf|\/files\/[0-9a-f-]{36})(\?|$)/i.test(req.url || '') ? (req.query?.t as string | undefined) : undefined;
     const token = linkTok || (req.headers.authorization || '').replace('Bearer ', '');
     if (!token) throw new UnauthorizedException('Login required');
     try { req.user = await this.jwt.verifyAsync(token); } catch { throw new UnauthorizedException('Session expired, login again'); }

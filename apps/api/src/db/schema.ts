@@ -148,6 +148,7 @@ export const timetableSlots = pgTable('timetable_slots', {
   endTime: text('end_time').notNull(),
   subject: text('subject').notNull(),
   room: text('room'),
+  period: integer('period'), // bell period number when the slot comes from the period grid
 });
 
 export const facultyBatches = pgTable('faculty_batches', {
@@ -488,5 +489,40 @@ export const auditLog = pgTable('audit_log', {
   userName: text('user_name'),
   method: text('method').notNull(),
   path: text('path').notNull(),
+  at: timestamp('at').defaultNow().notNull(),
+});
+
+// ---------- Files (photos, admission documents, gallery). Small files stored in the database; photos/gallery are public-by-link, documents need login. ----------
+export const files = pgTable('files', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull(),
+  ownerKind: text('owner_kind').notNull(), // student-photo | staff-photo | gallery | admission-doc | other
+  ownerId: text('owner_id'),
+  name: text('name').notNull(), mime: text('mime').notNull(), size: integer('size').notNull(),
+  isPublic: boolean('is_public').default(false).notNull(),
+  data: text('data').notNull(), // base64
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// ---------- Period timetable ----------
+export const bellPeriods = pgTable('bell_periods', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  no: integer('no').notNull(), name: text('name').notNull(), startTime: text('start_time').notNull(), endTime: text('end_time').notNull(), isBreak: boolean('is_break').default(false).notNull(),
+});
+export const substitutions = pgTable('substitutions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  date: date('date').notNull(), slotId: uuid('slot_id').notNull(), batchId: uuid('batch_id').notNull(),
+  originalFacultyId: uuid('original_faculty_id'), substituteFacultyId: uuid('substitute_faculty_id').notNull(),
+  startTime: text('start_time').notNull(), endTime: text('end_time').notNull(), subject: text('subject'), note: text('note'),
+  createdBy: uuid('created_by'), createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// ---------- Login history (access management) ----------
+export const loginLog = pgTable('login_log', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id'), userId: uuid('user_id'), name: text('name'), role: text('role'),
+  channel: text('channel'), ok: boolean('ok').default(true).notNull(), note: text('note'), ip: text('ip'), device: text('device'),
   at: timestamp('at').defaultNow().notNull(),
 });

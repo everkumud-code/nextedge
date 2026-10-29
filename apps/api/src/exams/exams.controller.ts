@@ -9,7 +9,8 @@ import { centreOf } from '../common/tenant';
 import { myStudents } from '../common/scope';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PlatformService } from '../platform/platform.service';
-import { CardExam, DEFAULT_SCALE, gradeOf, reportCardPdf, Scale } from './report-card';
+import { CardData, CardExam, DEFAULT_SCALE, gradeOf, reportCardPdf, Scale } from './report-card';
+import { PDFDocument } from 'pdf-lib';
 
 const STAFF = ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF'];
 type Subj = { name: string; max: number };
@@ -38,16 +39,7 @@ export class ExamsController {
     const centreId = centreOf(u, c); const db = this.dbs.db;
     const [st] = await db.select().from(students).where(and(eq(students.id, studentId), eq(students.centreId, centreId))); if (!st) throw new NotFoundException();
     const isStaff = STAFF.includes(u.role); if (!isStaff) { const mine = await myStudents(db, u, centreId); if (!mine.some((s) => s.id === st.id)) throw new ForbiddenException(); }
-    const s = await this.platform.settings(centreId); const [ce] = await db.select().from(centres).where(eq(centres.id, centreId)); const session = s.academicSession || `${new Date().getFullYear()}-${String(new Date().getFullYear() + 1).slice(2)}`;
-    const [b] = st.batchId ? await db.select().from(batches).where(eq(batches.id, st.batchId)) : [];
-    let ex = st.batchId ? await db.select().from(exams).where(and(eq(exams.centreId, centreId), eq(exams.batchId, st.batchId))).orderBy(exams.date) : [];
-    if (!isStaff) ex = ex.filter((e) => e.published); const t = term || ex[ex.length - 1]?.term || 'Term 1'; ex = ex.filter((e) => e.term === t);
-    const scale = await this.scale(centreId); const cards: CardExam[] = []; for (const e of ex) { const cd = await this.cardFor(e, st.id, scale); cards.push({ name: e.name, subjects: cd.subjects, total: cd.total, maxTotal: cd.maxTotal, pct: cd.pct, grade: cd.grade, rank: cd.rank, of: cd.of }); }
-    const att = await db.select({ status: attendance.status, n: sql<number>`count(*)` }).from(attendance).where(eq(attendance.studentId, st.id)).groupBy(attendance.status);
-    const present = att.filter((a) => a.status === 'PRESENT' || a.status === 'LATE').reduce((a, x) => a + Number(x.n), 0); const total = att.filter((a) => a.status !== 'LEAVE').reduce((a, x) => a + Number(x.n), 0);
-    const [rm] = await db.select().from(records).where(and(eq(records.centreId, centreId), eq(records.kind, 'report-remark'), eq(records.studentId, st.id), eq(records.title, t)));
-    const ct = b?.classTeacherId ? (await db.select({ name: users.name }).from(users).where(eq(users.id, b.classTeacherId)))[0]?.name : null;
-    const pdf = await reportCardPdf({ centre: { name: ce.name, address: s.address || ce.city, board: s.board, affiliationNo: s.affiliationNo, udise: s.udiseCode, phone: s.phone, principal: s.principalName }, session, term: t, student: { name: st.name, className: b?.className || st.className || '', section: b?.section, rollNo: st.rollNo, admissionNo: st.admissionNo, dob: st.dob, father: st.fatherName || st.parentName, mother: st.motherName }, exams: cards, attendance: total ? { present, total } : undefined, remark: rm ? JSON.parse(rm.data) : undefined, scale, classTeacher: ct });
+    const pdf = await reportCardPdf(await this.buildCard(centreId, st, isStaff, term));
     res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', `inline; filename="report-card-${st.rollNo || st.id.slice(0, 6)}.pdf"`); res.end(pdf);
   }
 
@@ -106,6 +98,30 @@ export class ExamsController {
   }
 
   // ---- helpers ----
+  /** Everything one report card needs (term defaults to the latest). Parents only see published exams. */
+  private async buildCard(centreId: string, st: typeof students.$inferSelect, isStaff: boolean, term?: string): Promise<CardData> {
+    const db = this.dbs.db;
+    const s = await this.platform.settings(centreId); const [ce] = await db.select().from(centres).where(eq(centres.id, centreId)); const session = s.academicSession || `${new Date().getFullYear()}-${String(new Date().getFullYear() + 1).slice(2)}`;
+    const [b] = st.batchId ? await db.select().from(batches).where(eq(batches.id, st.batchId)) : [];
+    let ex = st.batchId ? await db.select().from(exams).where(and(eq(exams.centreId, centreId), eq(exams.batchId, st.batchId))).orderBy(exams.date) : [];
+    if (!isStaff) ex = ex.filter((e) => e.published); const t = term || ex[ex.length - 1]?.term || 'Term 1'; ex = ex.filter((e) => e.term === t);
+    const scale = await this.scale(centreId); const cards: CardExam[] = []; for (const e of ex) { const cd = await this.cardFor(e, st.id, scale); cards.push({ name: e.name, subjects: cd.subjects, total: cd.total, maxTotal: cd.maxTotal, pct: cd.pct, grade: cd.grade, rank: cd.rank, of: cd.of }); }
+    const att = await db.select({ status: attendance.status, n: sql<number>`count(*)` }).from(attendance).where(eq(attendance.studentId, st.id)).groupBy(attendance.status);
+    const present = att.filter((a) => a.status === 'PRESENT' || a.status === 'LATE').reduce((a, x) => a + Number(x.n), 0); const total = att.filter((a) => a.status !== 'LEAVE').reduce((a, x) => a + Number(x.n), 0);
+    const [rm] = await db.select().from(records).where(and(eq(records.centreId, centreId), eq(records.kind, 'report-remark'), eq(records.studentId, st.id), eq(records.title, t)));
+    const ct = b?.classTeacherId ? (await db.select({ name: users.name }).from(users).where(eq(users.id, b.classTeacherId)))[0]?.name : null;
+    return ({ centre: { name: ce.name, address: s.address || ce.city, board: s.board, affiliationNo: s.affiliationNo, udise: s.udiseCode, phone: s.phone, principal: s.principalName }, session, term: t, student: { name: st.name, className: b?.className || st.className || '', section: b?.section, rollNo: st.rollNo, admissionNo: st.admissionNo, dob: st.dob, father: st.fatherName || st.parentName, mother: st.motherName }, exams: cards, attendance: total ? { present, total } : undefined, remark: rm ? JSON.parse(rm.data) : undefined, scale, classTeacher: ct });
+  }
+
+  /** Report cards of a whole class in one PDF (one student after another). */
+  @Get('report-cards.pdf') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF', 'FACULTY') async classCards(@CurrentUser() u: JwtUser, @Res() res: any, @Query('batchId') batchId: string, @Query('term') term?: string, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); const db = this.dbs.db; if (!batchId) throw new BadRequestException('Choose a class');
+    const list = await db.select().from(students).where(and(eq(students.centreId, centreId), eq(students.batchId, batchId), eq(students.active, true))); if (!list.length) throw new NotFoundException('No students in this class');
+    list.sort((a, b) => (parseInt(a.rollNo || '0') || 9999) - (parseInt(b.rollNo || '0') || 9999) || a.name.localeCompare(b.name));
+    const out = await PDFDocument.create(); for (const st of list) { const src = await PDFDocument.load(await reportCardPdf(await this.buildCard(centreId, st, true, term))); (await out.copyPages(src, src.getPageIndices())).forEach((p) => out.addPage(p)); }
+    res.setHeader('Content-Type', 'application/pdf'); res.setHeader('Content-Disposition', 'inline; filename="class-report-cards.pdf"'); res.end(Buffer.from(await out.save()));
+  }
+
   private async cardFor(e: typeof exams.$inferSelect, studentId: string, scale: Scale) {
     const db = this.dbs.db; const subj: Subj[] = JSON.parse(e.subjects); const sts = await db.select({ id: students.id }).from(students).where(and(eq(students.batchId, e.batchId), eq(students.active, true))); const ms = await db.select().from(examMarks).where(eq(examMarks.examId, e.id));
     const totalOf = (sid: string) => { let t = 0, mx = 0; subj.forEach((s) => { const m = ms.find((x) => x.studentId === sid && x.subject === s.name); if (m && !m.absent && m.marks !== null) { t += Number(m.marks); mx += s.max; } }); return { t, mx }; };

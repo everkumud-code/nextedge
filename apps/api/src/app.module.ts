@@ -43,13 +43,16 @@ import { PayrollController } from './hr/payroll.controller';
 import { BiometricController } from './biometric/biometric.controller';
 import { InsightsController } from './insights/insights.controller';
 import { DossierController } from './students/dossier.controller';
+import { FilesController } from './files/files.controller';
+import { AlertsController, AccessController } from './insights/alerts.controller';
+import { IdCardsController } from './certificates/idcards.controller';
 
 @Controller()
 class HealthController { @Public() @Get('health') health() { return { ok: true, service: 'nextedge-api', time: new Date().toISOString() }; } }
 
 @Module({
   imports: [DbModule, PlatformModule, AuthModule],
-  controllers: [HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController, NotificationsController, ChatController, ContentController, TimetableController, CentresController, TestsController, HomeworkController, LiveController, ReportsController, StaffController, DoubtsController, LeavesController, FeedbackController, EnquiriesController, WishesController, PlatformController, SubscriptionController, StaffAttendanceController, WellbeingController, NewsController, PaymentsController, RecordsController, ExamsController, CertificatesController, AdmissionsController, PayrollController, BiometricController, InsightsController, DossierController],
+  controllers: [AlertsController, AccessController, FilesController, IdCardsController, HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController, NotificationsController, ChatController, ContentController, TimetableController, CentresController, TestsController, HomeworkController, LiveController, ReportsController, StaffController, DoubtsController, LeavesController, FeedbackController, EnquiriesController, WishesController, PlatformController, SubscriptionController, StaffAttendanceController, WellbeingController, NewsController, PaymentsController, RecordsController, ExamsController, CertificatesController, AdmissionsController, PayrollController, BiometricController, InsightsController, DossierController],
   providers: [StudentsService, RedisService, ChatGateway, ReportsService, SchedulerService, FeesController, ExamsController, WishesController, { provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AppModule {}

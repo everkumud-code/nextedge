@@ -24,6 +24,11 @@ export class PlatformService {
     if (!s) { await db.insert(centreSettings).values({ centreId, trialEndsAt: addDays(today(), 30), features: JSON.stringify(PLAN_PRESETS.standard.features) }).onConflictDoNothing(); [s] = await db.select().from(centreSettings).where(eq(centreSettings.centreId, centreId)); }
     return { ...s, features: JSON.parse(s.features) as string[] };
   }
+  /** Boot-time catch-up: centres created before a module existed get it if their type includes it (a coaching centre never gets school-only modules). */
+  async migrateFeatures() {
+    const db = this.dbs.db; const rows = await db.select({ id: centreSettings.centreId, f: centreSettings.features, t: centres.institutionType }).from(centreSettings).innerJoin(centres, eq(centres.id, centreSettings.centreId));
+    for (const r of rows) { const cur: string[] = JSON.parse(r.f || '[]'); if (!cur.length) continue; const want = featuresFor(r.t || 'coaching').filter((m) => !cur.includes(m) && m === 'academics'); if (want.length) await db.update(centreSettings).set({ features: JSON.stringify([...cur, ...want]) }).where(eq(centreSettings.centreId, r.id)); }
+  }
   /** Modules this centre may use; empty list means everything. */
   async enabledModules(centreId: string): Promise<string[]> { const s = await this.settings(centreId); return s.features.length ? s.features : [...MODULES]; }
 
