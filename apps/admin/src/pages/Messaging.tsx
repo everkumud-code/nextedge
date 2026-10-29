@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import PushSetup from '../components/PushSetup';
 import { api, session } from '../api';
 const dt = (d: string) => new Date(d).toLocaleString('en-IN', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 const Dot = ({ ok }: { ok: boolean }) => <span className={`inline-block w-2.5 h-2.5 rounded-full mr-2 ${ok ? 'bg-moss' : 'bg-slate-300'}`} />;
@@ -27,6 +28,7 @@ export default function Messaging() {
         {isSuper && viewing && <div className="flex gap-2"><button className={scope === 'platform' ? 'btn sm' : 'btn-quiet'} onClick={() => setScope('platform')}>Platform default</button><button className={scope === 'centre' ? 'btn sm' : 'btn-quiet'} onClick={() => setScope('centre')}>{user?.centreName}</button></div>}</div>
       <div className="grid grid-cols-4 gap-3 mt-4">{[['Email', st.email.ready, st.email.source === 'centre' ? 'own mailbox' : st.email.source === 'platform' ? 'platform mailbox' : 'not set up'], ['SMS', st.sms.ready, st.sms.ready ? `${st.sms.provider} · ${SRC[st.sms.source]}` : 'not set up'], ['WhatsApp', st.whatsapp.ready, st.whatsapp.ready ? `${st.whatsapp.provider} · ${SRC[st.whatsapp.source]}` : 'not set up'], ['App notification', st.push.ready, st.push.ready ? 'connected' : 'needs Firebase key on the server']].map(([l, ok, n]) => <div key={l as string} className="card p-4"><div className="font-semibold"><Dot ok={ok as boolean} />{l}</div><div className="text-xs text-slate-500 mt-1">{n}</div></div>)}</div>
       <p className="text-sm mt-3">{st.otpEnabled ? 'Login OTP is ON.' : 'Login OTP is OFF — people sign in with name + email only.'}{isSuper && ' Switch it from Billing & plans.'}</p>
+      {isSuper && scope === 'platform' && <PushSetup />}
       {msg && <p className="text-moss text-sm mt-2">{msg}</p>}{err && <p className="text-brick text-sm mt-2">{err}</p>}
 
       <div className="card p-5 mt-5"><div className="flex justify-between"><h2 className="font-semibold text-lg">SMS</h2>{cfg?.sms && <button className="text-xs text-brick" onClick={() => remove('sms')}>Remove {scope === 'centre' ? 'own account (use platform)' : 'account'}</button>}</div>

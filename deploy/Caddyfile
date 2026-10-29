@@ -4,3 +4,11 @@
 {$API_DOMAIN} {
   reverse_proxy api:3000
 }
+
+# Old biometric machines (ZKTeco push) that cannot speak HTTPS: plain HTTP on 8081, /iclock only.
+:8081 {
+  handle /iclock/* {
+    reverse_proxy api:3000
+  }
+  respond 404
+}

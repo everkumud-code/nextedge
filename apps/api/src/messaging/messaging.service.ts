@@ -1,3 +1,5 @@
+import { OnModuleInit, BadRequestException } from '@nestjs/common';
+import { setPushKey, pushKeySource, verifyPushKey } from '../integrations/push';
 import { Injectable, Logger } from '@nestjs/common';
 import { and, desc, eq } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
@@ -15,9 +17,12 @@ const clean = (o: any, keys: string[]) => Object.fromEntries(keys.filter((k) => 
 
 /** One place that sends SMS / WhatsApp / email for OTPs, notices and reminders, using the centre's own account if it has one, else the platform's, else the server's environment. Never throws; always logs. */
 @Injectable()
-export class MessagingService {
+export class MessagingService implements OnModuleInit {
   private log = new Logger('Messaging');
   constructor(private dbs: DbService, private mail: MailService) {}
+  async onModuleInit() { try { const [p] = await this.dbs.db.select({ k: platformSettings.firebaseJson }).from(platformSettings).where(eq(platformSettings.id, 'platform')); setPushKey(p?.k || null); } catch { /* table not ready yet: env key still works */ } }
+  async pushStatus() { let info: any = null; const src = pushKeySource(); if (src) { try { const raw = src === 'platform' ? (await this.dbs.db.select({ k: platformSettings.firebaseJson }).from(platformSettings).where(eq(platformSettings.id, 'platform')))[0]?.k : process.env.FIREBASE_SERVICE_ACCOUNT_JSON; const sa = JSON.parse(raw || '{}'); info = { projectId: sa.project_id, clientEmail: sa.client_email }; } catch { info = null; } } return { configured: !!src, source: src, ...info }; }
+  async setPushKey(raw: string | null) { if (raw === null) { await this.mail.platform(); await this.dbs.db.update(platformSettings).set({ firebaseJson: null, updatedAt: new Date() }).where(eq(platformSettings.id, 'platform')); setPushKey(null); return this.pushStatus(); } const info = await verifyPushKey(raw).catch((e) => { throw new BadRequestException(e.message); }); await this.mail.platform(); await this.dbs.db.update(platformSettings).set({ firebaseJson: raw, updatedAt: new Date() }).where(eq(platformSettings.id, 'platform')); setPushKey(raw); return { configured: true, source: 'platform', ...info }; }
   private parse(s?: string | null) { try { return JSON.parse(s || '{}'); } catch { return {}; } }
   async platformCfg(): Promise<{ sms?: SmsCfg; whatsapp?: WaCfg }> { const p = await this.mail.platform(); return this.parse(p?.channels); }
   async centreCfg(centreId?: string | null): Promise<{ sms?: SmsCfg; whatsapp?: WaCfg }> { if (!centreId) return {}; const [s] = await this.dbs.db.select({ c: centreSettings.channels }).from(centreSettings).where(eq(centreSettings.centreId, centreId)); return this.parse(s?.c); }

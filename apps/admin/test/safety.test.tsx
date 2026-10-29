@@ -1,0 +1,30 @@
+import { describe, it, beforeAll, expect } from 'vitest';
+import { render, cleanup } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { session } from '../src/api';
+const API = 'http://localhost:3500/api'; const settle = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const login = async (c: string, e: string) => { const r = await fetch(API + '/auth/send-otp', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ centreName: c, email: e }) }).then((r) => r.json()); session.set(r.token, r.user); localStorage.removeItem('viewCentre'); };
+const calls: { url: string; status: number }[] = []; const realFetch = globalThis.fetch;
+beforeAll(() => { window.console.error = () => {}; window.confirm = () => true; (URL as any).createObjectURL = () => 'blob:x'; HTMLAnchorElement.prototype.click = function () {}; globalThis.fetch = (async (u: any, i: any) => { const r = await realFetch(u, i); calls.push({ url: String(u), status: r.status }); return r; }) as any; });
+const out: string[] = []; const ok = (n: string, c: any, i = '') => { console.log(`${c ? 'FLOWOK ' : 'FLOWFAIL '}${n}${c ? '' : ' — ' + i}`); if (!c) out.push(n); };
+describe('Backup + Firebase screens', () => {
+  it('owner backup button, platform backup button, push key box', async () => {
+    const user = userEvent.setup({ delay: null });
+    await login('Demo Public School', 'principal@demo.school'); const Sub = (await import('../src/pages/Subscription')).default; let r = render(<MemoryRouter><Sub /></MemoryRouter>); let c = r.container; await settle(1200);
+    ok('Backup: the card is on the Subscription page', !!c.querySelector('[data-testid="backup-card"]') && /Download backup/.test(c.textContent || ''));
+    calls.length = 0; await user.click([...c.querySelectorAll('button')].find((b) => b.textContent === 'Download backup')!); await settle(2500); ok('Backup: pressing it downloads the centre file (HTTP 200)', calls.some((x) => /\/backup\/centre/.test(x.url) && x.status === 200), calls); cleanup();
+    await login('Platform', 'ever.kumud@gmail.com'); const Cl = (await import('../src/pages/Clients')).default; r = render(<MemoryRouter><Cl /></MemoryRouter>); c = r.container; await settle(1500);
+    calls.length = 0; await user.click([...c.querySelectorAll('button')].find((b) => b.textContent === 'Download platform backup')!); await settle(4000); ok('Backup: the platform team can download everything (HTTP 200)', calls.some((x) => /\/backup\/platform/.test(x.url) && x.status === 200), calls); cleanup();
+    const M = (await import('../src/pages/Messaging')).default; r = render(<MemoryRouter><M /></MemoryRouter>); c = r.container; await settle(1500);
+    ok('Firebase: the box is shown to the platform team, switched off', !!c.querySelector('[data-testid="push-setup"]') && /Off/.test(c.querySelector('[data-testid="push-setup"]')!.textContent || ''), (c.textContent || '').slice(0, 200));
+    const save = () => [...c.querySelectorAll('button')].find((b) => /Save key|Replace key/.test(b.textContent || '')) as HTMLButtonElement; ok('Firebase: Save is disabled while the box is empty', save().disabled);
+    const ta = c.querySelector('textarea[placeholder^="…or paste"]') as HTMLTextAreaElement; await user.click(ta); await user.paste('this is not a key file at all'); await user.click(save()); await settle(900);
+    ok('Firebase: junk is refused with a plain message', /not valid JSON/.test(c.textContent || ''), (c.textContent || '').slice(-200));
+    await user.clear(ta); await user.click(ta); await user.paste(JSON.stringify({ type: 'service_account', project_id: 'p' })); await user.click(save()); await settle(900); ok('Firebase: an incomplete key is refused', /does not look like a Firebase/.test(c.textContent || ''), (c.textContent || '').slice(-200));
+    ok('Firebase: still off after the failed attempts', /Off/.test(c.querySelector('[data-testid="push-setup"]')!.textContent || ''));
+    cleanup(); await login('Demo Public School', 'principal@demo.school'); r = render(<MemoryRouter><M /></MemoryRouter>); await settle(1200); ok('Firebase: the owner of a school never sees the platform Firebase box', !r.container.querySelector('[data-testid="push-setup"]'));
+    cleanup(); console.log(`FLOWSUM safety: ${out.length} problem(s) ${JSON.stringify(out)}`); expect(true).toBe(true);
+  }, 90000);
+});

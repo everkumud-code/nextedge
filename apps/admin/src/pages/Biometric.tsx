@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { api } from '../api';
+import BiometricMachines from '../components/BiometricMachines';
 
 /** Biometric / RFID: API key for the device software, plus a CSV import for exported punch logs. */
 export default function Biometric() {
@@ -23,6 +24,7 @@ export default function Biometric() {
         <div className="card p-5"><h2 className="font-semibold">2. Or import an exported log</h2><p className="text-sm text-slate-600 mt-1">Export the punch log from your machine as Excel/CSV with two columns: <b>ID</b> (admission no / roll no / staff mobile) and <b>Time</b>. First punch of the day = in; for staff a later punch = out.</p>
           <input type="file" accept=".xlsx,.xls,.csv" className="text-sm mt-3" onChange={onFile} />{rows.length > 0 && <div className="mt-3 text-sm"><b>{rows.length}</b> punches read (first: {rows[0].id} at {String(rows[0].time).slice(0, 19)}).<div><button className="btn mt-2" onClick={doImport}>Import {rows.length} punches</button></div></div>}
           {res && <div className="mt-3 text-sm text-moss">Students marked: <b>{res.students}</b> · Staff: <b>{res.staff}</b> · Already marked: {res.alreadyMarked}{res.unknown.length > 0 && <div className="text-brick">Unknown IDs: {res.unknown.slice(0, 20).join(', ')}</div>}</div>}</div></div>}
+      <BiometricMachines endpoint={info?.endpoint} />
     </div>
   );
 }

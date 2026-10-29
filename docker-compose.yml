@@ -28,6 +28,10 @@ services:
       MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-}
       MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID:-}
       CORS_ORIGIN: https://${DOMAIN}
+      PUBLIC_API_URL: https://${API_DOMAIN}
+      ADMIN_URL: https://${DOMAIN}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}   # Ask NextEdge (smart answers) and photo import
+      FIREBASE_SERVICE_ACCOUNT_JSON: ${FIREBASE_SERVICE_ACCOUNT_JSON:-}   # or paste the key on the Messaging page
       PORT: "3000"
 
   admin:
@@ -39,7 +43,7 @@ services:
   caddy:
     image: caddy:2-alpine
     restart: unless-stopped
-    ports: ["80:80", "443:443"]
+    ports: ["80:80", "443:443", "8081:8081"]   # 8081 = plain HTTP for old biometric machines that cannot do HTTPS (only /iclock is served)
     environment: { DOMAIN: ${DOMAIN}, API_DOMAIN: ${API_DOMAIN} }
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro

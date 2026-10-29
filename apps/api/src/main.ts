@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { RequestMethod, ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { PlatformService } from './platform/platform.service';
 
@@ -14,7 +14,8 @@ async function bootstrap() {
   app.useBodyParser('json', { limit: '12mb' });
   const co = process.env.CORS_ORIGIN; app.enableCors({ origin: !co || co === '*' ? true : co.split(','), credentials: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
-  app.setGlobalPrefix('api');
+  app.use('/iclock', require('express').text({ type: () => true, limit: '2mb' })); // biometric machines send plain text
+  app.setGlobalPrefix('api', { exclude: [{ path: 'iclock/cdata', method: RequestMethod.ALL }, { path: 'iclock/getrequest', method: RequestMethod.ALL }, { path: 'iclock/devicecmd', method: RequestMethod.ALL }] });
   try { await app.get(PlatformService).migrateFeatures(); } catch (e) { console.error('Feature migration failed', e); }
   const port = Number(process.env.PORT) || 3000;
   await app.listen(port);

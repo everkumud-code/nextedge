@@ -358,6 +358,7 @@ export const centreSettings = pgTable('centre_settings', {
   // Centre's own PayU for student fee collection
   payuKey: text('payu_key'), payuSalt: text('payu_salt'), payuTest: boolean('payu_test').default(true).notNull(), manualPayInfo: text('manual_pay_info'),
   lat: numeric('lat', { precision: 10, scale: 7 }), lng: numeric('lng', { precision: 10, scale: 7 }), geofenceM: integer('geofence_m').default(15).notNull(), gpsToleranceM: integer('gps_tolerance_m').default(5).notNull(),
+  trackerKey: text('tracker_key'), // GPS trackers / driver phones post bus locations with this key
   siteEnabled: boolean('site_enabled').default(false).notNull(), about: text('about'), tagline: text('tagline'), // public school website (off by default)
   channels: text('channels').default('{}').notNull(), // JSON: this centre's own SMS / WhatsApp account (overrides the platform's)
   workStart: text('work_start').default('09:00').notNull(), lateAfterMin: integer('late_after_min').default(15).notNull(), halfDayMin: integer('half_day_min').default(240).notNull(),
@@ -441,6 +442,7 @@ export const platformSettings = pgTable('platform_settings', {
   payuKey: text('payu_key'), payuSalt: text('payu_salt'), payuTest: boolean('payu_test').default(true).notNull(),
   manualPayInfo: text('manual_pay_info'), // shown on the payment wall: UPI id, bank details, WhatsApp number
   channels: text('channels').default('{}').notNull(), // JSON: { sms: SmsCfg, whatsapp: WaCfg } platform defaults
+  firebaseJson: text('firebase_json'), // service-account key for app push notifications
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
@@ -540,4 +542,25 @@ export const messageLog = pgTable('message_log', {
   status: text('status').notNull(), // sent | failed | skipped
   error: text('error'), ref: text('ref'),
   at: timestamp('at').defaultNow().notNull(),
+});
+
+// ---------- Biometric machines (ZKTeco-style push) and the ID each person has on the machine ----------
+export const biometricDevices = pgTable('biometric_devices', {
+  serial: text('serial').primaryKey(), // printed on the machine; the machine sends it as SN
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  name: text('name').notNull(), lastSeen: timestamp('last_seen'), lastPunches: integer('last_punches').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+export const biometricPins = pgTable('biometric_pins', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  pin: text('pin').notNull(), studentId: uuid('student_id').references(() => students.id), userId: uuid('user_id').references(() => users.id),
+});
+
+// ---------- Live bus: latest known position per route ----------
+export const busLocations = pgTable('bus_locations', {
+  routeId: uuid('route_id').primaryKey(), // records.id of the transport route
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  lat: numeric('lat', { precision: 10, scale: 7 }).notNull(), lng: numeric('lng', { precision: 10, scale: 7 }).notNull(),
+  speed: numeric('speed', { precision: 6, scale: 1 }), source: text('source'), at: timestamp('at').defaultNow().notNull(),
 });

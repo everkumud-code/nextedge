@@ -93,3 +93,11 @@ npm run db:push && npm run db:seed        # demo centre; admin login 9999900001 
 npm run dev:api                           # http://localhost:3000/api/health
 npm run dev:admin                         # http://localhost:5173
 ```
+
+## Added after the school-ERP round
+- **Ask NextEdge** (`apps/api/src/assistant`, `admin/src/components/Assistant.tsx`): corner chat for ADMIN/STAFF/FACULTY. Without `ANTHROPIC_API_KEY` it answers from `help-kb.ts` (keep that file in step with the menus). With the key it runs a tool-use loop (`AI_MODEL`, `AI_BASE_URL` overridable) over read-only tools; tools are limited by role/modules; 40 questions/hour/user.
+- **Biometric machines** (`biometric/iclock.controller.ts`): ZKTeco ADMS push at `/iclock/*` (NOT under /api; excluded from the global prefix in main.ts, plain-text body parser). Machines are registered by serial (`biometric_devices`); IDs on the machine live in `biometric_pins` and win over admission no / roll no / staff mobile.
+- **Live bus** (`transport/transport.controller.ts`): `bus_locations` keeps the latest fix per route. GPS trackers POST with `centre_settings.tracker_key`; a driver's phone posts via `/transport/location/mine`; parents read `/transport/live/mine`. Buses are matched by the `vehicle` field of the `transport-route` record.
+- **Firebase key** can be pasted on Messaging (platform scope) → `platform_settings.firebase_json`, verified with Google before saving; env `FIREBASE_SERVICE_ACCOUNT_JSON` still works. Test overrides: `GOOGLE_TOKEN_URL`, `FCM_BASE_URL`.
+- **Backup** (`backup/backup.controller.ts`): `/backup/centre` (secrets in settings rows masked, login log and device tokens skipped) and `/backup/platform` (super admin). JSON, streamed table by table. Restore is by pg_dump/pg_restore, see `deploy/MIGRATE-FROM-RENDER.md`.
+- Mobile: `screens/bus.dart` (parent "Where is the bus?", staff "Share bus location") is NOT compiled yet: check the next Codemagic log.

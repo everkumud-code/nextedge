@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Post, Put, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Post, Put, Query } from '@nestjs/common';
 import { Roles } from '../common/auth.guard';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { MessagingService } from './messaging.service';
@@ -20,5 +20,9 @@ export class MessagingController {
     if (!['sms', 'whatsapp', 'email'].includes(b.channel)) throw new BadRequestException('Choose sms, whatsapp or email'); const to = String(b.to || '').trim(); if (b.channel === 'email' ? !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to) : to.replace(/\D/g, '').length < 10) throw new BadRequestException(b.channel === 'email' ? 'Enter a valid email address' : 'Enter a 10-digit mobile number');
     return this.m.test(this.scope(u, c, b.scope), b.channel, to);
   }
+  /** App push notifications (Firebase): only the platform team. */
+  @Get('push') @Roles('SUPER_ADMIN') pushStatus() { return this.m.pushStatus(); }
+  @Put('push') @Roles('SUPER_ADMIN') setPush(@Body() b: { json: string }) { return this.m.setPushKey(String(b?.json || '').trim()); }
+  @Delete('push') @Roles('SUPER_ADMIN') clearPush() { return this.m.setPushKey(null); }
   @Get('log') log(@CurrentUser() u: JwtUser, @Query('centreId') c?: string, @Query('scope') scope?: string, @Query('channel') ch?: string, @Query('status') st?: string) { return this.m.logs(this.scope(u, c, scope), ch, st); }
 }

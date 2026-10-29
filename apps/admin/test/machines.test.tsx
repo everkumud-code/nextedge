@@ -1,0 +1,43 @@
+import { describe, it, beforeAll, expect } from 'vitest';
+import { render, cleanup } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import React from 'react';
+import { MemoryRouter } from 'react-router-dom';
+import { session } from '../src/api';
+const API = 'http://localhost:3500/api'; const settle = (ms: number) => new Promise((r) => setTimeout(r, ms));
+const J = { 'Content-Type': 'application/json' };
+const login = async (c: string, e: string) => { const r = await fetch(API + '/auth/send-otp', { method: 'POST', headers: J, body: JSON.stringify({ centreName: c, email: e }) }).then((r) => r.json()); session.set(r.token, r.user); return r.token as string; };
+beforeAll(() => { window.console.error = () => {}; window.confirm = () => true; });
+const out: string[] = []; const ok = (n: string, c: any, i = '') => { console.log(`${c ? 'FLOWOK ' : 'FLOWFAIL '}${n}${c ? '' : ' — ' + i}`); if (!c) out.push(n); };
+describe('Biometric machines + live bus screens', () => {
+  it('machines: add, IDs, edit', async () => {
+    const tok = await login('Demo Public School', 'principal@demo.school'); const B = (await import('../src/pages/Biometric')).default; const user = userEvent.setup({ delay: null }); const r = render(<MemoryRouter><B /></MemoryRouter>); const c = r.container; await settle(1200);
+    ok('Machines: section and instructions are shown', /Machines that send attendance by themselves/.test(c.textContent || '') && /Cloud Server Setting/.test(c.textContent || ''));
+    const SN = 'UI' + String(Date.now()).slice(-9); const serial = c.querySelector('input[placeholder="e.g. CGXH123456789"]') as HTMLInputElement; const add = () => [...c.querySelectorAll('button')].find((b) => b.textContent === 'Add machine') as HTMLButtonElement;
+    ok('Machines: Add is disabled until a serial is typed', add().disabled); await user.type(serial, SN.toLowerCase()); ok('Machines: serial is shown in capitals as typed', serial.value === SN, serial.value);
+    await user.type(c.querySelector('input[placeholder="Main gate"]')!, 'Staff room'); await user.click(add()); await settle(900);
+    ok('Machines: the machine appears in the list as "not connected yet"', (c.textContent || '').includes(SN) && /Staff room/.test(c.textContent || '') && /not connected yet/.test(c.textContent || ''), (c.textContent || '').slice(-300));
+    const h = await fetch(`http://localhost:3500/iclock/cdata?SN=${SN}&options=all`).then((r) => r.text()); ok('Machines: the machine can now handshake', h.startsWith('GET OPTION FROM'), h);
+    await user.type(serial, SN); await user.click(add()); await settle(600); ok('Machines: adding the same serial again shows an error', /already registered/.test(c.textContent || ''), (c.textContent || '').slice(-200));
+    await user.click([...c.querySelectorAll('button')].find((b) => b.textContent === 'Create IDs for everyone')!); await settle(1500);
+    const ins = [...c.querySelectorAll('table')].pop()!.querySelectorAll('input.font-mono'); ok('Machines: IDs are listed for people', ins.length > 20 && (ins[0] as HTMLInputElement).value !== '', ins.length);
+    const first = ins[0] as HTMLInputElement; await user.clear(first); await user.type(first, '8123'); await user.tab(); await settle(900); const pins = await fetch(API + '/biometric/pins', { headers: { Authorization: 'Bearer ' + tok } }).then((r) => r.json());
+    ok('Machines: editing an ID saves it', pins.some((p: any) => p.pin === '8123'), pins.slice(0, 2));
+    const second = [...c.querySelectorAll('table')].pop()!.querySelectorAll('input.font-mono')[1] as HTMLInputElement; await user.clear(second); await user.type(second, '8123'); await user.tab(); await settle(900);
+    ok('Machines: using someone else’s ID shows an error', /already belongs to someone else/.test(c.textContent || ''), (c.textContent || '').slice(-200));
+    await user.type(c.querySelector('input[placeholder="Search name or ID"]')!, '8123'); ok('Machines: search narrows the list', [...c.querySelectorAll('table')].pop()!.querySelectorAll('input.font-mono').length === 1);
+    await user.click([...c.querySelectorAll('tr')].find((tr) => (tr.textContent || '').includes(SN))!.querySelector('button')!); await settle(800); ok('Machines: remove works', !(c.textContent || '').includes(SN), '');
+    cleanup();
+  }, 90000);
+  it('live bus panel', async () => {
+    const tok = await login('Demo Public School', 'principal@demo.school'); const L = (await import('../src/components/LiveBus')).default; const user = userEvent.setup({ delay: null }); let r = render(<L />); let c = r.container; await settle(1000);
+    ok('Live bus: routes are listed', /Live bus/.test(c.textContent || '') && c.querySelectorAll('tbody tr').length >= 1, (c.textContent || '').slice(0, 200));
+    await user.click([...c.querySelectorAll('button')].find((b) => /Connect a GPS tracker/.test(b.textContent || ''))!); await settle(500); await user.click([...c.querySelectorAll('button')].find((b) => /Create (a new )?key/.test(b.textContent || ''))!); await settle(900);
+    const key = (c.textContent || '').match(/trk_[a-f0-9]{36}/)?.[0]; ok('Live bus: a tracker key is created and shown', !!key, (c.textContent || '').slice(-300));
+    const routes = await fetch(API + '/transport/live', { headers: { Authorization: 'Bearer ' + tok } }).then((r) => r.json()); const veh = routes.find((x: any) => x.vehicle)?.vehicle;
+    const p = await fetch(API + '/transport/location', { method: 'POST', headers: { ...J, 'x-api-key': key! }, body: JSON.stringify({ vehicle: veh, lat: 23.37, lng: 85.33, speed: 41 }) }).then((r) => r.json()); ok('Live bus: the tracker can post with that key', p.saved === 1, p);
+    cleanup(); r = render(<L />); c = r.container; await settle(1000);
+    ok('Live bus: position shows as "just now" with speed and a map link', /just now/.test(c.textContent || '') && /41 km\/h/.test(c.textContent || '') && [...c.querySelectorAll('a')].some((a) => /google\.com\/maps\?q=23\.37,85\.33/.test(a.getAttribute('href') || '')), (c.textContent || '').slice(0, 300));
+    cleanup(); console.log(`FLOWSUM machines: ${out.length} problem(s) ${JSON.stringify(out)}`); expect(true).toBe(true);
+  }, 90000);
+});

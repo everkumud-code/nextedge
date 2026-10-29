@@ -15,7 +15,7 @@ const problems: string[] = []; let boxes = 0;
 async function probe(scope: string, root: HTMLElement) {
   const user = userEvent.setup({ delay: null }); const fields = [...root.querySelectorAll(SEL)].filter((e) => !(e as HTMLInputElement).readOnly && !(e as HTMLInputElement).disabled && (e as HTMLElement).offsetParent !== undefined) as HTMLInputElement[];
   for (let i = 0; i < Math.min(fields.length, 40); i++) {
-    const el = fields[i]; if (/^Platform/.test(scope) && /INR.student|^Min/.test(name(el))) continue; /* these two save on blur and refresh the list */ if (!el.isConnected) { problems.push(`${scope} › "${name(el)}": the box was rebuilt (lost) while typing in an earlier box`); continue; }
+    const el = fields[i]; if (/^Biometric/.test(scope) && /Search name or ID/.test(name(el))) continue; /* a filter box: typing in it hides rows by design */ if (/^Platform/.test(scope) && /INR.student|^Min/.test(name(el))) continue; /* these two save on blur and refresh the list */ if (!el.isConnected) { problems.push(`${scope} › "${name(el)}": the box was rebuilt (lost) while typing in an earlier box`); continue; }
     const before = fields.map((f) => f.value); const numeric = el.type === 'number' || el.inputMode === 'numeric' || /mobile|phone|number|roll|capacity|amount|price|quantity/i.test(name(el)); const typed = numeric ? '12' : 'xy'; boxes++;
     try { await user.click(el); await user.keyboard(typed); } catch { /* disabled while typing */ }
     const lost = !el.isConnected || document.activeElement !== el; const others = fields.filter((f, j) => j !== i && f.isConnected && f.value !== before[j]).map((f) => name(f));

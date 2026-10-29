@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../api.dart';
 import '../widgets.dart';
+import 'bus.dart';
 
 /// "School" tab for students and parents: exam results + report card, calendar, lesson diary, achievements, events, gallery,
 /// parent–teacher meetings (book a slot), transport, discipline, health, library, certificates, fines, service requests, rate a teacher.
@@ -165,6 +166,7 @@ class _S extends State<SchoolScreen> {
         Wrap(spacing: 8, children: [
           FilledButton.tonalIcon(onPressed: rateTeacher, icon: const Icon(Icons.star_rate), label: const Text('Rate a teacher')),
           FilledButton.tonalIcon(onPressed: request, icon: const Icon(Icons.add), label: const Text('Request to office')),
+          FilledButton.tonalIcon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const BusScreen())), icon: const Icon(Icons.directions_bus), label: const Text('Where is the bus?')),
         ]),
         const SizedBox(height: 8),
         if (exams.isNotEmpty)
@@ -342,6 +344,7 @@ class _H extends State<StaffHrScreen> {
           Wrap(spacing: 8, children: [
             FilledButton.icon(onPressed: applyLeave, icon: const Icon(Icons.event_busy), label: const Text('Apply for leave')),
             FilledButton.tonalIcon(onPressed: publishSlots, icon: const Icon(Icons.groups), label: const Text('Publish PTM slots')),
+            FilledButton.tonalIcon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ShareBusScreen())), icon: const Icon(Icons.directions_bus), label: const Text('Share bus location')),
           ]),
           const SizedBox(height: 12),
           if (week != null) Section('My timetable', [

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { downloadFile } from '../api';
 import { api } from '../api';
 const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 export default function Subscription() {
@@ -9,6 +10,7 @@ export default function Subscription() {
   return (
     <div>
       <h1 className="text-2xl font-bold">Subscription & settings</h1>
+      <div className="card p-4 mt-4 flex items-center justify-between gap-4" data-testid="backup-card"><div><h2 className="font-semibold">Download a backup of your data</h2><p className="text-sm text-slate-600">One file with your students, fees, attendance, exams, staff and everything else. Keep it somewhere safe. Passwords and message-provider keys are not included.</p></div><button className="btn whitespace-nowrap" onClick={() => downloadFile('/backup/centre', 'backup.json')}>Download backup</button></div>
       <div className="grid grid-cols-2 gap-4 mt-6">
         <div className="card p-4"><h2 className="font-semibold mb-2">Your plan</h2>
           {s.plan === 'demo' && <div className="mb-2 p-3 rounded bg-edge-50 text-sm"><b>Demo package</b> — every feature is switched on for you. It is free and never expires.</div>}

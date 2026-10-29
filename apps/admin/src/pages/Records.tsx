@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { api, session, uploadFile, openPdf } from '../api';
+import LiveBus from '../components/LiveBus';
 const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
 const today = new Date().toISOString().slice(0, 10);
 
@@ -43,6 +44,7 @@ export default function Records() {
       <p className="text-sm text-slate-600 mt-1">{kd.help}</p>
       {kind === 'admission' && session.user?.centreId && <div className="card p-3 mt-3 flex items-center gap-3 flex-wrap bg-edge-100 text-sm"><b>Online admission form:</b><code className="text-xs bg-white px-2 py-1 rounded">{`${location.origin}/apply/${session.user.centreId}`}</code><button className="btn-quiet" onClick={() => { navigator.clipboard?.writeText(`${location.origin}/apply/${session.user!.centreId}`); setCopied(true); setTimeout(() => setCopied(false), 1500); }}>{copied ? 'Copied' : 'Copy link'}</button><a className="underline" href={`/apply/${session.user.centreId}`} target="_blank" rel="noreferrer">Open form</a><span className="text-slate-600">Share on WhatsApp, your website or print as a QR code. Applications appear here instantly.</span></div>}
       {kind === 'teacher-feedback' && tf.length > 0 && <div className="card p-4 mt-3"><h2 className="font-semibold mb-2">Average rating by teacher</h2><table className="w-full text-sm"><tbody>{tf.map((t) => <tr key={t.staffId || t.name}><td className="td font-medium">{t.name}</td><td className="td"><b className={t.average < 3 ? 'text-brick' : 'text-moss'}>{t.average} / 5</b></td><td className="td text-slate-500">{t.count} response{t.count === 1 ? '' : 's'}</td><td className="td text-xs text-slate-600">{t.comments.join(' · ')}</td></tr>)}</tbody></table></div>}
+      {kind === 'transport-route' && ['ADMIN', 'SUPER_ADMIN', 'STAFF'].includes(session.user?.role || '') && <div className="mt-3"><LiveBus /></div>}
       {kind === 'ptm-slot' && <div className="card p-4 mt-3"><h2 className="font-semibold mb-1">Publish my PTM slots</h2><p className="text-sm text-slate-600 mb-2">Enter the day and the times you are available. Parents book a slot from their app.</p><div className="grid grid-cols-5 gap-3 items-end"><div><label className="text-sm font-medium">Date</label><input className="input" type="date" value={ptm.date} onChange={(e) => setPtm({ ...ptm, date: e.target.value })} /></div><div className="col-span-2"><label className="text-sm font-medium">Times (comma separated)</label><input className="input" value={ptm.times} onChange={(e) => setPtm({ ...ptm, times: e.target.value })} /></div><div><label className="text-sm font-medium">Venue / room</label><input className="input" value={ptm.venue} onChange={(e) => setPtm({ ...ptm, venue: e.target.value })} /></div><button className="btn" disabled={!ptm.date} onClick={addSlots}>Publish slots</button></div></div>}
       <div className="flex gap-3 mt-4 items-center flex-wrap">
         <button className="btn" onClick={() => setForm(blank())}>+ Add {kd.label.toLowerCase().replace(/s$/, '')}</button>

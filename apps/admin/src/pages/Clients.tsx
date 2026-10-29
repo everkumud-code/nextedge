@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { downloadFile } from '../api';
 import { api, session } from '../api';
 const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 const dt = (d?: string) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
@@ -37,7 +38,7 @@ export default function Clients() {
   async function doPurge() { setErr(''); try { const r = await api('/platform/centres/purge-non-demo', { method: 'POST', body: JSON.stringify({ confirm: 'DELETE' }) }); setMsg(`Deleted ${r.deleted.length} client(s): ${r.deleted.join(', ')}. Demo clients kept.`); setPurge(null); load(); } catch (e: any) { setErr(e.message); } }
   return (
     <div>
-      <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl font-bold">Clients</h1><p className="text-sm text-slate-600">{of('coaching').length} coaching centres · {of('school').length} schools · {rows.reduce((a, r) => a + r.activeStudents, 0)} students in total</p></div><div className="flex gap-2"><button className="btn-quiet text-brick" onClick={startPurge}>Remove all except demo…</button><button className="btn" onClick={() => setCreate(blank())}>+ New {school ? 'school' : 'coaching'}</button></div></div>
+      <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl font-bold">Clients</h1><p className="text-sm text-slate-600">{of('coaching').length} coaching centres · {of('school').length} schools · {rows.reduce((a, r) => a + r.activeStudents, 0)} students in total</p></div><div className="flex gap-2"><button className="btn-quiet" onClick={() => downloadFile('/backup/platform', 'platform-backup.json')}>Download platform backup</button><button className="btn-quiet text-brick" onClick={startPurge}>Remove all except demo…</button><button className="btn" onClick={() => setCreate(blank())}>+ New {school ? 'school' : 'coaching'}</button></div></div>
       <div className="flex gap-2 mt-4 items-center flex-wrap">{(['coaching', 'school'] as const).map((t) => <button key={t} className={tab === t ? 'btn' : 'btn-quiet'} onClick={() => setTab(t)}>{t === 'coaching' ? 'Coaching centres' : 'Schools'} ({of(t).length})</button>)}<input className="input w-72 ml-auto" placeholder="Search name, city, owner, email, mobile" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       {msg && <p className="text-sm mt-3 text-moss">{msg}</p>}
       <table className="card w-full mt-4 text-sm"><thead><tr><th className="th">{school ? 'School' : 'Coaching'}</th><th className="th">{school ? 'Principal / owner' : 'Owner'}</th><th className="th text-right">Students</th><th className="th">Plan</th><th className="th">Status</th><th className="th"></th></tr></thead>

@@ -34,3 +34,10 @@ export async function uploadFile(file: File, ownerKind: string, ownerId?: string
   const data: string = await new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = () => rej(new Error('Could not read the file')); fr.readAsDataURL(file); });
   return api('/files', { method: 'POST', body: JSON.stringify({ ownerKind, ownerId, name: file.name, mime: file.type || 'application/octet-stream', data }) });
 }
+
+/** Download a file from the API (with the login token) and save it under the given name. */
+export async function downloadFile(path: string, filename: string, err = 'Could not download the file'): Promise<boolean> {
+  const vc = session.user?.role === 'SUPER_ADMIN' ? session.viewCentre : null; if (vc && !/[?&]centreId=/.test(path)) path += (path.includes('?') ? '&' : '?') + 'centreId=' + vc;
+  const r = await fetch(BASE + path, { headers: { Authorization: `Bearer ${session.token}` } }); if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || err); return false; }
+  const cd = r.headers.get('Content-Disposition') || ''; const name = /filename="([^"]+)"/.exec(cd)?.[1] || filename; const a = document.createElement('a'); a.href = URL.createObjectURL(await r.blob()); a.download = name; document.body.appendChild(a); a.click(); a.remove(); return true;
+}
