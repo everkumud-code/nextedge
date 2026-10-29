@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'api.dart';
+import 'config.dart';
 
 class Section extends StatelessWidget {
   final String title; final List<Widget> children;
@@ -68,4 +70,21 @@ class _ClockState extends State<Clock> {
       Text('${d[now.weekday - 1]}, ${now.day} ${m[now.month - 1]} ${now.year}', style: const TextStyle(fontSize: 11)),
     ]);
   }
+}
+
+/// Opens a PDF from the API (report card, receipt, certificate, payslip) in the phone's browser using a 10-minute link token.
+Future<void> openPdf(BuildContext context, String path) async {
+  try {
+    final r = await Api.post('/auth/link-token', {});
+    final sep = path.contains('?') ? '&' : '?';
+    await openUrl('${AppConfig.apiBase}$path${sep}t=${r['token']}');
+  } catch (e) {
+    if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))));
+  }
+}
+
+/// Date picker that returns yyyy-MM-dd (or null if cancelled).
+Future<String?> pickDate(BuildContext context, {int pastDays = 30}) async {
+  final d = await showDatePicker(context: context, initialDate: DateTime.now(), firstDate: DateTime.now().subtract(Duration(days: pastDays)), lastDate: DateTime.now().add(const Duration(days: 365)));
+  return d == null ? null : d.toIso8601String().substring(0, 10);
 }

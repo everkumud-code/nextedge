@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, BadRequestException, ForbiddenException, Res } from '@nestjs/common';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { records, students, users } from '../db/schema';
+import { batches, facultyBatches, records, students, users } from '../db/schema';
 import { Roles } from '../common/auth.guard';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
@@ -28,6 +28,15 @@ export class RecordsController {
 
   @Get('kinds') async kinds(@CurrentUser() u: JwtUser) { const f = await this.features(u); return Object.values(KINDS).filter((k) => !f || f.includes(k.module)).filter((k) => !['FACULTY', 'STAFF'].includes(u.role) || (u.modules || []).includes(k.module)); }
   @Get('modules') modules() { return RECORD_MODULES; }
+
+  /** Student / parent: teachers of my child's class (for rating and PTM). */
+  @Get('my-teachers') async myTeachers(@CurrentUser() u: JwtUser, @Query('studentId') studentId?: string, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); const db = this.dbs.db; const mine = await myStudents(db, u, centreId); const st = mine.find((s) => s.id === studentId) || mine[0]; if (!st?.batchId) return [];
+    const fac = await db.select({ id: users.id, name: users.name, subject: facultyBatches.subject }).from(facultyBatches).innerJoin(users, eq(users.id, facultyBatches.facultyId)).where(eq(facultyBatches.batchId, st.batchId));
+    const [b] = await db.select({ classTeacherId: batches.classTeacherId }).from(batches).where(eq(batches.id, st.batchId)); const out = [...fac.map((f) => ({ id: f.id, name: f.name, subject: f.subject || '' }))];
+    if (b?.classTeacherId && !out.some((o) => o.id === b.classTeacherId)) { const [ct] = await db.select({ id: users.id, name: users.name }).from(users).where(eq(users.id, b.classTeacherId)); if (ct) out.unshift({ id: ct.id, name: ct.name, subject: 'Class teacher' }); }
+    return out;
+  }
 
   /** Staff view: all records of a kind (filters: studentId, status, from, to). */
   @Get(':kind') @Roles(...STAFFY) async list(@CurrentUser() u: JwtUser, @Param('kind') k: string, @Query('studentId') studentId?: string, @Query('status') status?: string, @Query('from') from?: string, @Query('to') to?: string, @Query('centreId') c?: string) {

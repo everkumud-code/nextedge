@@ -50,13 +50,14 @@ class _F extends State<FacultyHome> {
         Padding(padding: const EdgeInsets.all(12), child: SizedBox(width: double.infinity, child: FilledButton(onPressed: students.isEmpty ? null : save, child: const Text('Save attendance')))),
       ]),
       const DutiesScreen(),
+      const StaffHrScreen(),
       const ChatScreen(),
     ];
     return Scaffold(
       appBar: AppBar(title: const Text('Roll call'), actions: [const Padding(padding: EdgeInsets.only(right: 8), child: Clock()), const BellAction(), IconButton(icon: const Icon(Icons.logout), onPressed: () => logout(context))]),
       body: pages[tab],
       bottomNavigationBar: NavigationBar(selectedIndex: tab, onDestinationSelected: (i) => setState(() => tab = i), destinations: const [
-        NavigationDestination(icon: Icon(Icons.checklist), label: 'Attendance'), NavigationDestination(icon: Icon(Icons.task_alt), label: 'Duties'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Chat')]),
+        NavigationDestination(icon: Icon(Icons.checklist), label: 'Attendance'), NavigationDestination(icon: Icon(Icons.task_alt), label: 'Duties'), NavigationDestination(icon: Icon(Icons.badge), label: 'Leave & pay'), NavigationDestination(icon: Icon(Icons.chat_bubble_outline), label: 'Chat')]),
     );
   }
 }
