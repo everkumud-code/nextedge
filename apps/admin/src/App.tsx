@@ -13,6 +13,7 @@ import Timetable from './pages/Timetable';
 import Clients from './pages/Clients';
 import TimetableSchool from './pages/TimetableSchool';
 import Alerts from './pages/Alerts';
+import Site from './pages/Site';
 import Messaging from './pages/Messaging';
 import Access from './pages/Access';
 import ClientDetail from './pages/ClientDetail';
@@ -46,6 +47,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/s/:centreId" element={<Site />} />
       <Route path="/apply/:centreId" element={<Apply />} />
       <Route path="/apply/:centreId/status" element={<ApplyStatus />} />
       <Route path="/pay" element={<Private><PayWall /></Private>} />

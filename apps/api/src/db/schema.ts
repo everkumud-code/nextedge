@@ -358,6 +358,7 @@ export const centreSettings = pgTable('centre_settings', {
   // Centre's own PayU for student fee collection
   payuKey: text('payu_key'), payuSalt: text('payu_salt'), payuTest: boolean('payu_test').default(true).notNull(), manualPayInfo: text('manual_pay_info'),
   lat: numeric('lat', { precision: 10, scale: 7 }), lng: numeric('lng', { precision: 10, scale: 7 }), geofenceM: integer('geofence_m').default(15).notNull(), gpsToleranceM: integer('gps_tolerance_m').default(5).notNull(),
+  siteEnabled: boolean('site_enabled').default(false).notNull(), about: text('about'), tagline: text('tagline'), // public school website (off by default)
   channels: text('channels').default('{}').notNull(), // JSON: this centre's own SMS / WhatsApp account (overrides the platform's)
   workStart: text('work_start').default('09:00').notNull(), lateAfterMin: integer('late_after_min').default(15).notNull(), halfDayMin: integer('half_day_min').default(240).notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

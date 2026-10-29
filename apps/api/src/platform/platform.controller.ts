@@ -160,8 +160,8 @@ export class SubscriptionController {
   /** Owner: changes the NextEdge support team made in my centre. */
   @Get('audit') @Roles('ADMIN') audit(@CurrentUser() u: JwtUser) { return this.dbs.db.select().from(auditLog).where(eq(auditLog.centreId, u.centreId!)).orderBy(desc(auditLog.at)).limit(50); }
   /** Owner: school profile used on certificates and report cards. */
-  @Put('profile') @Roles('ADMIN') async setProfile(@CurrentUser() u: JwtUser, @Body() b: { academicSession?: string; board?: string; udiseCode?: string; affiliationNo?: string; principalName?: string; address?: string; phone?: string; website?: string }) {
-    await this.svc.settings(u.centreId!); const set: any = { updatedAt: new Date() }; for (const k of ['academicSession', 'board', 'udiseCode', 'affiliationNo', 'principalName', 'address', 'phone', 'website'] as const) if ((b as any)[k] !== undefined) set[k] = (b as any)[k] || null;
+  @Put('profile') @Roles('ADMIN') async setProfile(@CurrentUser() u: JwtUser, @Body() b: { academicSession?: string; board?: string; udiseCode?: string; affiliationNo?: string; principalName?: string; address?: string; phone?: string; website?: string; about?: string; tagline?: string; siteEnabled?: boolean }) {
+    await this.svc.settings(u.centreId!); const set: any = { updatedAt: new Date() }; for (const k of ['academicSession', 'board', 'udiseCode', 'affiliationNo', 'principalName', 'address', 'phone', 'website', 'about', 'tagline'] as const) if ((b as any)[k] !== undefined) set[k] = (b as any)[k] || null; if (b.siteEnabled !== undefined) set.siteEnabled = !!b.siteEnabled;
     await this.dbs.db.update(centreSettings).set(set).where(eq(centreSettings.centreId, u.centreId!)); return { ok: true };
   }
   /** Owner's own mailbox: tests the login, sends a test mail to the owner, saves on success. */
