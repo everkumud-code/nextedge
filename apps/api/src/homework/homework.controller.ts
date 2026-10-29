@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query, ForbiddenException } from '@nestjs/common';
+import { NotFoundException, Body, Controller, Get, Param, Post, Put, Query, ForbiddenException } from '@nestjs/common';
 import { IsArray, IsOptional, IsString } from 'class-validator';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
@@ -69,10 +69,12 @@ export class HomeworkController {
 
   @Put(':id/grade') @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY') async grade(@CurrentUser() u: JwtUser, @Param('id') id: string, @Body() dto: GradeDto, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c); const db = this.dbs.db;
+    const [hw0] = await db.select({ id: homework.id }).from(homework).where(and(eq(homework.id, id), eq(homework.centreId, centreId))); if (!hw0) throw new NotFoundException('Homework not found');
     const [row] = await db.update(homeworkSubmissions).set({ grade: dto.grade, remark: dto.remark, checkedBy: u.id, checkedAt: new Date() }).where(and(eq(homeworkSubmissions.id, dto.submissionId), eq(homeworkSubmissions.homeworkId, id))).returning();
     if (row) { const [st] = await db.select().from(students).where(eq(students.id, row.studentId)); const [hw] = await db.select().from(homework).where(eq(homework.id, id));
       const ids: string[] = []; if (st?.userId) ids.push(st.userId); const [p] = await db.select({ id: users.id }).from(users).where(and(eq(users.centreId, centreId), eq(users.mobile, st.parentMobile), eq(users.role, 'PARENT'))); if (p) ids.push(p.id);
       this.notify.notifyUsers(centreId, ids, `Homework checked: ${hw?.title}`, `${dto.grade ? 'Grade ' + dto.grade : 'Checked'}${dto.remark ? ' · ' + dto.remark : ''}`, { data: { type: 'homework', id } }); }
+    if (!row) throw new NotFoundException('Submission not found');
     return row;
   }
 
