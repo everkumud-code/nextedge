@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { auditLog, centreSettings, centres, platformSettings, students, subscriptionInvoices, users } from '../db/schema';
+import { auditLog, batches, centreSettings, centres, facultyBatches, platformSettings, staffPermissions, students, subscriptionInvoices, users } from '../db/schema';
 import { Roles } from '../common/auth.guard';
 import { MODULES } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
@@ -71,6 +71,19 @@ export class PlatformController {
     if (ow) { const u: any = {}; if (b.ownerName?.trim()) u.name = b.ownerName.trim(); if (b.ownerEmail !== undefined) { const em = b.ownerEmail.trim().toLowerCase(); if (em && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(em)) return { ok: false, error: 'Owner email is not valid' }; u.email = em || null; } if (b.ownerMobile) { const m = b.ownerMobile.replace(/\D/g, '').slice(-10); if (m.length !== 10) return { ok: false, error: 'Owner mobile must be 10 digits' }; u.mobile = m; } if (Object.keys(u).length) await db.update(users).set(u).where(eq(users.id, ow.id)); }
     return { ok: true };
   }
+  /** Remote support: every student and every teacher/staff member of a client, in one call. Each view is written to the audit log. */
+  @Get('centres/:id/people') async people(@CurrentUser() u: JwtUser, @Param('id') id: string) {
+    const db = this.dbs.db; const bs = await db.select().from(batches).where(eq(batches.centreId, id)); const bn = (bid: string | null) => bs.find((b) => b.id === bid);
+    const sts = await db.select().from(students).where(eq(students.centreId, id)).orderBy(students.name);
+    const staff = await db.select({ id: users.id, name: users.name, role: users.role, mobile: users.mobile, email: users.email }).from(users).where(and(eq(users.centreId, id), inArray(users.role, ['ADMIN', 'FACULTY', 'STAFF'])));
+    const perms = await db.select().from(staffPermissions).where(eq(staffPermissions.centreId, id)); const fb = await db.select({ facultyId: facultyBatches.facultyId, batchId: facultyBatches.batchId, subject: facultyBatches.subject }).from(facultyBatches).where(eq(facultyBatches.centreId, id));
+    await db.insert(auditLog).values({ centreId: id, userId: u.id, userName: u.name, method: 'VIEW', path: '/platform/people (students and teachers list)' }).catch(() => {});
+    return {
+      students: sts.map((x) => ({ id: x.id, name: x.name, rollNo: x.rollNo, admissionNo: x.admissionNo, className: bn(x.batchId)?.className || x.className, section: bn(x.batchId)?.section, batch: bn(x.batchId)?.name || null, gender: x.gender, dob: x.dob, parentName: x.parentName || x.fatherName, parentMobile: x.parentMobile, address: x.address, active: x.active, hasLogin: !!x.userId })),
+      staff: staff.map((x) => { const p = perms.find((q) => q.userId === x.id); return { ...x, title: p?.title || null, active: p ? p.active : true, modules: p ? (JSON.parse(p.modules) as string[]).length : null, classTeacherOf: bs.filter((b) => b.classTeacherId === x.id).map((b) => b.name), teaches: fb.filter((f) => f.facultyId === x.id).map((f) => `${bn(f.batchId)?.name || ''}${f.subject ? ' · ' + f.subject : ''}`) }; }).sort((a, b) => (a.role === 'ADMIN' ? -1 : 0) - (b.role === 'ADMIN' ? -1 : 0) || a.name.localeCompare(b.name)),
+    };
+  }
+
   /** What the platform team did inside this centre (changes only). */
   @Get('centres/:id/audit') audit(@Param('id') id: string) { return this.dbs.db.select().from(auditLog).where(eq(auditLog.centreId, id)).orderBy(desc(auditLog.at)).limit(100); }
 

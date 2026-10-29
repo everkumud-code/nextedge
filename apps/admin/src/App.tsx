@@ -10,7 +10,8 @@ import Fees from './pages/Fees';
 import Notices from './pages/Notices';
 import Study from './pages/Study';
 import Timetable from './pages/Timetable';
-import Centres from './pages/Centres';
+import Clients from './pages/Clients';
+import ClientDetail from './pages/ClientDetail';
 import Tests from './pages/Tests';
 import Homework from './pages/Homework';
 import Live from './pages/Live';
@@ -58,7 +59,9 @@ export default function App() {
         <Route path="notices" element={<Notices />} />
         <Route path="study" element={<Study />} />
         <Route path="timetable" element={<Timetable />} />
-        <Route path="centres" element={<Centres />} />
+        <Route path="clients" element={<Clients />} />
+        <Route path="clients/:id" element={<ClientDetail />} />
+        <Route path="centres" element={<Navigate to="/clients" replace />} />
         <Route path="tests" element={<Tests />} />
         <Route path="homework" element={<Homework />} />
         <Route path="live" element={<Live />} />
