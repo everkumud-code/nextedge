@@ -11,6 +11,9 @@ flutter config --no-analytics --enable-web >/dev/null 2>&1 || true
 [ -d web ] || flutter create . --org in.boombites --project-name coaching_connect --platforms web
 sed -i 's#<title>coaching_connect</title>#<title>NextEdge</title>#; s#content="coaching_connect"#content="NextEdge"#' web/index.html || true
 sed -i 's#"name": "coaching_connect"#"name": "NextEdge"#; s#"short_name": "coaching_connect"#"short_name": "NextEdge"#' web/manifest.json || true
+# the NextEdge growth-X logo for the browser tab and the Home Screen
+cp web_icons/favicon.png web/favicon.png
+cp web_icons/Icon-192.png web_icons/Icon-512.png web_icons/Icon-maskable-192.png web_icons/Icon-maskable-512.png web/icons/
 flutter pub get
 flutter build web --release
 ls -la build/web | head

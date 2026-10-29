@@ -31,6 +31,8 @@ flutter:
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: assets/icon.png
-  adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: assets/icon.png
+  image_path: assets/icon.png            # rounded tile with transparent corners (older Android)
+  image_path_ios: assets/icon_ios.png    # flat square, no transparency (iPhone)
+  remove_alpha_ios: true
+  adaptive_icon_background: "#EAF4FF"
+  adaptive_icon_foreground: assets/icon_android_fg.png   # only the X and arrow, kept inside Android's safe circle
