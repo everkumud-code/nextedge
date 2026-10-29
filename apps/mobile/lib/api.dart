@@ -15,6 +15,15 @@ class Api {
     return data;
   }
 
+  static Future<dynamic> put(String path, Map body) async {
+    final t = await token();
+    final r = await http.put(Uri.parse('${AppConfig.apiBase}$path'),
+        headers: {'Content-Type': 'application/json', if (t != null) 'Authorization': 'Bearer $t'}, body: jsonEncode(body));
+    final data = jsonDecode(r.body);
+    if (r.statusCode >= 400) throw Exception(data['message'] ?? 'Request failed');
+    return data;
+  }
+
   static Future<dynamic> get(String path) async {
     final t = await token();
     final r = await http.get(Uri.parse('${AppConfig.apiBase}$path'), headers: {if (t != null) 'Authorization': 'Bearer $t'});
