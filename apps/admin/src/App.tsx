@@ -15,6 +15,7 @@ import TimetableSchool from './pages/TimetableSchool';
 import Alerts from './pages/Alerts';
 import Site from './pages/Site';
 import Messaging from './pages/Messaging';
+import Import from './pages/Import';
 import Access from './pages/Access';
 import ClientDetail from './pages/ClientDetail';
 import Tests from './pages/Tests';
@@ -69,6 +70,7 @@ export default function App() {
         <Route path="timetable" element={<TimetableSwitch />} />
         <Route path="alerts" element={<Alerts />} />
         <Route path="messaging" element={<Messaging />} />
+        <Route path="import" element={<Import />} />
         <Route path="access" element={<Access />} />
         <Route path="clients" element={<Clients />} />
         <Route path="clients/:id" element={<ClientDetail />} />
