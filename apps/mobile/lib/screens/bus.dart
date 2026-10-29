@@ -127,6 +127,7 @@ class _ShareState extends State<ShareBusScreen> {
       final pos = await Geolocator.getCurrentPosition(locationSettings: const LocationSettings(accuracy: LocationAccuracy.high));
       final kmh = pos.speed < 0 ? 0.0 : double.parse((pos.speed * 3.6).toStringAsFixed(1));
       await Api.post('/transport/location/mine', {'routeId': routeId, 'lat': pos.latitude, 'lng': pos.longitude, 'speed': kmh});
+      if (!mounted) return;
       status = 'Sent at ${TimeOfDay.now().format(context)}';
     } catch (e) {
       status = '$e';
@@ -162,7 +163,7 @@ class _ShareState extends State<ShareBusScreen> {
                 if (routes.isEmpty) const Text('No routes yet. Ask the office to add your route.'),
                 if (routes.isNotEmpty)
                   DropdownButtonFormField<String>(
-                    value: routeId,
+                    initialValue: routeId,
                     items: routes.map<DropdownMenuItem<String>>((r) => DropdownMenuItem<String>(value: r['routeId'] as String, child: Text('${r['route']}${r['vehicle'] != null ? ' · ${r['vehicle']}' : ''}'))).toList(),
                     onChanged: on ? null : (v) => setState(() => routeId = v),
                     decoration: const InputDecoration(labelText: 'Route'),
