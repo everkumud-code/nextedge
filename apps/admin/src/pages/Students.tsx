@@ -5,6 +5,9 @@ import { api, session } from '../api';
 
 const blank = () => ({ name: '', batchId: '', rollNo: '', dob: '', gender: '', parentName: '', fatherName: '', motherName: '', parentMobile: '', parentEmail: '', mobile: '', email: '', address: '', category: '', religion: '', bloodGroup: '', previousSchool: '', admissionNo: '', className: '' });
 const PAGE = 50;
+// Defined outside the screen component on purpose: a component created inside another one is rebuilt on every keystroke and the typing box loses focus.
+const F = ({ label, children, span }: any) => <div className={span ? `col-span-${span}` : ''}><label className="text-sm font-medium">{label}</label>{children}</div>;
+
 /** Students: search + filters, bulk move/deactivate, add/edit with full profile, Excel import with preview, CSV export, link to the 360° profile. */
 export default function Students() {
   const school = session.user?.institutionType === 'school';
@@ -43,7 +46,6 @@ export default function Students() {
     }; r.readAsArrayBuffer(f);
   }
   async function confirmImport() { setImpMsg('Importing…'); try { const r = await api('/students/import', { method: 'POST', body: JSON.stringify({ rows: preview, batchId: impBatch || undefined }) }); setImpMsg(`${r.created} students added${r.skipped.length ? `, ${r.skipped.length} skipped: ` + r.skipped.slice(0, 15).map((s: any) => `row ${s.row} (${s.reason})`).join('; ') : ''}`); setPreview([]); load(); } catch (e: any) { setImpMsg(e.message); } }
-  const F = ({ label, children, span }: any) => <div className={span ? `col-span-${span}` : ''}><label className="text-sm font-medium">{label}</label>{children}</div>;
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: k === 'parentMobile' || k === 'mobile' ? e.target.value.replace(/\D/g, '') : e.target.value });
   const bad = (r: any) => !r.name || r.parentMobile.length !== 10;
 

@@ -49,6 +49,8 @@ export class PlatformController {
 
   @Put('centres/:id/settings') async update(@Param('id') id: string, @Body() b: Partial<{ features: string[]; pricePerStudent: number; minStudents: number; billingCycle: string; plan: string; status: string; paidUntil: string; trialEndsAt: string; liveProvider: string; zoomAccountId: string; zoomClientId: string; zoomClientSecret: string; defaultMeetingUrl: string }>) {
     const db = this.dbs.db; await this.svc.settings(id); const set: any = { updatedAt: new Date() };
+    if (b.pricePerStudent !== undefined && (b.pricePerStudent === null || !Number.isFinite(Number(b.pricePerStudent)) || Number(b.pricePerStudent) < 0 || Number(b.pricePerStudent) > 100000)) throw new BadRequestException('Price per student must be a number');
+    if (b.minStudents !== undefined && (b.minStudents === null || !Number.isInteger(Number(b.minStudents)) || Number(b.minStudents) < 0 || Number(b.minStudents) > 100000)) throw new BadRequestException('Minimum students must be a whole number');
     if (b.plan && PLAN_PRESETS[b.plan]) {
       const [cur] = await db.select({ plan: centres.plan }).from(centres).where(eq(centres.id, id)); await db.update(centres).set({ plan: b.plan }).where(eq(centres.id, id)); set.pricePerStudent = String(PLAN_PRESETS[b.plan].price); set.features = JSON.stringify(PLAN_PRESETS[b.plan].features);
       if (b.plan === 'demo') { set.status = 'active'; set.minStudents = 0; set.trialEndsAt = null; set.paidUntil = null; set.features = JSON.stringify([...MODULES]); }

@@ -5,6 +5,9 @@ const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 const dt = (d?: string) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
 const STATUS: Record<string, string> = { trial: 'bg-slate-200', active: 'bg-moss text-white', grace: 'bg-marigold-500', suspended: 'bg-brick text-white' };
 
+// Defined outside the screen component on purpose: a component created inside another one is rebuilt on every keystroke and the typing box loses focus.
+const F = ({ l, children, span }: any) => <div className={span ? `col-span-${span}` : ''}><label className="text-sm font-medium">{l}</label>{children}</div>;
+
 /** Platform home for the super admin: clients split into Coaching centres and Schools; create, view people, edit, open in support mode. */
 export default function Clients() {
   const [rows, setRows] = useState<any[]>([]); const [plans, setPlans] = useState<any>({}); const [mods, setMods] = useState<string[]>([]); const [tab, setTab] = useState<'coaching' | 'school'>('coaching'); const [q, setQ] = useState(''); const [msg, setMsg] = useState(''); const [create, setCreate] = useState<any | null>(null); const [edit, setEdit] = useState<any | null>(null); const [err, setErr] = useState(''); const [del, setDel] = useState<any | null>(null); const [purge, setPurge] = useState<any | null>(null);
@@ -19,6 +22,7 @@ export default function Clients() {
   function startEdit(c: any) { const s = c.settings; setErr(''); setEdit({ id: c.id, orig: c, name: c.name, city: c.city || '', ownerName: c.owner?.name || '', ownerEmail: c.owner?.email || '', ownerMobile: c.owner?.mobile || '', plan: c.plan, price: String(Number(s.pricePerStudent)), minStudents: String(s.minStudents), billingCycle: s.billingCycle, status: s.status, trialEndsAt: s.trialEndsAt || '', paidUntil: s.paidUntil || '', features: [...(s.features || [])], type: c.institutionType || 'coaching' }); }
   async function saveEdit() {
     setErr(''); const c = edit.orig; const s = c.settings;
+    if (!/^\d+(\.\d+)?$/.test(String(edit.price).trim())) { setErr('Price per student must be a number'); return; } if (!/^\d+$/.test(String(edit.minStudents).trim())) { setErr('Minimum students must be a whole number'); return; }
     try {
       const info = await api(`/platform/centres/${edit.id}/info`, { method: 'PUT', body: JSON.stringify({ name: edit.name, city: edit.city, ownerName: edit.ownerName, ownerEmail: edit.ownerEmail, ownerMobile: edit.ownerMobile }) }); if (info.ok === false) { setErr(info.error); return; }
       const set: any = {}; if (edit.plan !== c.plan) set.plan = edit.plan; if (Number(edit.price) !== Number(s.pricePerStudent) || set.plan) set.pricePerStudent = Number(edit.price); if (Number(edit.minStudents) !== Number(s.minStudents)) set.minStudents = Number(edit.minStudents); if (edit.billingCycle !== s.billingCycle) set.billingCycle = edit.billingCycle; if (edit.status !== s.status) set.status = edit.status; if ((edit.trialEndsAt || '') !== (s.trialEndsAt || '')) set.trialEndsAt = edit.trialEndsAt || null; if ((edit.paidUntil || '') !== (s.paidUntil || '')) set.paidUntil = edit.paidUntil || null;
@@ -31,7 +35,6 @@ export default function Clients() {
   async function doDelete() { setErr(''); try { await api(`/platform/centres/${del.c.id}/delete`, { method: 'POST', body: JSON.stringify({ confirmName: del.typed }) }); setMsg(`${del.c.name} and all its data were deleted.`); setDel(null); load(); } catch (e: any) { setErr(e.message); } }
   async function startPurge() { setErr(''); try { const r = await api('/platform/centres/purge-non-demo', { method: 'POST', body: JSON.stringify({ dryRun: true }) }); setPurge({ ...r, typed: '' }); } catch (e: any) { setErr(e.message); } }
   async function doPurge() { setErr(''); try { const r = await api('/platform/centres/purge-non-demo', { method: 'POST', body: JSON.stringify({ confirm: 'DELETE' }) }); setMsg(`Deleted ${r.deleted.length} client(s): ${r.deleted.join(', ')}. Demo clients kept.`); setPurge(null); load(); } catch (e: any) { setErr(e.message); } }
-  const F = ({ l, children, span }: any) => <div className={span ? `col-span-${span}` : ''}><label className="text-sm font-medium">{l}</label>{children}</div>;
   return (
     <div>
       <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl font-bold">Clients</h1><p className="text-sm text-slate-600">{of('coaching').length} coaching centres · {of('school').length} schools · {rows.reduce((a, r) => a + r.activeStudents, 0)} students in total</p></div><div className="flex gap-2"><button className="btn-quiet text-brick" onClick={startPurge}>Remove all except demo…</button><button className="btn" onClick={() => setCreate(blank())}>+ New {school ? 'school' : 'coaching'}</button></div></div>

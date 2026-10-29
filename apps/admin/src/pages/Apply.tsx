@@ -4,6 +4,9 @@ const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
 const post = async (path: string, body: any) => { const r = await fetch(`${API}${path}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); const d = await r.json().catch(() => ({})); if (!r.ok) throw new Error(Array.isArray(d.message) ? d.message.join(', ') : d.message || 'Something went wrong'); return d; };
 const toData = (f: File) => new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = () => rej(new Error('Could not read the file')); fr.readAsDataURL(f); });
 
+// Defined outside the screen component on purpose: a component created inside another one is rebuilt on every keystroke and the typing box loses focus.
+const L = ({ l, children, span }: any) => <div className={span ? `col-span-${span}` : ''}><label className="text-sm font-medium">{l}</label>{children}</div>;
+
 /** Public online admission form (no login): details, documents, optional mobile OTP. Link: /apply/<school id>. Tracking: /apply/<school id>/status. */
 export default function Apply() {
   const { centreId } = useParams(); const [info, setInfo] = useState<any>(null); const [err, setErr] = useState(''); const [done, setDone] = useState<any>(null); const [busy, setBusy] = useState(false);
@@ -19,7 +22,6 @@ export default function Apply() {
     try { const documents = []; for (const [type, file] of Object.entries(docs)) if (file) documents.push({ type, name: file.name, mime: file.type, data: await toData(file) }); const d = await post(`/public/admission/${centreId}`, { ...f, otpToken: otp.token || undefined, documents }); setDone(d); } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
   if (err && !info) return <div className="min-h-screen grid place-items-center"><p className="text-brick">{err}</p></div>; if (!info) return <div className="min-h-screen grid place-items-center text-slate-500">Loading...</div>;
-  const L = ({ l, children, span }: any) => <div className={span ? `col-span-${span}` : ''}><label className="text-sm font-medium">{l}</label>{children}</div>;
   return (
     <div className="min-h-screen bg-teal-900 py-8 px-4"><div className="max-w-3xl mx-auto card p-8">
       <img src="/nextedge-logo.png" alt="NextEdge" className="h-8 mb-3" /><h1 className="text-2xl font-bold">{info.name}</h1><p className="text-slate-600 text-sm">{[info.address || info.city, info.phone && `Ph ${info.phone}`].filter(Boolean).join(' · ')}</p>
