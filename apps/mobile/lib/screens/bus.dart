@@ -111,7 +111,10 @@ class _ShareState extends State<ShareBusScreen> {
   Future<void> load() async {
     try {
       routes = await Api.get('/transport/live');
-      if (routes.isNotEmpty) routeId = routes.first['routeId'] as String;
+      if (routes.isNotEmpty) {
+        final mine = routes.where((r) => r['mine'] == true).toList();
+        routeId = (mine.isNotEmpty ? mine.first : routes.first)['routeId'] as String;
+      }
     } catch (e) {
       status = '$e';
     }
@@ -135,12 +138,16 @@ class _ShareState extends State<ShareBusScreen> {
     if (mounted) setState(() {});
   }
 
-  void toggle() {
+  Future<void> toggle() async {
     if (on) {
       timer?.cancel();
+      try {
+        await Api.delete('/transport/location/mine?routeId=$routeId');
+      } catch (_) {}
+      if (!mounted) return;
       setState(() {
         on = false;
-        status = 'Stopped';
+        status = 'Trip ended. The bus is no longer shown to parents.';
       });
     } else {
       setState(() {

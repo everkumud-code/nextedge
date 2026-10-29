@@ -31,4 +31,12 @@ class Api {
     if (r.statusCode >= 400) throw Exception(data['message'] ?? 'Request failed');
     return data;
   }
+
+  static Future<dynamic> delete(String path) async {
+    final t = await token();
+    final r = await http.delete(Uri.parse('${AppConfig.apiBase}$path'), headers: {if (t != null) 'Authorization': 'Bearer $t'});
+    final data = r.body.isEmpty ? {} : jsonDecode(r.body);
+    if (r.statusCode >= 400) throw Exception(data['message'] ?? 'Request failed');
+    return data;
+  }
 }

@@ -1,8 +1,8 @@
-import { BadRequestException, Body, Controller, Get, Headers, Post, Query, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Headers, Post, Query, UnauthorizedException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
 import { and, eq } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { busLocations, centreSettings, records } from '../db/schema';
+import { busLocations, centreSettings, records, users } from '../db/schema';
 import { Public, Roles } from '../common/auth.guard';
 import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
@@ -38,13 +38,16 @@ export class TransportController {
   /** The driver's phone (a staff login with transport access). */
   @Post('location/mine') @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF') @Mod('transport') async fromDriver(@CurrentUser() u: JwtUser, @Body() b: Fix, @Query('centreId') c?: string) { return this.save(centreOf(u, c), [b], 'driver-app'); }
 
+  /** Driver ends the trip: the bus disappears from parents' maps instead of showing a stale position. */
+  @Delete('location/mine') @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF') @Mod('transport') async endTrip(@CurrentUser() u: JwtUser, @Query('routeId') routeId: string, @Query('centreId') c?: string) { if (!routeId) throw new BadRequestException('Choose the route'); await this.dbs.db.delete(busLocations).where(and(eq(busLocations.routeId, routeId), eq(busLocations.centreId, centreOf(u, c)))); return { ok: true }; }
+
   @Get('tracker') @Roles('SUPER_ADMIN', 'ADMIN') @Mod('transport') async tracker(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) { const s = await this.platform.settings(centreOf(u, c)); return { key: (s as any).trackerKey || null, endpoint: (process.env.PUBLIC_API_URL || 'https://coaching-connect-api.onrender.com') + '/api/transport/location', sample: { vehicle: 'JH01AB1234', lat: 23.3441, lng: 85.3096, speed: 32 } }; }
   @Post('tracker/key') @Roles('SUPER_ADMIN', 'ADMIN') @Mod('transport') async newKey(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) { const centreId = centreOf(u, c); await this.platform.settings(centreId); const key = 'trk_' + randomBytes(18).toString('hex'); await this.dbs.db.update(centreSettings).set({ trackerKey: key }).where(eq(centreSettings.centreId, centreId)); return { key }; }
 
   /** Owner / office: every route with its latest position. */
-  @Get('live') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF') @Mod('transport') async live(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
-    const centreId = centreOf(u, c); const db = this.dbs.db; const routes = await db.select().from(records).where(and(eq(records.centreId, centreId), eq(records.kind, 'transport-route'))); const locs = await db.select().from(busLocations).where(eq(busLocations.centreId, centreId));
-    return routes.map((r) => { const l = locs.find((x) => x.routeId === r.id); const d = JSON.parse(r.data || '{}'); return { routeId: r.id, route: r.title, vehicle: d.vehicle || null, driver: d.driver || null, driverMobile: d.driverMobile || null, status: r.status, position: l ? { lat: Number(l.lat), lng: Number(l.lng), speed: l.speed === null ? null : Number(l.speed), at: l.at, ageMin: Math.round((Date.now() - l.at.getTime()) / 60000), maps: mapsUrl(l.lat, l.lng), source: l.source } : null }; });
+  @Get('live') @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF') @Mod('transport') async live(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); const db = this.dbs.db; const [me] = await db.select({ mobile: users.mobile }).from(users).where(eq(users.id, u.id)); const tail = (x?: string | null) => String(x || '').replace(/\D/g, '').slice(-10); const routes = await db.select().from(records).where(and(eq(records.centreId, centreId), eq(records.kind, 'transport-route'))); const locs = await db.select().from(busLocations).where(eq(busLocations.centreId, centreId));
+    return routes.map((r) => { const l = locs.find((x) => x.routeId === r.id); const d = JSON.parse(r.data || '{}'); return { routeId: r.id, route: r.title, mine: !!me?.mobile && !!d.driverMobile && tail(me.mobile) === tail(d.driverMobile), vehicle: d.vehicle || null, driver: d.driver || null, driverMobile: d.driverMobile || null, status: r.status, position: l ? { lat: Number(l.lat), lng: Number(l.lng), speed: l.speed === null ? null : Number(l.speed), at: l.at, ageMin: Math.round((Date.now() - l.at.getTime()) / 60000), maps: mapsUrl(l.lat, l.lng), source: l.source } : null }; });
   }
   /** Parent / student: the bus(es) their children ride. */
   @Get('live/mine') async mine(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
