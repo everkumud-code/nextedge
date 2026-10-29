@@ -258,6 +258,7 @@ class StaffHrScreen extends StatefulWidget {
 class _H extends State<StaffHrScreen> {
   List leaves = [];
   List slips = [];
+  Map? week;
   @override
   void initState() {
     super.initState();
@@ -267,6 +268,7 @@ class _H extends State<StaffHrScreen> {
   Future<void> load() async {
     try { leaves = await Api.get('/records/mine/leaves'); } catch (_) {}
     try { slips = await Api.get('/payroll/mine'); } catch (_) {}
+    try { final w = await Api.get('/timetable/mine'); if (w is Map) week = w; } catch (_) {}
     if (mounted) setState(() {});
   }
 
@@ -342,6 +344,16 @@ class _H extends State<StaffHrScreen> {
             FilledButton.tonalIcon(onPressed: publishSlots, icon: const Icon(Icons.groups), label: const Text('Publish PTM slots')),
           ]),
           const SizedBox(height: 12),
+          if (week != null) Section('My timetable', [
+            if ((week!['substitutions'] as List).isNotEmpty) Card(color: Colors.amber.shade50, child: Padding(padding: const EdgeInsets.all(10), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Text('Substitution duty', style: TextStyle(fontWeight: FontWeight.w600)),
+              for (final s in (week!['substitutions'] as List)) Text('${day(s['date'])} · ${s['startTime']}–${s['endTime']} · ${s['batch']} · ${s['subject'] ?? ''}'),
+            ]))),
+            for (final wd in [1, 2, 3, 4, 5, 6])
+              if ((week!['slots'] as List).any((s) => s['weekday'] == wd))
+                Card(child: ListTile(dense: true, title: Text(['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][wd], style: const TextStyle(fontWeight: FontWeight.w600)), subtitle: Text((week!['slots'] as List).where((s) => s['weekday'] == wd).map((s) => '${s['startTime']}–${s['endTime']}  ${s['subject']} · ${s['batch']}').join('\n')))),
+            if ((week!['slots'] as List).isEmpty && (week!['substitutions'] as List).isEmpty) const Text('No periods assigned to you yet.'),
+          ]),
           Section('My leave', [
             if (leaves.isEmpty) const Text('No leave applied yet.'),
             for (final l in leaves)
