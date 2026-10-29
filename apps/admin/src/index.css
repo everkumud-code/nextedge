@@ -4,6 +4,7 @@
 
 /* ---- Themes: colours (RGB triplets) and the shape of buttons, cards and boxes. Classic is the default and equals the old look. ---- */
 :root {
+  --font-body: 'Hanken Grotesk'; /* default font; a chosen font overrides it. Without a value here the whole font-family rule is dropped and text turns serif */
   --paper: 243 245 248; --ink: 26 31 38; --surface: 255 255 255; --line: 226 232 240; --muted: 71 85 105;
   --teal-100: 220 235 238; --teal-200: 153 246 228; --teal-700: 15 118 110; --teal-800: 23 70 81; --teal-900: 17 52 60;
   --edge-50: 245 249 254; --edge-100: 220 234 251; --edge-500: 22 115 217; --edge-600: 18 95 179; --edge-700: 14 78 150;

@@ -19,6 +19,9 @@ const ids = ['classic', 'crimson', 'forest', 'midnight'];
 beforeEach(() => { cleanup(); localStorage.clear(); applyPrefs(); });
 
 describe('theme palette (static checks on index.css)', () => {
+  it(':root gives --font-body a default (otherwise the font-family rule is dropped and the whole panel turns serif)', () => {
+    expect(B.classic['font-body'], '--font-body must have a default in :root').toBeTruthy(); expect(tw).toContain("var(--font-body)");
+  });
   it('every colour the Tailwind config reads exists in :root as an RGB triplet', () => {
     const used = [...tw.matchAll(/v\('([a-z0-9-]+)'\)/g)].map((m) => m[1]); expect(used.length).toBeGreaterThan(15);
     for (const k of used) expect(B.classic[k], `--${k} missing in :root`).toMatch(/^\d+ \d+ \d+$/);
