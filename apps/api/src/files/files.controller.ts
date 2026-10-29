@@ -1,19 +1,14 @@
 import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, NotFoundException, Param, Post, Query, Req, Res, UnauthorizedException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import sharp from 'sharp';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { files } from '../db/schema';
+import { Upload, saveFile } from './file-store';
 import { Public, Roles } from '../common/auth.guard';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 
-const MIMES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
-const KINDS = ['student-photo', 'staff-photo', 'gallery', 'admission-doc', 'other'];
-const PUBLIC_KINDS = ['student-photo', 'staff-photo', 'gallery'];
-export const MAX_FILE_BYTES = 3 * 1024 * 1024; // PDFs
-const MAX_IMAGE_BYTES = 8 * 1024 * 1024; // phone photos are shrunk on upload
-type UploadDto = { ownerKind: string; ownerId?: string; name: string; mime: string; data: string };
+type UploadDto = Upload;
 
 /** Small files kept in the database: student/teacher photos, gallery pictures, admission documents. Photos and gallery open by link (unguessable id); documents need a login. */
 @Controller('files')
@@ -22,17 +17,7 @@ export class FilesController {
 
   @Post() @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF', 'FACULTY') async upload(@CurrentUser() u: JwtUser, @Body() b: UploadDto, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c); const db = this.dbs.db;
-    if (!KINDS.includes(b.ownerKind)) throw new BadRequestException('Unknown file type');
-    if (!MIMES.includes(b.mime)) throw new BadRequestException('Only JPG, PNG, WebP or PDF files are allowed');
-    const raw = String(b.data || '').replace(/^data:[^,]+,/, ''); const rawBytes = Math.floor((raw.length * 3) / 4); const isImg = b.mime.startsWith('image/');
-    if (!rawBytes) throw new BadRequestException('Empty file'); if (rawBytes > (isImg ? MAX_IMAGE_BYTES : MAX_FILE_BYTES)) throw new BadRequestException(isImg ? 'Photo is larger than 8 MB' : 'PDF is larger than 3 MB — please shrink it first');
-    let buf = Buffer.from(raw, 'base64'); let mime = b.mime;
-    if (isImg) { // decode once: rejects broken files, fixes phone rotation, and stores a small JPEG instead of a multi-MB photo
-      try { const max = b.ownerKind === 'student-photo' || b.ownerKind === 'staff-photo' ? 600 : 1800; buf = await sharp(buf).rotate().resize({ width: max, height: max, fit: 'inside', withoutEnlargement: true }).flatten({ background: '#ffffff' }).jpeg({ quality: 82 }).toBuffer(); mime = 'image/jpeg'; } catch { throw new BadRequestException('This image could not be read. Please upload a JPG or PNG photo.'); }
-    } else if (buf.slice(0, 4).toString() !== '%PDF') throw new BadRequestException('This is not a valid PDF');
-    if (b.ownerKind === 'student-photo' || b.ownerKind === 'staff-photo') await db.delete(files).where(and(eq(files.centreId, centreId), eq(files.ownerKind, b.ownerKind), eq(files.ownerId, b.ownerId || '')));
-    const name = String(b.name || 'file').replace(/\.(png|webp|jpe?g)$/i, isImg ? '.jpg' : '$&').slice(0, 120);
-    const [f] = await db.insert(files).values({ centreId, ownerKind: b.ownerKind, ownerId: b.ownerId || null, name, mime, size: buf.length, isPublic: PUBLIC_KINDS.includes(b.ownerKind), data: buf.toString('base64') }).returning({ id: files.id, name: files.name, mime: files.mime, size: files.size });
+    const f = await saveFile(db, centreId, b);
     return { ...f, url: `/api/files/${f.id}` };
   }
 

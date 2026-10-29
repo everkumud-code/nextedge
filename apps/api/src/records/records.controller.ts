@@ -1,12 +1,14 @@
 import { Body, Controller, Delete, Get, Param, Post, Put, Query, BadRequestException, ForbiddenException, Res } from '@nestjs/common';
 import { and, desc, eq, inArray } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { batches, facultyBatches, records, students, users } from '../db/schema';
+import { batches, centres, facultyBatches, records, students, users } from '../db/schema';
 import { Roles } from '../common/auth.guard';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { myStudents } from '../common/scope';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MessagingService } from '../messaging/messaging.service';
+import { STAGE_LABEL } from '../admissions/admissions.controller';
 import { PlatformService } from '../platform/platform.service';
 import { KINDS, RECORD_MODULES } from './kinds';
 
@@ -14,7 +16,7 @@ const STAFFY = ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF'];
 /** One controller for every record kind. Module access is checked per kind (feature flag + staff privilege). */
 @Controller('records')
 export class RecordsController {
-  constructor(private dbs: DbService, private notify: NotificationsService, private platform: PlatformService) {}
+  constructor(private dbs: DbService, private notify: NotificationsService, private platform: PlatformService, private msg: MessagingService) {}
 
   private kind(k: string) { const kd = KINDS[k]; if (!kd) throw new BadRequestException(`Unknown record kind ${k}`); return kd; }
   private async features(u: JwtUser): Promise<string[] | null> { if (!u.centreId || u.role === 'SUPER_ADMIN') return null; const s = await this.platform.settings(u.centreId); return s.features.length ? s.features : null; }
@@ -126,6 +128,7 @@ export class RecordsController {
     const set: any = { updatedAt: new Date() }; if (b.title !== undefined) set.title = b.title; if (b.date !== undefined) set.date = b.date || null; if (b.status && kd.statuses.includes(b.status)) set.status = b.status; if (b.data) set.data = JSON.stringify({ ...JSON.parse(old.data), ...b.data }); if (b.parentVisible !== undefined) set.parentVisible = !!b.parentVisible; if (b.studentId !== undefined) set.studentId = b.studentId || null; if (b.staffId !== undefined) set.staffId = b.staffId || null; if (b.refId !== undefined) set.refId = b.refId || null;
     const [row] = await db.update(records).set(set).where(eq(records.id, id)).returning();
     if (b.notifyParent && row.studentId) await this.tellParent(centreId, row.studentId, `${kd.label}: ${row.title}`, b.notifyText || this.summary(kd, row));
+    if (k === 'admission' && b.status && b.status !== old.status && b.status !== 'admitted') { const d = JSON.parse(row.data || '{}'); const [ce] = await db.select({ name: centres.name }).from(centres).where(eq(centres.id, centreId)); const extra = [d.interviewDate && b.status === 'interview' ? `Date: ${d.interviewDate}${d.interviewTime ? ' ' + d.interviewTime : ''}.` : '', d.publicRemark || ''].filter(Boolean).join(' '); this.msg.contact(centreId, { mobile: d.parentMobile, email: d.parentEmail }, `Admission update — ${ce?.name || 'School'}`, `${row.title}: ${STAGE_LABEL[b.status] || b.status}. ${extra}`.trim(), 'admission').catch(() => {}); }
     if (k === 'loan' && b.status === 'returned' && old.status !== 'returned' && row.refId) await this.adjustStock(centreId, row.refId, 0);
     return (await this.hydrate(centreId, [row]))[0];
   }

@@ -53,6 +53,14 @@ export class MessagingService {
     catch (e: any) { await this.record(centreId, 'email', kind, to, 'failed', 'smtp', e.message); return { sent: false, reason: e.message }; }
   }
 
+  /** Reach someone who is not a user yet (an applicant's parent): WhatsApp, then SMS (unless the centre turned SMS off), then email. */
+  async contact(centreId: string, who: { mobile?: string; email?: string }, title: string, body: string, kind: Kind | 'admission' = 'notice'): Promise<Result & { via?: string }> {
+    const v: Vars = { title, body, text: `${title}: ${body}`.slice(0, 300) }; const k: Kind = kind === 'admission' ? 'notice' : kind;
+    if (who.mobile) { const w = await this.sendWhatsApp(centreId, who.mobile, k, v); if (w.sent) return { ...w, via: 'whatsapp' }; if ((await this.smsPolicy(centreId)) !== 'none') { const m = await this.sendSms(centreId, who.mobile, k, v); if (m.sent) return { ...m, via: 'sms' }; } }
+    if (who.email) { const e = await this.sendEmail(centreId, who.email, title, body, k); if (e.sent) return { ...e, via: 'email' }; return e; }
+    return { sent: false, reason: 'No channel could reach this person' };
+  }
+
   /** What is connected for a centre (or the platform when centreId is null). */
   async status(centreId?: string | null) {
     const r = await this.resolve(centreId); const smtp = await this.mail.smtpFor(centreId || null);
