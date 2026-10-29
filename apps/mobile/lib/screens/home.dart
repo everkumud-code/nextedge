@@ -4,6 +4,7 @@ import 'login.dart';
 import 'student_home.dart';
 import 'parent_home.dart';
 import 'faculty_home.dart';
+import 'staff_home.dart';
 
 /// Routes to the right home by role after login.
 class HomeScreen extends StatelessWidget {
@@ -18,6 +19,7 @@ class HomeScreen extends StatelessWidget {
             case 'STUDENT': return const StudentHome();
             case 'PARENT': return const ParentHome();
             case 'FACULTY': case 'ADMIN': case 'SUPER_ADMIN': return const FacultyHome();
+            case 'STAFF': return const StaffHome();
             default: return const LoginScreen();
           }
         },
