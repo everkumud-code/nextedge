@@ -20,7 +20,7 @@ export class AuthGuard implements CanActivate {
     const u = req.user;
     // STAFF counts as FACULTY for role checks; what they may actually touch is decided by their module list.
     const effRole = u.role === 'STAFF' ? 'FACULTY' : u.role;
-    if (roles?.length && !roles.includes(effRole)) throw new ForbiddenException('Not allowed for your role');
+    if (roles?.length && !roles.includes(effRole) && !roles.includes(u.role)) throw new ForbiddenException('Not allowed for your role');
     const mod = this.reflector.getAllAndOverride<string>('module', [ctx.getHandler(), ctx.getClass()]);
     const mods: string[] = u.modules || [];
     // Reading the student/batch list is needed by every teaching module (roll call, marks, homework), so a GET on 'students' passes when any of those is granted.

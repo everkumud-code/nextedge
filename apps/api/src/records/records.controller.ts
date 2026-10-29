@@ -44,11 +44,46 @@ export class RecordsController {
     const mine = ['STUDENT', 'PARENT'].includes(u.role) ? await myStudents(db, u, centreId) : [];
     const conds: any[] = [eq(records.centreId, centreId), eq(records.parentVisible, true)]; if (kind) conds.push(eq(records.kind, kind));
     const rows = await db.select().from(records).where(and(...conds)).orderBy(desc(records.date), desc(records.createdAt)).limit(500);
-    const ok = rows.filter((r) => { const kd = KINDS[r.kind]; if (!kd) return false; if (r.studentId) return mine.some((s) => s.id === r.studentId) || STAFFY.includes(u.role); if (r.staffId) return r.staffId === u.id || ['ADMIN', 'SUPER_ADMIN'].includes(u.role); return true; });
+    const ok = rows.filter((r) => { const kd = KINDS[r.kind]; if (!kd) return false; if (r.kind === 'ptm-slot') return r.status === 'open' || mine.some((s) => s.id === r.studentId) || STAFFY.includes(u.role); if (r.studentId) return mine.some((s) => s.id === r.studentId) || STAFFY.includes(u.role); if (r.staffId) return r.staffId === u.id || ['ADMIN', 'SUPER_ADMIN'].includes(u.role); return true; });
     return this.hydrate(centreId, ok);
   }
   /** Staff: my duties / tasks. */
   @Get('mine/duties') @Roles(...STAFFY) async myDuties(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) { const rows = await this.dbs.db.select().from(records).where(and(eq(records.centreId, centreOf(u, c)), eq(records.kind, 'duty'), eq(records.staffId, u.id))).orderBy(desc(records.createdAt)); return this.hydrate(centreOf(u, c), rows); }
+
+  /** Staff: apply for leave from the app. */
+  @Post('my-leave') @Roles(...STAFFY) async myLeave(@CurrentUser() u: JwtUser, @Body() b: { fromDate: string; toDate?: string; type?: string; reason: string }, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); if (!b.fromDate || !b.reason?.trim()) throw new BadRequestException('Dates and reason are required'); const to = b.toDate || b.fromDate; const days = Math.max(1, Math.round((new Date(to).getTime() - new Date(b.fromDate).getTime()) / 864e5) + 1);
+    const [row] = await this.dbs.db.insert(records).values({ centreId, kind: 'staff-leave', staffId: u.id, title: b.reason.trim().slice(0, 200), date: b.fromDate, status: 'pending', data: JSON.stringify({ toDate: to, type: b.type || 'Casual', days }), createdBy: u.id }).returning();
+    const admins = await this.dbs.db.select({ id: users.id }).from(users).where(and(eq(users.centreId, centreId), eq(users.role, 'ADMIN'))); this.notify.notifyUsers(centreId, admins.map((a) => a.id), `Leave request: ${u.name}`, `${b.fromDate}${to !== b.fromDate ? ' to ' + to : ''} · ${b.reason}`, { data: { type: 'record', id: row.id } }); return row;
+  }
+  @Get('mine/leaves') @Roles(...STAFFY) async myLeaves(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) { const rows = await this.dbs.db.select().from(records).where(and(eq(records.centreId, centreOf(u, c)), eq(records.kind, 'staff-leave'), eq(records.staffId, u.id))).orderBy(desc(records.createdAt)); return this.hydrate(centreOf(u, c), rows); }
+
+  /** Teacher: publish own PTM slots. body: { date, times: ['10:00','10:10'], venue, mode, title } */
+  @Post('my-ptm-slots') @Roles(...STAFFY) async myPtm(@CurrentUser() u: JwtUser, @Body() b: { date: string; times: string[]; venue?: string; mode?: string; title?: string; duration?: number; meetLink?: string }, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); if (!b.date || !b.times?.length) throw new BadRequestException('Date and at least one time are required'); let n = 0;
+    for (const t of b.times.slice(0, 60)) { await this.dbs.db.insert(records).values({ centreId, kind: 'ptm-slot', staffId: u.id, title: b.title || `PTM with ${u.name}`, date: b.date, status: 'open', data: JSON.stringify({ time: t, duration: b.duration || 10, venue: b.venue || '', mode: b.mode || 'In person', meetLink: b.meetLink || '' }), parentVisible: true, createdBy: u.id }); n++; }
+    return { created: n };
+  }
+
+  /** Student / parent: rate a teacher or give PTM feedback. */
+  @Post('feedback/:kind') async feedback(@CurrentUser() u: JwtUser, @Param('kind') k: string, @Body() b: { staffId?: string; studentId?: string; rating: number; comment?: string; subject?: string; anonymous?: boolean; teacher?: string }, @Query('centreId') c?: string) {
+    if (!['teacher-feedback', 'ptm-feedback'].includes(k)) throw new BadRequestException('Unknown feedback kind'); if (!['STUDENT', 'PARENT'].includes(u.role)) throw new ForbiddenException('Only students and parents can give feedback');
+    const centreId = centreOf(u, c); const mine = await myStudents(this.dbs.db, u, centreId); const studentId = b.studentId && mine.some((s) => s.id === b.studentId) ? b.studentId : mine[0]?.id || null; const rating = Math.min(5, Math.max(1, Number(b.rating) || 0)); if (!rating) throw new BadRequestException('Give a rating from 1 to 5');
+    const [row] = await this.dbs.db.insert(records).values({ centreId, kind: k, studentId, staffId: b.staffId || null, title: k === 'teacher-feedback' ? `${rating}/5${b.subject ? ' · ' + b.subject : ''}` : `PTM · ${b.teacher || ''}`.trim(), date: new Date().toISOString().slice(0, 10), status: 'new', data: JSON.stringify({ rating, comment: b.comment || '', subject: b.subject || '', anonymous: b.anonymous === false ? 'No' : 'Yes', from: u.role.toLowerCase(), teacher: b.teacher || '' }), parentVisible: false, createdBy: u.id }).returning(); return { ok: true, id: row.id };
+  }
+  /** Owner: average rating per teacher. */
+  @Get('teacher-feedback/summary') @Roles('SUPER_ADMIN', 'ADMIN') async tfSummary(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); const rows = await this.dbs.db.select().from(records).where(and(eq(records.centreId, centreId), eq(records.kind, 'teacher-feedback'))); const us = await this.dbs.db.select({ id: users.id, name: users.name }).from(users).where(eq(users.centreId, centreId)); const by: Record<string, any> = {};
+    rows.forEach((r) => { const d = JSON.parse(r.data); const k = r.staffId || 'none'; by[k] = by[k] || { staffId: r.staffId, name: us.find((x) => x.id === r.staffId)?.name || 'General', count: 0, sum: 0, comments: [] as string[] }; by[k].count++; by[k].sum += Number(d.rating || 0); if (d.comment) by[k].comments.push(d.comment); });
+    return Object.values(by).map((x: any) => ({ staffId: x.staffId, name: x.name, count: x.count, average: Math.round((x.sum / x.count) * 10) / 10, comments: x.comments.slice(0, 5) })).sort((a: any, b: any) => b.average - a.average);
+  }
+  /** Parent: book an open PTM slot for a child. */
+  @Post('ptm/:id/book') async bookPtm(@CurrentUser() u: JwtUser, @Param('id') id: string, @Body() b: { studentId?: string }, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); const db = this.dbs.db; const mine = await myStudents(db, u, centreId); const st = mine.find((s) => s.id === b.studentId) || mine[0]; if (!st) throw new ForbiddenException('No student linked to your account');
+    const [slot] = await db.select().from(records).where(and(eq(records.id, id), eq(records.centreId, centreId), eq(records.kind, 'ptm-slot'))); if (!slot) throw new BadRequestException('Slot not found'); if (slot.status !== 'open') throw new BadRequestException('This slot is already booked');
+    const [ok] = await db.update(records).set({ status: 'booked', studentId: st.id, data: JSON.stringify({ ...JSON.parse(slot.data), bookedBy: u.name }), updatedAt: new Date() }).where(and(eq(records.id, id), eq(records.status, 'open'))).returning(); if (!ok) throw new BadRequestException('This slot was just booked by someone else');
+    if (slot.staffId) this.notify.notifyUsers(centreId, [slot.staffId], `PTM booked: ${st.name}`, `${slot.date || ''} ${JSON.parse(slot.data).time || ''}`, { data: { type: 'record', id } }); return { ok: true };
+  }
 
   /** Parent / student: raise a service request (certificate copy, bus change, repair...). */
   @Post('request') async request(@CurrentUser() u: JwtUser, @Body() b: any, @Query('centreId') c?: string) {

@@ -92,6 +92,11 @@ export class SubscriptionController {
   constructor(private dbs: DbService, private svc: PlatformService, private mail: MailService) {}
 
   @Get('email-presets') presets() { return SMTP_PRESETS; }
+  /** Owner: school profile used on certificates and report cards. */
+  @Put('profile') @Roles('ADMIN') async setProfile(@CurrentUser() u: JwtUser, @Body() b: { academicSession?: string; board?: string; udiseCode?: string; affiliationNo?: string; principalName?: string; address?: string; phone?: string; website?: string }) {
+    await this.svc.settings(u.centreId!); const set: any = { updatedAt: new Date() }; for (const k of ['academicSession', 'board', 'udiseCode', 'affiliationNo', 'principalName', 'address', 'phone', 'website'] as const) if ((b as any)[k] !== undefined) set[k] = (b as any)[k] || null;
+    await this.dbs.db.update(centreSettings).set(set).where(eq(centreSettings.centreId, u.centreId!)); return { ok: true };
+  }
   /** Owner's own mailbox: tests the login, sends a test mail to the owner, saves on success. */
   @Put('email') @Roles('ADMIN') async setEmail(@CurrentUser() u: JwtUser, @Body() b: { provider: string; host?: string; port?: number; user: string; pass: string; fromName?: string; testTo?: string }) {
     const preset = SMTP_PRESETS[b.provider] || SMTP_PRESETS.custom; const host = b.host || preset.host; const port = Number(b.port || preset.port);

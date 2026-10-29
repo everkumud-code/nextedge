@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Headers, Param, Post, Put, Query, Req, Res, NotFoundException, BadRequestException } from '@nestjs/common';
 import { receiptPdf } from './receipt';
-import { batches, centres } from '../db/schema';
+import { batches, centres, records } from '../db/schema';
 import { IsIn, IsNumberString, IsOptional, IsString } from 'class-validator';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
@@ -65,6 +65,18 @@ export class FeesController {
   }
   @Delete('assign/:studentId') @Roles('SUPER_ADMIN', 'ADMIN') async unassign(@CurrentUser() u: JwtUser, @Param('studentId') studentId: string, @Query('centreId') c?: string) { await this.dbs.db.delete(studentFeePlans).where(and(eq(studentFeePlans.studentId, studentId), eq(studentFeePlans.centreId, centreOf(u, c)))); return { ok: true }; }
 
+  /** Late fine: adds a fine record to every student with a balance (or the given ids). Skips students already fined this month. Flat amount, or perDay × days late (days = since the 10th unless given). */
+  @Post('apply-fine') @Roles('SUPER_ADMIN', 'ADMIN') async applyFine(@CurrentUser() u: JwtUser, @Body() b: { amount?: number; perDay?: number; days?: number; studentIds?: string[]; reason?: string }, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); const db = this.dbs.db; const rows = (await this.ledger(u, c)).filter((r) => r.balance > 0 && (!b.studentIds?.length || b.studentIds.includes(r.studentId))); const month = today().slice(0, 7); const dayOfMonth = Number(today().slice(8)); let n = 0, total = 0;
+    const amt = b.perDay ? Number(b.perDay) * Math.max(1, b.days ?? Math.max(1, dayOfMonth - 10)) : Number(b.amount || 0); if (!(amt > 0)) throw new BadRequestException('Enter a fine amount (or per-day rate)');
+    for (const r of rows) {
+      const ex = await db.select({ id: records.id }).from(records).where(and(eq(records.centreId, centreId), eq(records.kind, 'fee-fine'), eq(records.studentId, r.studentId), eq(records.status, 'applied'), sql`to_char(${records.date}, 'YYYY-MM') = ${month}`)); if (ex.length) continue;
+      await db.insert(records).values({ centreId, kind: 'fee-fine', studentId: r.studentId, title: b.reason || 'Late fee fine', date: today(), status: 'applied', data: JSON.stringify({ amount: amt, note: `Balance ₹${r.balance} overdue` }), parentVisible: true, createdBy: u.id }); n++; total += amt;
+      const [p] = await db.select({ id: users.id }).from(users).where(and(eq(users.centreId, centreId), eq(users.mobile, r.parentMobile), eq(users.role, 'PARENT'))); if (p) this.notify.notifyUsers(centreId, [p.id], `Late fee fine ₹${amt}`, `A late fee fine of ₹${amt} has been added for ${r.name}. Pay the balance to avoid more.`, { data: { type: 'fee', studentId: r.studentId } });
+    }
+    return { fined: n, amountEach: amt, total };
+  }
+
   /** Remind one parent. */
   @Post('remind/:studentId') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF') async remindOne(@CurrentUser() u: JwtUser, @Param('studentId') studentId: string, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c); const r = (await this.ledger(u, c)).find((x) => x.studentId === studentId); if (!r || r.balance <= 0) return { reminded: 0 };
@@ -109,8 +121,9 @@ export class FeesController {
     const paid = await db.select({ studentId: feePayments.studentId, total: sql<string>`sum(${feePayments.amount})` }).from(feePayments).where(inArray(feePayments.studentId, ids)).groupBy(feePayments.studentId);
     const last = await db.select({ studentId: feePayments.studentId, on: sql<string>`max(${feePayments.paidOn})` }).from(feePayments).where(inArray(feePayments.studentId, ids)).groupBy(feePayments.studentId);
     const lm = new Map(last.map((l) => [l.studentId, l.on]));
+    const fineRows = await db.select({ studentId: records.studentId, data: records.data }).from(records).where(and(eq(records.centreId, centreId), eq(records.kind, 'fee-fine'), eq(records.status, 'applied'), inArray(records.studentId, ids))); const fm = new Map<string, number>(); fineRows.forEach((f) => fm.set(f.studentId!, (fm.get(f.studentId!) || 0) + Number(JSON.parse(f.data).amount || 0)));
     const pm = new Map(paid.map((p) => [p.studentId, Number(p.total)])); const am = new Map(assigns.map((a) => [a.studentId, a]));
-    return sts.map((s) => { const a = am.get(s.id); const due = a ? dueSoFar(a.cycle, Number(a.amount), Number(a.discount), a.startDate) : 0; const paidAmt = pm.get(s.id) || 0;
+    return sts.map((s) => { const a = am.get(s.id); const fine = fm.get(s.id) || 0; const due = (a ? dueSoFar(a.cycle, Number(a.amount), Number(a.discount), a.startDate) : 0) + fine; const paidAmt = pm.get(s.id) || 0;
       return { studentId: s.id, name: s.name, rollNo: s.rollNo, batchId: s.batchId, parentMobile: s.parentMobile, plan: a ? { name: a.planName, amount: Number(a.amount), cycle: a.cycle, startDate: a.startDate, discount: Number(a.discount) } : null, due, paid: paidAmt, balance: due - paidAmt }; });
   }
 
