@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api } from '../api';
+import { api, session } from '../api';
 const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 const LABEL: Record<string, string> = { students: 'Students', attendance: 'Attendance', fees: 'Fees', study: 'Study', live: 'Live classes', tests: 'Tests', homework: 'Homework', notices: 'Notices', chat: 'Chat', timetable: 'Timetable', doubts: 'Doubts', leaves: 'Leaves', feedback: 'Feedback', enquiries: 'Enquiries', reports: 'Reports', staff: 'Staff' };
 export default function Platform() {
@@ -38,7 +38,7 @@ export default function Platform() {
       {rows.map((c) => { const s = c.settings; const feats: string[] = s.features.length ? s.features : mods; const end = s.status === 'trial' ? s.trialEndsAt : s.paidUntil;
         return <div key={c.id} className="card p-4 mt-4">
           <div className="flex items-center justify-between flex-wrap gap-3">
-            <div><b className="text-lg">{c.name}</b> <span className="text-sm text-slate-600">{c.city} · {c.activeStudents} students</span><div className="text-sm mt-1"><span className={`tag ${s.status === 'active' ? 'bg-moss text-white' : s.status === 'suspended' ? 'bg-brick text-white' : s.status === 'grace' ? 'bg-marigold-500' : ''}`}>{s.status}</span> {end && <span className="text-slate-600"> · {s.status === 'trial' ? 'trial ends' : 'paid until'} {end}</span>}{c.openInvoice && <span className="text-brick"> · invoice due {inr(c.openInvoice.amount)}</span>}</div></div>
+            <div><button className="btn sm mr-3" onClick={() => { session.viewing({ id: c.id, name: c.name, institutionType: c.institutionType }); location.assign('/'); }}>Open</button><b className="text-lg">{c.name}</b> <span className="text-sm text-slate-600">{c.city} · {c.activeStudents} students</span><div className="text-sm mt-1"><span className={`tag ${s.status === 'active' ? 'bg-moss text-white' : s.status === 'suspended' ? 'bg-brick text-white' : s.status === 'grace' ? 'bg-marigold-500' : ''}`}>{s.status}</span> {end && <span className="text-slate-600"> · {s.status === 'trial' ? 'trial ends' : 'paid until'} {end}</span>}{c.openInvoice && <span className="text-brick"> · invoice due {inr(c.openInvoice.amount)}</span>}</div></div>
             <div className="flex gap-2 items-end flex-wrap">
               <div><label className="text-xs">Type</label><select className="input py-1" value={c.institutionType} onChange={async (e) => { const type = e.target.value; const apply = confirm(`Switch to ${type}? Press OK to also reset this centre’s module set to the ${type} defaults, or Cancel to keep its current modules.`); await api(`/platform/centres/${c.id}/type`, { method: 'PUT', body: JSON.stringify({ type, applyFeatures: apply }) }); load(); }}><option value="coaching">Coaching</option><option value="school">School</option></select></div>
               <div><label className="text-xs">Plan</label><select className="input py-1" value={c.plan} onChange={(e) => upd(c.id, { plan: e.target.value })}>{Object.keys(plans).map((p) => <option key={p} value={p}>{p} · ₹{plans[p].price}</option>)}</select></div>

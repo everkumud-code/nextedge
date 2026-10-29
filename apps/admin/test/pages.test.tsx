@@ -68,6 +68,16 @@ describe('owner pages', () => {
   it('Dashboard', async () => { const { default: P } = await import('../src/pages/Dashboard'); const r = await check('Dashboard', P, ['Today', 'Active students', 'batch', 'Attendance', 'Collected this month', 'Outstanding', 'Needs action', 'Latest notices', 'Wellbeing', 'Connect your coaching']); expect(r.missing).toEqual([]); });
 });
 
+describe('super admin open centre', () => {
+  beforeAll(async () => { await login('Platform', 'ever.kumud@gmail.com'); });
+  it('needs a centre, then works once one is opened', async () => {
+    const { api } = await import('../src/api'); const { default: P } = await import('../src/pages/Students');
+    session.viewing(null); const raw = await fetch(API + '/students', { headers: { Authorization: `Bearer ${session.token}` } }); const body = await raw.json(); console.log('SuperNoCentre: http ' + raw.status + ' ' + body.message); expect(raw.status).toBe(403); expect(body.message).toContain('Select a centre');
+    const cs = await api('/platform/centres'); const sc = cs.find((c: any) => c.name === 'Demo Public School'); session.viewing({ id: sc.id, name: sc.name, institutionType: sc.institutionType });
+    const r = await check('SuperOpenedSchool/Students', P, ['Add student', 'Class & section', 'Adm. no', /\d+ shown/]); expect(r.missing).toEqual([]);
+    session.viewing(null);
+  });
+});
 describe('super admin pages', () => {
   beforeAll(async () => { await login('Platform', 'ever.kumud@gmail.com'); });
   it('Centres', async () => { const { default: P } = await import('../src/pages/Centres'); const r = await check('Centres', P, ['Demo Coaching Centre', /create centre/i]); expect(r.missing).toEqual([]); });
