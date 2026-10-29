@@ -12,5 +12,7 @@ async function bootstrap() {
   const port = Number(process.env.PORT) || 3000;
   await app.listen(port);
   console.log(`API listening on :${port} · OTP_MODE=${(process.env.OTP_MODE || 'live').trim()}`);
+  // Demo clients get realistic data in every module — in the background, so the API is available immediately.
+  if (process.env.SEED_ON_BOOT === 'true' && process.env.DEMO_FILL !== 'off') setImmediate(() => import('./db/demo-fill').then((m) => m.fillDemoData()).catch((e) => console.error('[demo-fill] failed', e)));
 }
 bootstrap();

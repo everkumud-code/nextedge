@@ -70,6 +70,8 @@ Super-admin for this (and every) project: ever.kumud@gmail.com — seeded as SUP
 
 - [x] Super admin: menu = Clients / Billing & plans / Counsellors. Clients (`/clients`): Coaching vs Schools tabs, create, edit (basics, owner, plan, billing, modules, type), `/clients/:id` = every student + teacher/staff (`GET /platform/centres/:id/people`, each view audited), CSV export. Support mode: AuthGuard lets SUPER_ADMIN act in any centre via ?centreId= with owner rights; non-GET calls and people views go to `audit_log`, owner sees it at `GET /subscription/audit`. Admin api helper appends the chosen centre (session.viewing).
 
+- [x] Demo data (`apps/api/src/db/demo-fill.ts`): runs in the background after boot when SEED_ON_BOOT=true (DEMO_FILL=off disables) and daily at 9:00 IST. Fills **Demo Coaching Centre** (50 students, 4 batches, 5 teachers, tests with attempts, live classes, homework…) and **Demo Public School** (236 students, Class 1–8 × A/B, 10 teachers, 48 exams with marks, 672 period slots, transport, library, HR/payroll, certificates, admissions…). Idempotent and deterministic; attendance tops up to yesterday each run. Logins: see deploy/DEMO-LOGINS.md.
+
 ## Platform (super-admin) — done
 - [x] Per-centre feature flags (`centre_settings.features`), plan presets (starter ₹25 / standard ₹40 / pro ₹60 per student), min students, monthly/annual
 - [x] Subscription invoices (students × rate), Razorpay pay link + webhook, manual mark-paid, `paidUntil`; renewal reminders 7/3/1 days, expiry → grace 7 days → suspended (writes blocked); owner sees /subscription

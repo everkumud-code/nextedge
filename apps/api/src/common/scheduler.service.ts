@@ -18,6 +18,8 @@ export class SchedulerService implements OnModuleInit {
     if (ist.getUTCHours() === 7 && this.lastWish !== day) { this.lastWish = day; const n = await this.wishes.sendBirthdayWishes(); this.log.log(`Birthday wishes sent: ${n}`); }
     if (ist.getUTCHours() !== 9 || this.lastRun === day) return; this.lastRun = day;
     await this.platform.renewalSweep();
+    // Keep the two demo clients looking live: attendance and records are topped up to yesterday every morning.
+    if (process.env.DEMO_FILL !== 'off' && process.env.SEED_ON_BOOT === 'true') import('../db/demo-fill').then((m) => m.fillDemoData()).catch((e) => this.log.error(e));
     const dom = ist.getUTCDate();
     if (dom === 1) await this.reports.sendMonthlyReports();
     if ([1, 7, 15, 25].includes(dom)) { const all = await this.dbs.db.select({ id: centres.id }).from(centres);
