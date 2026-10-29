@@ -7,7 +7,7 @@ const STATUS: Record<string, string> = { trial: 'bg-slate-200', active: 'bg-moss
 
 /** Platform home for the super admin: clients split into Coaching centres and Schools; create, view people, edit, open in support mode. */
 export default function Clients() {
-  const [rows, setRows] = useState<any[]>([]); const [plans, setPlans] = useState<any>({}); const [mods, setMods] = useState<string[]>([]); const [tab, setTab] = useState<'coaching' | 'school'>('coaching'); const [q, setQ] = useState(''); const [msg, setMsg] = useState(''); const [create, setCreate] = useState<any | null>(null); const [edit, setEdit] = useState<any | null>(null); const [err, setErr] = useState('');
+  const [rows, setRows] = useState<any[]>([]); const [plans, setPlans] = useState<any>({}); const [mods, setMods] = useState<string[]>([]); const [tab, setTab] = useState<'coaching' | 'school'>('coaching'); const [q, setQ] = useState(''); const [msg, setMsg] = useState(''); const [create, setCreate] = useState<any | null>(null); const [edit, setEdit] = useState<any | null>(null); const [err, setErr] = useState(''); const [del, setDel] = useState<any | null>(null); const [purge, setPurge] = useState<any | null>(null);
   const load = () => api('/platform/centres').then(setRows); useEffect(() => { load(); api('/platform/plans').then(setPlans); api('/platform/modules').then(setMods); }, []);
   const of = (t: string) => rows.filter((r) => (r.institutionType || 'coaching') === t);
   const shown = useMemo(() => of(tab).filter((r) => !q || `${r.name} ${r.city || ''} ${r.owner?.name || ''} ${r.owner?.email || ''} ${r.owner?.mobile || ''}`.toLowerCase().includes(q.toLowerCase())), [rows, tab, q]);
@@ -28,10 +28,13 @@ export default function Clients() {
       setMsg(`${edit.name} updated`); setEdit(null); load();
     } catch (e: any) { setErr(e.message); }
   }
+  async function doDelete() { setErr(''); try { await api(`/platform/centres/${del.c.id}/delete`, { method: 'POST', body: JSON.stringify({ confirmName: del.typed }) }); setMsg(`${del.c.name} and all its data were deleted.`); setDel(null); load(); } catch (e: any) { setErr(e.message); } }
+  async function startPurge() { setErr(''); try { const r = await api('/platform/centres/purge-non-demo', { method: 'POST', body: JSON.stringify({ dryRun: true }) }); setPurge({ ...r, typed: '' }); } catch (e: any) { setErr(e.message); } }
+  async function doPurge() { setErr(''); try { const r = await api('/platform/centres/purge-non-demo', { method: 'POST', body: JSON.stringify({ confirm: 'DELETE' }) }); setMsg(`Deleted ${r.deleted.length} client(s): ${r.deleted.join(', ')}. Demo clients kept.`); setPurge(null); load(); } catch (e: any) { setErr(e.message); } }
   const F = ({ l, children, span }: any) => <div className={span ? `col-span-${span}` : ''}><label className="text-sm font-medium">{l}</label>{children}</div>;
   return (
     <div>
-      <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl font-bold">Clients</h1><p className="text-sm text-slate-600">{of('coaching').length} coaching centres · {of('school').length} schools · {rows.reduce((a, r) => a + r.activeStudents, 0)} students in total</p></div><button className="btn" onClick={() => setCreate(blank())}>+ New {school ? 'school' : 'coaching'}</button></div>
+      <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl font-bold">Clients</h1><p className="text-sm text-slate-600">{of('coaching').length} coaching centres · {of('school').length} schools · {rows.reduce((a, r) => a + r.activeStudents, 0)} students in total</p></div><div className="flex gap-2"><button className="btn-quiet text-brick" onClick={startPurge}>Remove all except demo…</button><button className="btn" onClick={() => setCreate(blank())}>+ New {school ? 'school' : 'coaching'}</button></div></div>
       <div className="flex gap-2 mt-4 items-center flex-wrap">{(['coaching', 'school'] as const).map((t) => <button key={t} className={tab === t ? 'btn' : 'btn-quiet'} onClick={() => setTab(t)}>{t === 'coaching' ? 'Coaching centres' : 'Schools'} ({of(t).length})</button>)}<input className="input w-72 ml-auto" placeholder="Search name, city, owner, email, mobile" value={q} onChange={(e) => setQ(e.target.value)} /></div>
       {msg && <p className="text-sm mt-3 text-moss">{msg}</p>}
       <table className="card w-full mt-4 text-sm"><thead><tr><th className="th">{school ? 'School' : 'Coaching'}</th><th className="th">{school ? 'Principal / owner' : 'Owner'}</th><th className="th text-right">Students</th><th className="th">Plan</th><th className="th">Status</th><th className="th"></th></tr></thead>
@@ -41,8 +44,25 @@ export default function Clients() {
           <td className="td text-right font-semibold">{c.activeStudents}</td>
           <td className="td">{c.plan} <span className="text-xs text-slate-500">{inr(Number(s.pricePerStudent))}/student</span></td>
           <td className="td"><span className={`tag ${STATUS[s.status] || ''}`}>{s.status}</span><div className="text-xs text-slate-500">{end ? `till ${dt(end)}` : ''}{c.openInvoice ? ` · due ${inr(Number(c.openInvoice.amount))}` : ''}</div></td>
-          <td className="td whitespace-nowrap"><Link className="btn sm" to={`/clients/${c.id}`}>Students & teachers</Link> <button className="btn-quiet" onClick={() => open(c)}>Open panel</button> <button className="btn-quiet" onClick={() => startEdit(c)}>Edit</button></td></tr>; })}
+          <td className="td whitespace-nowrap"><Link className="btn sm" to={`/clients/${c.id}`}>Students & teachers</Link> <button className="btn-quiet" onClick={() => open(c)}>Open panel</button> <button className="btn-quiet" onClick={() => startEdit(c)}>Edit</button> <button className="btn-quiet text-brick" onClick={() => { setErr(''); setDel({ c, typed: '' }); }}>Delete</button></td></tr>; })}
           {!shown.length && <tr><td className="td text-slate-500" colSpan={6}>{q ? 'No match.' : `No ${school ? 'schools' : 'coaching centres'} yet — create the first one.`}</td></tr>}</tbody></table>
+
+      {del && <div className="fixed inset-0 bg-black/40 grid place-items-center z-50" onClick={() => setDel(null)}><div className="card p-5 w-full max-w-lg" onClick={(e) => e.stopPropagation()}>
+        <h2 className="font-semibold text-lg text-brick">Delete {del.c.name}?</h2>
+        <p className="text-sm mt-2">This permanently removes <b>{del.c.name}</b> with its <b>{del.c.activeStudents} students</b>, all teachers and staff, fees, attendance, marks, notices, chats and logins. <b>It cannot be undone.</b></p>
+        <label className="text-sm font-medium block mt-4">Type the name to confirm: <span className="font-mono">{del.c.name}</span></label><input className="input mt-1" value={del.typed} onChange={(e) => setDel({ ...del, typed: e.target.value })} autoFocus />
+        {err && <p className="text-brick text-sm mt-3">{err}</p>}
+        <div className="flex gap-2 mt-4"><button className="btn bg-brick" disabled={del.typed.trim().toLowerCase() !== del.c.name.trim().toLowerCase()} onClick={doDelete}>Delete permanently</button><button className="btn-quiet" onClick={() => setDel(null)}>Cancel</button></div></div></div>}
+
+      {purge && <div className="fixed inset-0 bg-black/40 grid place-items-center z-50" onClick={() => setPurge(null)}><div className="card p-5 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+        <h2 className="font-semibold text-lg text-brick">Remove all clients except demo</h2>
+        <p className="text-sm mt-2 text-slate-600">Kept: <b>{purge.kept.join(', ') || 'none'}</b></p>
+        {purge.willDelete.length === 0 ? <p className="mt-4 text-sm">Nothing to remove — only demo clients exist.</p> : <>
+          <p className="text-sm mt-3">These <b>{purge.willDelete.length}</b> client(s) with <b>{purge.willDelete.reduce((a: number, x: any) => a + x.students, 0)} students</b> will be <b>permanently deleted</b>:</p>
+          <table className="w-full text-sm mt-2"><tbody>{purge.willDelete.map((x: any) => <tr key={x.id}><td className="td font-medium">{x.name}</td><td className="td"><span className="tag">{x.type}</span></td><td className="td">{x.students} students</td><td className="td text-xs text-slate-500">{x.owner}</td></tr>)}</tbody></table>
+          <label className="text-sm font-medium block mt-4">Type <span className="font-mono">DELETE</span> to confirm</label><input className="input mt-1 w-48" value={purge.typed} onChange={(e) => setPurge({ ...purge, typed: e.target.value })} autoFocus /></>}
+        {err && <p className="text-brick text-sm mt-3">{err}</p>}
+        <div className="flex gap-2 mt-4">{purge.willDelete.length > 0 && <button className="btn bg-brick" disabled={purge.typed !== 'DELETE'} onClick={doPurge}>Delete {purge.willDelete.length} client(s) permanently</button>}<button className="btn-quiet" onClick={() => setPurge(null)}>{purge.willDelete.length ? 'Cancel' : 'Close'}</button></div></div></div>}
 
       {create && <div className="fixed inset-0 bg-black/40 grid place-items-center z-50" onClick={() => setCreate(null)}><div className="card p-5 w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between mb-3"><h2 className="font-semibold text-lg">New client</h2><button className="btn-quiet" onClick={() => setCreate(null)}>Close</button></div>

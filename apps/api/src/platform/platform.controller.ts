@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { auditLog, batches, centreSettings, centres, facultyBatches, platformSettings, staffPermissions, students, subscriptionInvoices, users } from '../db/schema';
@@ -82,6 +82,43 @@ export class PlatformController {
       students: sts.map((x) => ({ id: x.id, name: x.name, rollNo: x.rollNo, admissionNo: x.admissionNo, className: bn(x.batchId)?.className || x.className, section: bn(x.batchId)?.section, batch: bn(x.batchId)?.name || null, gender: x.gender, dob: x.dob, parentName: x.parentName || x.fatherName, parentMobile: x.parentMobile, address: x.address, active: x.active, hasLogin: !!x.userId })),
       staff: staff.map((x) => { const p = perms.find((q) => q.userId === x.id); return { ...x, title: p?.title || null, active: p ? p.active : true, modules: p ? (JSON.parse(p.modules) as string[]).length : null, classTeacherOf: bs.filter((b) => b.classTeacherId === x.id).map((b) => b.name), teaches: fb.filter((f) => f.facultyId === x.id).map((f) => `${bn(f.batchId)?.name || ''}${f.subject ? ' · ' + f.subject : ''}`) }; }).sort((a, b) => (a.role === 'ADMIN' ? -1 : 0) - (b.role === 'ADMIN' ? -1 : 0) || a.name.localeCompare(b.name)),
     };
+  }
+
+  // ---------- Removing clients (everything of theirs is deleted: students, staff, fees, marks, chats, files list …) ----------
+  private async fkGraph() {
+    const r: any = await this.dbs.db.execute(sql`select conrelid::regclass::text as child, a.attname as child_col, confrelid::regclass::text as parent, af.attname as parent_col, a.attnotnull as notnull from pg_constraint c join pg_attribute a on a.attrelid = c.conrelid and a.attnum = c.conkey[1] join pg_attribute af on af.attrelid = c.confrelid and af.attnum = c.confkey[1] where c.contype = 'f' and array_length(c.conkey, 1) = 1`);
+    return (r.rows || r) as { child: string; child_col: string; parent: string; parent_col: string; notnull: boolean }[];
+  }
+  private async purgeCentre(id: string) {
+    if (!/^[0-9a-f-]{36}$/i.test(id)) throw new BadRequestException('Bad id');
+    const fks = await this.fkGraph(); const tr: any = await this.dbs.db.execute(sql`select table_name from information_schema.columns where table_schema = 'public' and column_name = 'centre_id'`); const tables: string[] = (tr.rows || tr).map((x: any) => x.table_name);
+    await this.dbs.db.transaction(async (tx: any) => {
+      const del = async (table: string, where: string, path: string[]) => {
+        for (const fk of fks.filter((f) => f.parent === table)) {
+          const sub = `${fk.child_col} in (select ${fk.parent_col} from ${table} where ${where})`;
+          if (path.includes(fk.child)) { if (!fk.notnull) await tx.execute(sql.raw(`update ${fk.child} set ${fk.child_col} = null where ${sub}`)); continue; }
+          await del(fk.child, sub, [...path, table]);
+        }
+        await tx.execute(sql.raw(`delete from ${table} where ${where}`));
+      };
+      for (const t of tables) if (t !== 'centres') await del(`"${t}"`.replace(/^"(.*)"$/, (m, n) => (/^[a-z_]+$/.test(n) ? n : m)), `centre_id = '${id}'`, []);
+      await del('centres', `id = '${id}'`, []);
+    });
+  }
+  /** Remove one client. The caller must type the exact name. */
+  @Post('centres/:id/delete') async removeCentre(@Param('id') id: string, @Body() b: { confirmName?: string }) {
+    const db = this.dbs.db; const [c] = await db.select().from(centres).where(eq(centres.id, id)); if (!c) throw new BadRequestException('No such client');
+    if ((b.confirmName || '').trim().toLowerCase() !== c.name.trim().toLowerCase()) throw new BadRequestException('Type the exact name of the client to confirm');
+    const [plat] = await db.select({ id: users.id }).from(users).where(and(eq(users.centreId, id), inArray(users.role, ['SUPER_ADMIN', 'EXPERT']))).limit(1); if (plat) throw new BadRequestException('This centre holds platform accounts and cannot be deleted');
+    await this.purgeCentre(id); return { ok: true, deleted: c.name };
+  }
+  /** Remove every client whose name does not start with "Demo". dryRun=true only lists them. Real run needs confirm: "DELETE". */
+  @Post('centres/purge-non-demo') async purgeNonDemo(@Body() b: { dryRun?: boolean; confirm?: string }) {
+    const db = this.dbs.db; const all = await db.select().from(centres); const victims = all.filter((c) => !/^\s*demo\b/i.test(c.name));
+    const info = await Promise.all(victims.map(async (c) => { const [n] = await db.select({ n: sql<number>`count(*)` }).from(students).where(eq(students.centreId, c.id)); const [ow] = await db.select({ email: users.email, name: users.name }).from(users).where(and(eq(users.centreId, c.id), eq(users.role, 'ADMIN'))).orderBy(users.createdAt).limit(1); return { id: c.id, name: c.name, type: (c as any).institutionType || 'coaching', students: Number(n.n), owner: ow?.name ? `${ow.name} · ${ow.email || ''}` : '' }; }));
+    if (b.dryRun || b.confirm !== 'DELETE') return { dryRun: true, kept: all.filter((c) => /^\s*demo\b/i.test(c.name)).map((c) => c.name), willDelete: info };
+    const done: string[] = []; for (const v of info) { await this.purgeCentre(v.id); done.push(v.name); }
+    return { dryRun: false, deleted: done };
   }
 
   /** What the platform team did inside this centre (changes only). */
