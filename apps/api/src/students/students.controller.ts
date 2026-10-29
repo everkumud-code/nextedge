@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Put, Query } from '@nestjs/
 import { IsOptional, IsString, Length } from 'class-validator';
 import { and, eq } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { students } from '../db/schema';
+import { batches, students, users } from '../db/schema';
 import { Roles } from '../common/auth.guard';
 import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
@@ -23,11 +23,13 @@ class StudentDto {
   @IsOptional() @IsString() rollNo?: string;
   @IsOptional() @IsString() batchId?: string;
   @IsOptional() @IsString() dob?: string;
+  @IsOptional() @IsString() gender?: string; @IsOptional() @IsString() admissionNo?: string; @IsOptional() @IsString() admissionDate?: string; @IsOptional() @IsString() fatherName?: string; @IsOptional() @IsString() motherName?: string; @IsOptional() @IsString() address?: string; @IsOptional() @IsString() category?: string; @IsOptional() @IsString() religion?: string; @IsOptional() @IsString() bloodGroup?: string; @IsOptional() @IsString() previousSchool?: string; @IsOptional() @IsString() photoUrl?: string;
+  @IsOptional() @IsString() leftOn?: string; @IsOptional() @IsString() leftReason?: string; @IsOptional() active?: boolean;
 }
 
 @Controller('students')
 @Mod('students')
-@Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY')
+@Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF')
 export class StudentsController {
   constructor(private dbs: DbService, private svc: StudentsService) {}
 
@@ -55,7 +57,11 @@ export class StudentsController {
 
   @Put(':id') @Roles('SUPER_ADMIN', 'ADMIN')
   async update(@CurrentUser() u: JwtUser, @Param('id') id: string, @Body() dto: Partial<StudentDto>, @Query('centreId') c?: string) {
-    const [row] = await this.dbs.db.update(students).set(dto).where(and(eq(students.id, id), eq(students.centreId, centreOf(u, c)))).returning();
+    const { parentEmail, email, ...rest } = dto as any; const set: any = { ...rest }; Object.keys(set).forEach((k) => set[k] === '' && (set[k] = null)); if (rest.name === null) delete set.name; if (rest.parentMobile === null) delete set.parentMobile;
+    if (rest.batchId) { const [b] = await this.dbs.db.select({ name: batches.name, className: batches.className }).from(batches).where(eq(batches.id, rest.batchId)); if (b) set.className = b.className || b.name; }
+    const [row] = await this.dbs.db.update(students).set(set).where(and(eq(students.id, id), eq(students.centreId, centreOf(u, c)))).returning();
+    if (row?.userId && (rest.name || email)) { const upd: any = {}; if (rest.name) upd.name = rest.name; if (email) upd.email = String(email).trim().toLowerCase(); await this.dbs.db.update(users).set(upd).where(eq(users.id, row.userId)); }
+    if (parentEmail) await this.dbs.db.update(users).set({ email: String(parentEmail).trim().toLowerCase() }).where(and(eq(users.centreId, row.centreId), eq(users.mobile, row.parentMobile), eq(users.role, 'PARENT')));
     return row;
   }
 

@@ -93,9 +93,9 @@ export class AuthService {
       if (p && !p.active) throw new UnauthorizedException('Your staff account is deactivated. Contact the owner.');
       modules = p ? JSON.parse(p.modules) : user.role === 'FACULTY' ? FACULTY_DEFAULT : [];
     }
-    let features: string[] = [...MODULES], status = 'active';
-    if (user.centreId) { const s = await this.platform.settings(user.centreId); features = s.features.length ? s.features : [...MODULES]; status = s.status; modules = modules.filter((m) => features.includes(m)); }
+    let features: string[] = [...MODULES], status = 'active', institutionType = 'coaching', centreName = '';
+    if (user.centreId) { const [ce] = await this.dbs.db.select({ t: centres.institutionType, n: centres.name }).from(centres).where(eq(centres.id, user.centreId)); institutionType = ce?.t || 'coaching'; centreName = ce?.n || ''; const s = await this.platform.settings(user.centreId); features = s.features.length ? s.features : [...MODULES]; status = s.status; modules = modules.filter((m) => features.includes(m)); }
     const token = await this.jwt.signAsync({ id: user.id, role: user.role, centreId: user.centreId, name: user.name, modules });
-    return { token, user: { id: user.id, name: user.name, role: user.role, centreId: user.centreId, modules, features, subscriptionStatus: status } };
+    return { token, user: { id: user.id, name: user.name, role: user.role, centreId: user.centreId, modules, features, subscriptionStatus: status, institutionType, centreName } };
   }
 }

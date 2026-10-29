@@ -2,7 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { and, eq, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { centreSettings, centres, students, subscriptionInvoices, users } from '../db/schema';
-import { MODULES } from '../common/permissions';
+import { featuresFor, MODULES } from '../common/permissions';
 import { NotificationsService } from '../notifications/notifications.service';
 import { createPaymentLink, razorpayReady } from '../integrations/razorpay';
 

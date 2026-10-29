@@ -13,6 +13,7 @@ export const centres = pgTable('centres', {
   plan: text('plan').default('starter').notNull(),
   primaryColour: text('primary_colour').default('#F2A93B'),
   birthdayWish: text('birthday_wish'),
+  institutionType: text('institution_type').default('coaching').notNull(), // coaching | school
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -34,6 +35,7 @@ export const batches = pgTable('batches', {
   startDate: date('start_date'),
   endDate: date('end_date'),
   capacity: integer('capacity').default(60),
+  className: text('class_name'), section: text('section'), classTeacherId: uuid('class_teacher_id').references(() => users.id), sortOrder: integer('sort_order').default(0),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
@@ -49,6 +51,8 @@ export const students = pgTable('students', {
   parentName: text('parent_name'),
   parentMobile: text('parent_mobile').notNull(),
   dob: date('dob'),
+  gender: text('gender'), admissionNo: text('admission_no'), admissionDate: date('admission_date'), fatherName: text('father_name'), motherName: text('mother_name'), address: text('address'), category: text('category'), religion: text('religion'), bloodGroup: text('blood_group'), previousSchool: text('previous_school'), photoUrl: text('photo_url'),
+  leftOn: date('left_on'), leftReason: text('left_reason'),
   active: boolean('active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -346,6 +350,8 @@ export const centreSettings = pgTable('centre_settings', {
   defaultMeetingUrl: text('default_meeting_url'), // for meet/teams/custom: the centre's standing room link
   // The centre's own email account: OTPs, notices and receipts for this centre go out from here.
   smtpHost: text('smtp_host'), smtpPort: integer('smtp_port'), smtpUser: text('smtp_user'), smtpPass: text('smtp_pass'), smtpFrom: text('smtp_from'), smtpVerifiedAt: timestamp('smtp_verified_at'),
+  // School profile (letterhead for certificates / report cards)
+  academicSession: text('academic_session'), board: text('board'), udiseCode: text('udise_code'), affiliationNo: text('affiliation_no'), principalName: text('principal_name'), address: text('address'), phone: text('phone'), website: text('website'), gradeScale: text('grade_scale'), biometricKey: text('biometric_key'),
   // White-label app
   appName: text('app_name'), packageId: text('package_id'), appColour: text('app_colour'), appLogoUrl: text('app_logo_url'), appIconUrl: text('app_icon_url'), playStoreUrl: text('play_store_url'),
   // Centre's own PayU for student fee collection
@@ -450,4 +456,26 @@ export const records = pgTable('records', {
   createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+// ---------- Exams & report cards (school) ----------
+export const exams = pgTable('exams', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  batchId: uuid('batch_id').notNull().references(() => batches.id),
+  name: text('name').notNull(), // Unit test 1, Half-yearly, Annual
+  term: text('term').default('Term 1').notNull(),
+  session: text('session'),
+  subjects: text('subjects').default('[]').notNull(), // JSON [{name, max}]
+  date: date('date'),
+  published: boolean('published').default(false).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+export const examMarks = pgTable('exam_marks', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  examId: uuid('exam_id').notNull().references(() => exams.id, { onDelete: 'cascade' }),
+  studentId: uuid('student_id').notNull().references(() => students.id),
+  subject: text('subject').notNull(),
+  marks: numeric('marks', { precision: 6, scale: 2 }),
+  absent: boolean('absent').default(false).notNull(),
 });

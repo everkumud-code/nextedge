@@ -11,7 +11,7 @@ export async function seed() {
   if ((await db.select().from(s.centres).where(eq(s.centres.name, 'Demo Coaching Centre'))).length) {
     // Already seeded: just make sure every demo login has an email (login is email-based now).
     for (const [mobile, email] of Object.entries(DEMO_EMAILS)) await db.update(s.users).set({ email }).where(and(eq(s.users.mobile, mobile), isNull(s.users.email)));
-    await ensureExtras(db);
+    await ensureExtras(db); await ensureSchool(db);
     console.log('Demo centre already exists — emails ensured'); await client.end(); return;
   }
   const [centre] = await db.insert(s.centres).values({ name: 'Demo Coaching Centre', city: 'Ranchi', plan: 'standard' }).returning();
@@ -32,7 +32,7 @@ export async function seed() {
   await db.insert(s.tests).values({ centreId: centre.id, batchId: batch.id, title: 'Weekly test 1 · Physics', subject: 'Physics', mode: 'online', date: new Date().toISOString().slice(0, 10), maxMarks: 3, published: true, createdBy: fac.id,
     questions: JSON.stringify([{ q: 'SI unit of force?', opts: ['Joule', 'Newton', 'Watt', 'Pascal'], ans: 'B', chapter: 'Laws of Motion' }, { q: 'Acceleration due to gravity on Earth is about', opts: ['9.8 m/s²', '3.7 m/s²', '1.6 m/s²', '12 m/s²'], ans: 'A', chapter: 'Gravitation' }, { q: 'Friction always acts', opts: ['Along motion', 'Opposite to relative motion', 'Upwards', 'Randomly'], ans: 'B', chapter: 'Laws of Motion' }]) });
   await db.insert(s.homework).values({ centreId: centre.id, batchId: batch.id, title: 'Exercise 3.2, Q1–10', subject: 'Physics', dueAt: new Date(Date.now() + 2 * 864e5), createdBy: fac.id });
-  await ensureExtras(db);
+  await ensureExtras(db); await ensureSchool(db);
   console.log('Seeded. Logins: coaching "Demo Coaching Centre" + owner@demo.coaching / teacher@demo.coaching / student@demo.coaching / parent1@demo.coaching; Platform + ever.kumud@gmail.com');
   await client.end();
 }
@@ -73,4 +73,31 @@ async function ensureExtras(db: any) {
       await db.insert(s.wellbeingMessages).values({ requestId: r2.id, senderId: parent.id, senderRole: 'PARENT', text: 'My daughter spends hours on the phone and her marks have dropped this term. We fight about it daily. How should I handle this?' }); }
     await db.insert(s.wellbeingPosts).values({ expertId: expert.id, title: 'Before a big test: the 10-minute reset', body: '1) Close the books 10 minutes before you start.\n2) Breathe in for 4, hold for 7, out for 8 — four rounds.\n3) Write down the one thing you are worried about, then fold the paper.\n4) Walk in. You have prepared; the paper is just questions.', audience: 'students' });
   }
+}
+
+const FIRST = ['Aarav', 'Vivaan', 'Aditya', 'Arjun', 'Reyansh', 'Ishaan', 'Kabir', 'Rohan', 'Dev', 'Yash', 'Ananya', 'Diya', 'Saanvi', 'Aadhya', 'Myra', 'Kiara', 'Riya', 'Priya', 'Sneha', 'Pooja'];
+const LAST = ['Kumar', 'Singh', 'Sharma', 'Verma', 'Mahto', 'Oraon', 'Munda', 'Prasad', 'Sinha', 'Gupta'];
+/** Demo school: Class 4–6 × A/B, 60 students, principal + teachers. Safe to re-run. */
+async function ensureSchool(db: any) {
+  if ((await db.select().from(s.centres).where(eq(s.centres.name, 'Demo Public School'))).length) return;
+  const [c] = await db.insert(s.centres).values({ name: 'Demo Public School', city: 'Ranchi', plan: 'standard', institutionType: 'school' }).returning();
+  await db.insert(s.centreSettings).values({ centreId: c.id, features: JSON.stringify([...MODULES]), trialEndsAt: new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10), academicSession: '2026-27', board: 'CBSE', principalName: 'Dr. Meera Sinha', address: 'Main Road, Lalpur, Ranchi, Jharkhand 834001', phone: '9770996996', udiseCode: '20010100101', affiliationNo: '330XXXX' });
+  const [principal] = await db.insert(s.users).values({ centreId: c.id, mobile: '9999800001', email: 'principal@demo.school', name: 'Dr. Meera Sinha', role: 'ADMIN' }).returning();
+  const [t1] = await db.insert(s.users).values({ centreId: c.id, mobile: '9999800002', email: 'teacher@demo.school', name: 'Mrs. Anita Verma', role: 'FACULTY' }).returning();
+  const [t2] = await db.insert(s.users).values({ centreId: c.id, mobile: '9999800003', email: 'teacher2@demo.school', name: 'Mr. Suresh Oraon', role: 'FACULTY' }).returning();
+  await db.insert(s.users).values({ centreId: c.id, mobile: '9999800004', email: 'office@demo.school', name: 'Office Clerk', role: 'STAFF' }).then(async () => { const [u] = await db.select().from(s.users).where(eq(s.users.email, 'office@demo.school')); await db.insert(s.staffPermissions).values({ userId: u.id, centreId: c.id, modules: JSON.stringify(['students', 'attendance', 'fees', 'notices', 'admissions', 'certificates', 'visitors']), title: 'Office' }); });
+  let n = 0, mob = 9876600000;
+  for (const cl of [4, 5, 6]) for (const sec of ['A', 'B']) {
+    const [b] = await db.insert(s.batches).values({ centreId: c.id, name: `Class ${cl} - ${sec}`, course: `Class ${cl}`, className: `Class ${cl}`, section: sec, capacity: 40, sortOrder: cl * 10 + (sec.charCodeAt(0) - 64), classTeacherId: cl === 5 && sec === 'A' ? t1.id : cl === 4 && sec === 'A' ? t2.id : null }).returning();
+    for (let i = 0; i < 10; i++) {
+      n++; mob++; const fn = FIRST[(n * 3) % FIRST.length], ln = LAST[(n * 7) % LAST.length]; const girl = ['Ananya', 'Diya', 'Saanvi', 'Aadhya', 'Myra', 'Kiara', 'Riya', 'Priya', 'Sneha', 'Pooja'].includes(fn);
+      const isFirst = n <= 3; let userId: string | null = null; let parentId: string | null = null;
+      if (isFirst) { const [p] = await db.insert(s.users).values({ centreId: c.id, mobile: String(mob), email: `parent${n}@demo.school`, name: `Parent of ${fn}`, role: 'PARENT' }).returning(); parentId = p.id; const [su] = await db.insert(s.users).values({ centreId: c.id, mobile: String(9999800100 + n), email: `student${n}@demo.school`, name: `${fn} ${ln}`, role: 'STUDENT' }).returning(); userId = su.id; }
+      await db.insert(s.students).values({ centreId: c.id, batchId: b.id, userId, name: `${fn} ${ln}`, className: `Class ${cl}`, rollNo: String(i + 1), parentName: `${LAST[(n * 3) % LAST.length]} ${ln}`.replace(/^/, 'Mr. '), fatherName: `Mr. ${LAST[(n + 2) % LAST.length]} ${ln}`, motherName: `Mrs. ${FIRST[(n + 11) % FIRST.length]} ${ln}`, parentMobile: String(mob), dob: `${2026 - cl - 5}-${String((n % 12) + 1).padStart(2, '0')}-${String((n % 27) + 1).padStart(2, '0')}`, gender: girl ? 'Female' : 'Male', admissionNo: `ADM/2024/${String(n).padStart(4, '0')}`, admissionDate: '2024-04-01', category: ['General', 'OBC', 'SC', 'ST'][n % 4], religion: ['Hindu', 'Muslim', 'Christian', 'Sarna'][n % 4], bloodGroup: ['A+', 'B+', 'O+', 'AB+'][n % 4], address: 'Lalpur, Ranchi' });
+    }
+  }
+  const [plan] = await db.insert(s.feePlans).values({ centreId: c.id, name: 'Tuition — Class 4 to 6', amount: '1800', cycle: 'monthly' }).returning();
+  const sts = await db.select().from(s.students).where(eq(s.students.centreId, c.id));
+  for (const st of sts) await db.insert(s.studentFeePlans).values({ centreId: c.id, studentId: st.id, planId: plan.id, startDate: '2026-04-01' });
+  console.log(`Demo school ready: ${sts.length} students — principal@demo.school`);
 }

@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { students, users } from '../db/schema';
+import { batches, centres, students, users } from '../db/schema';
 
-export type StudentInput = { name: string; parentMobile: string; parentName?: string; parentEmail?: string; mobile?: string; email?: string; className?: string; rollNo?: string; batchId?: string | null; dob?: string };
+export type StudentInput = { name: string; parentMobile: string; parentName?: string; parentEmail?: string; mobile?: string; email?: string; className?: string; rollNo?: string; batchId?: string | null; dob?: string; gender?: string; admissionNo?: string; admissionDate?: string; fatherName?: string; motherName?: string; address?: string; category?: string; religion?: string; bloodGroup?: string; previousSchool?: string };
 
 @Injectable()
 export class StudentsService {
@@ -14,9 +14,16 @@ export class StudentsService {
     const db = this.dbs.db;
     const parent = await this.ensureUser(centreId, dto.parentMobile, dto.parentName || `Parent of ${dto.name}`, 'PARENT', dto.parentEmail);
     const studentUser = dto.mobile && dto.mobile.length === 10 ? await this.ensureUser(centreId, dto.mobile, dto.name, 'STUDENT', dto.email) : null;
+    // class name follows the section, roll number auto-continues within the section, school admission numbers are generated
+    let className = dto.className; let rollNo = dto.rollNo;
+    if (dto.batchId) { const [b] = await db.select({ name: batches.name, className: batches.className }).from(batches).where(eq(batches.id, dto.batchId)); if (b && !className) className = b.className || b.name;
+      if (!rollNo) { const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(students).where(and(eq(students.batchId, dto.batchId), eq(students.centreId, centreId))); rollNo = String(Number(n) + 1); } }
+    const [ce] = await db.select({ t: centres.institutionType }).from(centres).where(eq(centres.id, centreId)); let admissionNo = dto.admissionNo;
+    if (!admissionNo && ce?.t === 'school') { const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(students).where(eq(students.centreId, centreId)); admissionNo = `ADM/${new Date().getFullYear()}/${String(Number(n) + 1).padStart(4, '0')}`; }
     const [row] = await db.insert(students).values({
-      centreId, name: dto.name, parentMobile: dto.parentMobile, parentName: dto.parentName, mobile: dto.mobile,
-      className: dto.className, rollNo: dto.rollNo, batchId: dto.batchId || null, userId: studentUser?.id ?? null, dob: dto.dob || null,
+      centreId, name: dto.name, parentMobile: dto.parentMobile, parentName: dto.parentName || dto.fatherName || dto.motherName, mobile: dto.mobile,
+      className, rollNo, batchId: dto.batchId || null, userId: studentUser?.id ?? null, dob: dto.dob || null,
+      gender: dto.gender, admissionNo, admissionDate: dto.admissionDate || new Date().toISOString().slice(0, 10), fatherName: dto.fatherName, motherName: dto.motherName, address: dto.address, category: dto.category, religion: dto.religion, bloodGroup: dto.bloodGroup, previousSchool: dto.previousSchool,
     }).returning();
     return { ...row, parentUserId: parent.id };
   }

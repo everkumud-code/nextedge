@@ -8,6 +8,7 @@ import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { PLAN_PRESETS, PlatformService } from './platform.service';
 import { SMTP_PRESETS, verifySmtp, sendEmailVia } from '../integrations/email';
 import { MailService } from '../notifications/mail.service';
+import { featuresFor } from '../common/permissions';
 
 /** Super-admin console: per-centre features, plan, billing, provider. */
 @Controller('platform')
@@ -60,6 +61,13 @@ export class PlatformController {
     const s = await this.svc.settings(id); const [c] = await this.dbs.db.select().from(centres).where(eq(centres.id, id));
     const slug = (c.name || 'nextedge').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 20) || 'nextedge';
     return { CENTRE_ID: id, APP_NAME: s.appName || c.name, PACKAGE_ID: s.packageId || `in.nextedge.${slug}`, APP_COLOUR: s.appColour || c.primaryColour || '#1673D9', APP_LOGO_URL: s.appLogoUrl || '', APP_ICON_URL: s.appIconUrl || s.appLogoUrl || '', API_BASE: (process.env.PUBLIC_API_URL || 'https://coaching-connect-api.onrender.com') + '/api', note: 'Codemagic → coaching-connect → workflow "White-label release" → Start new build → set these as environment variables (or add them to the Codemagic app’s environment group for this client).' };
+  }
+
+  /** Switch a centre between coaching and school; optionally re-apply that type's module set. */
+  @Put('centres/:id/type') async setType(@Param('id') id: string, @Body() b: { type: 'coaching' | 'school'; applyFeatures?: boolean }) {
+    const type = b.type === 'school' ? 'school' : 'coaching'; await this.dbs.db.update(centres).set({ institutionType: type }).where(eq(centres.id, id));
+    if (b.applyFeatures) { await this.svc.settings(id); await this.dbs.db.update(centreSettings).set({ features: JSON.stringify(featuresFor(type)), updatedAt: new Date() }).where(eq(centreSettings.centreId, id)); }
+    return { ok: true, type };
   }
 
   @Get('centres/:id/invoices') invoices(@Param('id') id: string) { return this.dbs.db.select().from(subscriptionInvoices).where(eq(subscriptionInvoices.centreId, id)).orderBy(desc(subscriptionInvoices.createdAt)); }
