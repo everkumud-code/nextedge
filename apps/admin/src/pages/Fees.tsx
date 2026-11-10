@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, session } from '../api';
+import { api, session, openPdf } from '../api';
 const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
 const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 const today = new Date().toISOString().slice(0, 10); const monthStart = today.slice(0, 7) + '-01';
@@ -19,7 +19,7 @@ export default function Fees() {
   const rows = ledger.filter((r) => (!q || r.name.toLowerCase().includes(q.toLowerCase()) || (r.rollNo || '').toLowerCase().includes(q.toLowerCase()) || (r.parentMobile || '').includes(q)) && (!batchF || r.batchId === batchF) && (!statusF || (statusF === 'due' ? r.balance > 0 : statusF === 'clear' ? r.balance === 0 && r.plan : statusF === 'noplan' ? !r.plan : true)));
 
   async function recordPayment() { try { const r = await api('/fees/payments', { method: 'POST', body: JSON.stringify({ studentId: pay.studentId, amount: String(pay.amount), mode: pay.mode, paidOn: pay.paidOn, reference: pay.reference || undefined }) }); setMsg(`Receipt ${r.receiptNo} saved for ${pay.name}. Parent notified.`); setPay(null); load(); if (pay.print) openReceipt(r.id); } catch (e: any) { setMsg(e.message); } }
-  async function openReceipt(id: string) { const r = await fetch(`${API}/fees/receipt/${id}.pdf`, { headers: { Authorization: `Bearer ${session.token}` } }); const b = await r.blob(); window.open(URL.createObjectURL(b), '_blank'); }
+  async function openReceipt(id: string) { await openPdf(`/fees/receipt/${id}.pdf`, 'Could not open the receipt'); }
   async function doAssign() { try { await api('/fees/assign', { method: 'POST', body: JSON.stringify({ studentId: assign.studentId, planId: assign.planId, startDate: assign.startDate, discount: assign.discount || '0' }) }); setMsg(`Plan assigned to ${assign.name}`); setAssign(null); load(); } catch (e: any) { setMsg(e.message); } }
   async function savePlan() { try { if (editPlan) { await api(`/fees/plans/${editPlan.id}`, { method: 'PUT', body: JSON.stringify({ name: editPlan.name, amount: String(editPlan.amount), cycle: editPlan.cycle, batchId: editPlan.batchId || '' }) }); setEditPlan(null); } else { await api('/fees/plans', { method: 'POST', body: JSON.stringify({ ...plan, batchId: plan.batchId || undefined }) }); setPlan({ name: '', amount: '', cycle: 'monthly', batchId: '' }); } load(); } catch (e: any) { setMsg(e.message); } }
   const [fine, setFine] = useState<any | null>(null);
