@@ -1,0 +1,20 @@
+# Override for a shared VPS where another web server already owns ports 80/443.
+# Use:  docker compose -f docker-compose.yml -f docker-compose.vps.yml up -d --build
+# NextEdge listens on 127.0.0.1 only; the existing web server does TLS and routing.
+name: nextedge
+services:
+  caddy:
+    profiles: ["not-on-this-vps"]      # never started here
+  db:
+    mem_limit: 512m
+  redis:
+    mem_limit: 128m
+    command: ["redis-server", "--maxmemory", "96mb", "--maxmemory-policy", "allkeys-lru"]
+  api:
+    mem_limit: 768m
+    ports: ["127.0.0.1:${API_PORT:-3010}:3000"]
+    environment:
+      SEED_ON_BOOT: ${SEED_ON_BOOT:-false}
+  admin:
+    mem_limit: 128m
+    ports: ["127.0.0.1:${ADMIN_PORT:-3011}:80"]
