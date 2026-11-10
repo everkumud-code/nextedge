@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Put, Query, BadRequestException } from '@nestjs/common';
+import { monthEnd } from '../common/dates';
 import { IsNumber, IsOptional, IsString } from 'class-validator';
 import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
@@ -77,7 +78,7 @@ export class StaffAttendanceController {
   @Get('register') @Roles('SUPER_ADMIN', 'ADMIN') async register(@CurrentUser() u: JwtUser, @Query('date') date?: string, @Query('month') month?: string, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c); const db = this.dbs.db; const d = date || today(); const m = month || d.slice(0, 7);
     const people = await db.select({ id: users.id, name: users.name, role: users.role, mobile: users.mobile }).from(users).where(and(eq(users.centreId, centreId), inArray(users.role, ['ADMIN', 'FACULTY', 'STAFF'])));
-    const rows = await db.select().from(staffAttendance).where(and(eq(staffAttendance.centreId, centreId), gte(staffAttendance.date, m + '-01'), lte(staffAttendance.date, m + '-31')));
+    const rows = await db.select().from(staffAttendance).where(and(eq(staffAttendance.centreId, centreId), gte(staffAttendance.date, m + '-01'), lte(staffAttendance.date, monthEnd(m))));
     return people.map((p) => { const mine = rows.filter((r) => r.userId === p.id); const t = mine.find((r) => r.date === d) || null;
       return { ...p, roleLabel: label(p.role), today: t, month: { days: mine.filter((r) => ['present', 'late', 'manual', 'half-day'].includes(r.status)).length, late: mine.filter((r) => r.status === 'late').length, halfDay: mine.filter((r) => r.status === 'half-day').length, leave: mine.filter((r) => r.status === 'leave').length, hours: Math.round(mine.reduce((a, r) => a + r.minutes, 0) / 6) / 10 } }; });
   }

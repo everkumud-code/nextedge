@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Post, Query, Res } from '@nestjs/common';
+import { monthEnd } from '../common/dates';
 import { IsArray, IsOptional, IsString } from 'class-validator';
 import { and, eq, gte, lte, sql, inArray } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
@@ -73,7 +74,7 @@ export class AttendanceController {
   /** Monthly register grid: one row per student, one column per day that has any attendance. */
   @Get('register') @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF')
   async register(@CurrentUser() u: JwtUser, @Query('batchId') batchId: string, @Query('month') month?: string, @Query('centreId') c?: string) {
-    const centreId = centreOf(u, c); const db = this.dbs.db; const m = month || today().slice(0, 7); const from = m + '-01', to = m + '-31';
+    const centreId = centreOf(u, c); const db = this.dbs.db; const m = month || today().slice(0, 7); const from = m + '-01', to = monthEnd(m);
     const sts = await db.select({ id: students.id, name: students.name, rollNo: students.rollNo }).from(students).where(and(eq(students.centreId, centreId), eq(students.batchId, batchId), eq(students.active, true))).orderBy(students.rollNo);
     const rows = sts.length ? await db.select({ studentId: attendance.studentId, date: attendance.date, status: attendance.status }).from(attendance).where(and(inArray(attendance.studentId, sts.map((s) => s.id)), gte(attendance.date, from), lte(attendance.date, to))) : [];
     const days = [...new Set(rows.map((r) => r.date))].sort();
