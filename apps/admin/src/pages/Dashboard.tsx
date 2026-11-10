@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [att, setAtt] = useState<any[]>([]); const [doubts, setDoubts] = useState<any[]>([]); const [leaves, setLeaves] = useState<any[]>([]); const [enq, setEnq] = useState<any[]>([]); const [hw, setHw] = useState<any[]>([]);
   const u = session.user; const can = (m: string) => u?.role === 'ADMIN' || u?.role === 'SUPER_ADMIN' || (u?.modules || []).includes(m);
   useEffect(() => {
+    if (u?.role === 'SUPER_ADMIN' && !session.viewCentre) return; /* platform view: no centre chosen yet, nothing to load */
     const q = (p: string, set: (v: any) => void) => api(p).then(set).catch(() => {});
     q('/students', setStudents); q('/batches', setBatches); q('/notices', setNotices); q('/wellbeing/summary', setWb);
     if (can('fees')) q('/fees/summary', setFees); if (can('attendance')) q('/attendance/summary', setAtt); if (can('doubts')) q('/doubts', setDoubts); if (can('leaves')) q('/leaves', setLeaves); if (can('enquiries')) q('/enquiries', setEnq); if (can('homework')) q('/homework', setHw);
@@ -98,7 +99,7 @@ function ClockCard() {
 
 /** Top alerts for today with a link to the full alert centre. */
 function AlertsWidget() {
-  const [d, setD] = useState<any>(null); useEffect(() => { api('/alerts').then(setD).catch(() => {}); }, []);
+  const [d, setD] = useState<any>(null); useEffect(() => { if (session.user?.role === 'SUPER_ADMIN' && !session.viewCentre) return; api('/alerts').then(setD).catch(() => {}); }, []);
   if (!d || !d.alerts.length) return null; const top = d.alerts.filter((a: any) => a.severity !== 'info').slice(0, 4);
   return (
     <div className="card mt-4 p-4" data-testid="alerts-widget"><div className="flex items-center justify-between mb-2"><b>Needs your attention</b><Link to="/alerts" className="text-sm text-edge-600 underline">All alerts ({d.alerts.length})</Link></div>
