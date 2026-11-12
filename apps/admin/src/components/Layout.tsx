@@ -23,14 +23,14 @@ const adminOnly = new Set(['/subscription', '/school-profile', '/payroll', '/ins
 export default function Layout() {
   const user = session.user; const go = useNavigate(); const school = user?.institutionType === 'school'; const isSuper = user?.role === 'SUPER_ADMIN'; const viewing = isSuper ? session.viewCentre : null; const [centres, setCentres] = useState<any[]>([]);
   useEffect(() => { if (isSuper) api('/platform/centres').then(setCentres).catch(() => {}); }, []);
-  useEffect(() => { if (isSuper && !viewing && !['/clients', '/platform', '/messaging', '/counsellor'].some((p) => location.pathname.startsWith(p))) go('/clients'); }, [location.pathname]);
+  useEffect(() => { if (isSuper && !viewing && !['/clients', '/platform', '/messaging', '/counsellor', '/team'].some((p) => location.pathname.startsWith(p))) go('/clients'); }, [location.pathname]);
   const openCentre = (id: string) => { const c = centres.find((x) => x.id === id); session.viewing(c ? { id: c.id, name: c.name, institutionType: c.institutionType } : null); location.assign(c ? '/' : '/clients'); };
   useEffect(() => { if (user?.role === 'ADMIN' && user.subscriptionStatus === 'suspended' && !location.pathname.startsWith('/subscription')) go('/pay'); }, []);
   const [bell, setBell] = useState<{ unread: number; items: any[] } | null>(null); const [open, setOpen] = useState(false);
   useEffect(() => { const f = () => api('/notifications/mine').then(setBell).catch(() => {}); f(); const t = setInterval(f, 60000); return () => clearInterval(t); }, []);
   const owner = ['ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
   const allowed = (it: Item) => { const [to, , m] = it; if (to === '/messaging' && user?.role === 'SUPER_ADMIN') return false; if (adminOnly.has(to) && !owner && to !== '/insights') return false; if (to === '/insights' && !owner && !(user?.modules || []).includes('reports')) return false; if (to === '/timetable') return user?.role !== 'PARENT' && user?.role !== 'STUDENT' && (user?.role === 'SUPER_ADMIN' || !user?.features || user.features.includes('timetable')); if (to === '/alerts') return owner || user?.role === 'STAFF'; if (!m) return true; return (owner || !user?.modules || user.modules.includes(m)) && (user?.role === 'SUPER_ADMIN' || !user?.features || user.features.includes(m)); };
-  const platform: Item[] = user?.role === 'SUPER_ADMIN' ? [['/clients', 'Clients', ''], ['/platform', 'Billing & plans', ''], ['/messaging', 'Messaging', ''], ['/counsellor', 'Counsellors', '']] : [];
+  const platform: Item[] = user?.role === 'SUPER_ADMIN' ? [['/clients', 'Clients', ''], ['/platform', 'Billing & plans', ''], ['/messaging', 'Messaging', ''], ['/counsellor', 'Counsellors', ''], ['/team', 'Team & demo logins', '']] : [];
   const platformOnly = isSuper && !viewing;
   const visible = user?.role === 'EXPERT' ? [{ name: '', items: [['/counsellor', 'Counsellor console', ''] as Item] }] : [...(platformOnly ? [] : groups.map((g) => ({ ...g, items: g.items.filter(allowed) })).filter((g) => g.items.length)), ...(platform.length ? [{ name: 'Platform', items: platform }] : [])];
   const roleLabel = (school && SCHOOL_ROLE[user?.role || '']) || ROLE[user?.role || ''] || user?.role;

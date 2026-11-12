@@ -2,7 +2,7 @@ import { HttpException, Injectable, UnauthorizedException } from '@nestjs/common
 import { JwtService } from '@nestjs/jwt';
 import { and, eq, isNull, or, ilike } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { centres, staffPermissions, users } from '../db/schema';
+import { centres, platformTeam, staffPermissions, users } from '../db/schema';
 import { FACULTY_DEFAULT, MODULES } from '../common/permissions';
 import { PlatformService } from '../platform/platform.service';
 import { RedisService } from '../common/redis.service';
@@ -89,6 +89,7 @@ export class AuthService {
 
   private async issue(user: { id: string; name: string; role: any; centreId: string | null }) {
     let modules: string[] = [];
+    if (user.role === 'SUPER_ADMIN') { const [t] = await this.dbs.db.select().from(platformTeam).where(eq(platformTeam.userId, user.id)); if (t && !t.active) throw new UnauthorizedException('Your account is deactivated. Contact the platform owner.'); }
     if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') modules = [...MODULES];
     else if (user.role === 'FACULTY' || user.role === 'STAFF') {
       const [p] = await this.dbs.db.select().from(staffPermissions).where(eq(staffPermissions.userId, user.id));
