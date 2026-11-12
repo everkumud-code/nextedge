@@ -10,7 +10,7 @@ export const centres = pgTable('centres', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   city: text('city'),
-  plan: text('plan').default('starter').notNull(),
+  plan: text('plan').default('core').notNull(),
   primaryColour: text('primary_colour').default('#F2A93B'),
   birthdayWish: text('birthday_wish'),
   institutionType: text('institution_type').default('coaching').notNull(), // coaching | school
@@ -358,6 +358,10 @@ export const centreSettings = pgTable('centre_settings', {
   // Centre's own PayU for student fee collection
   payuKey: text('payu_key'), payuSalt: text('payu_salt'), payuTest: boolean('payu_test').default(true).notNull(), manualPayInfo: text('manual_pay_info'),
   lat: numeric('lat', { precision: 10, scale: 7 }), lng: numeric('lng', { precision: 10, scale: 7 }), geofenceM: integer('geofence_m').default(15).notNull(), gpsToleranceM: integer('gps_tolerance_m').default(5).notNull(),
+  // Edge packs: Core = per student per month; Pro = one-time setup + yearly package; Elite = custom amount agreed with this client.
+  setupFee: numeric('setup_fee', { precision: 10, scale: 2 }).default('0').notNull(), setupPaid: boolean('setup_paid').default(false).notNull(),
+  yearlyPrice: numeric('yearly_price', { precision: 10, scale: 2 }).default('0').notNull(),
+  customAmount: numeric('custom_amount', { precision: 10, scale: 2 }).default('0').notNull(), customCycle: text('custom_cycle').default('yearly').notNull(), customNote: text('custom_note'),
   trackerKey: text('tracker_key'), // GPS trackers / driver phones post bus locations with this key
   siteEnabled: boolean('site_enabled').default(false).notNull(), about: text('about'), tagline: text('tagline'), // public school website (off by default)
   channels: text('channels').default('{}').notNull(), // JSON: this centre's own SMS / WhatsApp account (overrides the platform's)
@@ -376,6 +380,7 @@ export const subscriptionInvoices = pgTable('subscription_invoices', {
   status: text('status').default('due').notNull(), // due | paid | void
   paidOn: date('paid_on'),
   mode: text('mode'), reference: text('reference'), paymentLink: text('payment_link'),
+  plan: text('plan'), setupFee: numeric('setup_fee', { precision: 10, scale: 2 }).default('0').notNull(), note: text('note'), // which pack, how much of the amount is the one-time setup, and a plain-words description
   claimedRef: text('claimed_ref'), claimedAt: timestamp('claimed_at'), claimedNote: text('claimed_note'), // owner says "paid manually" → super-admin approves
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -591,4 +596,16 @@ export const timetableTeacherRules = pgTable('timetable_teacher_rules', {
   maxPerDay: integer('max_per_day'), maxPerWeek: integer('max_per_week'),
   offDays: text('off_days').default('[]').notNull(), // JSON [weekday numbers]
   blocked: text('blocked').default('[]').notNull(), // JSON [{weekday, period}]
+});
+
+// ---------- Price list of the three Edge packs (the owner sets the prices; each client keeps its own copy and can be given a different price) ----------
+export const planCatalog = pgTable('plan_catalog', {
+  key: text('key').primaryKey(), // core | pro | elite
+  name: text('name').notNull(), tagline: text('tagline'),
+  pricePerStudent: numeric('price_per_student', { precision: 8, scale: 2 }).default('0').notNull(), // Core: per student per month
+  minStudents: integer('min_students').default(0).notNull(), // Core: bill at least this many students
+  setupFee: numeric('setup_fee', { precision: 10, scale: 2 }).default('0').notNull(), // Pro (and optionally Elite): one-time
+  yearlyPrice: numeric('yearly_price', { precision: 10, scale: 2 }).default('0').notNull(), // Pro: yearly package
+  customNote: text('custom_note'), // Elite: what is usually included
+  sortOrder: integer('sort_order').default(0).notNull(),
 });
