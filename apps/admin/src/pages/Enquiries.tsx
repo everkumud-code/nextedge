@@ -4,11 +4,11 @@ const today = new Date().toISOString().slice(0, 10);
 const STATUS = ['new', 'contacted', 'demo', 'admitted', 'lost'];
 export default function Enquiries() {
   const [rows, setRows] = useState<any[]>([]); const [sum, setSum] = useState<any>(null); const [batches, setBatches] = useState<any[]>([]); const [filter, setFilter] = useState('');
-  const [f, setF] = useState({ name: '', mobile: '', className: '', course: '', source: 'walk-in', notes: '', nextFollowUp: today }); const [msg, setMsg] = useState('');
+  const [f, setF] = useState({ name: '', mobile: '', className: '', course: '', source: 'walk-in', notes: '', nextFollowUp: today }); const [msg, setMsg] = useState(''); const [pick, setPick] = useState<Record<string, string>>({}); /* batch chosen per enquiry before admitting */
   const load = () => { api(`/enquiries${filter ? `?status=${filter}` : ''}`).then(setRows); api('/enquiries/summary').then(setSum); }; useEffect(() => { load(); api('/batches').then(setBatches); }, [filter]);
   async function add() { setMsg(''); try { await api('/enquiries', { method: 'POST', body: JSON.stringify(f) }); setF({ ...f, name: '', mobile: '', notes: '' }); load(); } catch (e: any) { setMsg(e.message); } }
   async function upd(id: string, body: any) { await api(`/enquiries/${id}`, { method: 'PUT', body: JSON.stringify(body) }); load(); }
-  async function admit(r: any) { const batchId = prompt(`Admit ${r.name}. Batch id (leave blank for none):\n${batches.map((b) => `${b.name} = ${b.id}`).join('\n')}`) || undefined; const st = await api(`/enquiries/${r.id}/admit`, { method: 'POST', body: JSON.stringify({ batchId }) }); setMsg(`${st.name} admitted — parent can log in with ${r.mobile}`); load(); }
+  async function admit(r: any) { setMsg(''); try { const batchId = pick[r.id] || undefined; const st = await api(`/enquiries/${r.id}/admit`, { method: 'POST', body: JSON.stringify({ batchId }) }); setMsg(`${st.name} admitted — parent can log in with ${r.mobile}`); load(); } catch (e: any) { setMsg(e.message); } }
   return (
     <div>
       <h1 className="text-2xl font-bold">Enquiries</h1>
@@ -29,7 +29,7 @@ export default function Enquiries() {
           <td className="td"><select className="input py-1" value={r.status} onChange={(e) => upd(r.id, { status: e.target.value })}>{STATUS.map((s) => <option key={s}>{s}</option>)}</select></td>
           <td className="td"><input className="input py-1" type="date" value={r.nextFollowUp || ''} onChange={(e) => upd(r.id, { nextFollowUp: e.target.value || null })} /></td>
           <td className="td"><input className="input py-1" defaultValue={r.notes || ''} onBlur={(e) => e.target.value !== (r.notes || '') && upd(r.id, { notes: e.target.value })} /></td>
-          <td className="td">{r.status !== 'admitted' && <button className="btn sm" onClick={() => admit(r)}>Admit</button>}</td></tr>)}
+          <td className="td">{r.status !== 'admitted' && <div className="flex gap-1"><select className="input py-1" aria-label="Batch to admit into" value={pick[r.id] || ''} onChange={(e) => setPick({ ...pick, [r.id]: e.target.value })}><option value="">No batch yet</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select><button className="btn sm" onClick={() => admit(r)}>Admit</button></div>}</td></tr>)}
           {!rows.length && <tr><td className="td text-slate-500" colSpan={8}>No enquiries{filter ? ` with status ${filter}` : ''}.</td></tr>}</tbody></table>
     </div>
   );
