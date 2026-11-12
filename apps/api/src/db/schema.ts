@@ -564,3 +564,11 @@ export const busLocations = pgTable('bus_locations', {
   lat: numeric('lat', { precision: 10, scale: 7 }).notNull(), lng: numeric('lng', { precision: 10, scale: 7 }).notNull(),
   speed: numeric('speed', { precision: 6, scale: 1 }), source: text('source'), at: timestamp('at').defaultNow().notNull(),
 });
+
+// ---------- Platform team: extra people who help run NextEdge itself (the original owner has no row here) ----------
+export const platformTeam = pgTable('platform_team', {
+  userId: uuid('user_id').primaryKey().references(() => users.id),
+  title: text('title'), // e.g. Support manager
+  active: boolean('active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});

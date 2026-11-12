@@ -1,11 +1,15 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException, ForbiddenException, SetMetadata } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { Reflector } from '@nestjs/core';
+import { eq } from 'drizzle-orm';
 import { PlatformService } from '../platform/platform.service';
 import { DbService } from '../db/db.service';
-import { auditLog } from '../db/schema';
+import { auditLog, platformTeam, staffPermissions } from '../db/schema';
 
 export const Roles = (...roles: string[]) => SetMetadata('roles', roles);
+// People whose account was switched off (staff or platform team). Checked on every request, refreshed every 20 s, so a deactivation does not wait for the 30-day login to expire.
+let blocked = new Set<string>(); let blockedAt = 0;
+export function invalidateBlocked() { blockedAt = 0; }
 export const Public = () => SetMetadata('public', true);
 
 // Verifies the JWT, attaches req.user, enforces @Roles(). Every tenant query must then filter by user.centreId.
@@ -23,6 +27,8 @@ export class AuthGuard implements CanActivate {
     const roles = this.reflector.getAllAndOverride<string[]>('roles', [ctx.getHandler(), ctx.getClass()]);
     // Support mode: a platform super admin who names a centre (?centreId=) acts inside it with owner rights. Every change is written to the audit log (visible to that centre's owner).
     if (req.user.role === 'SUPER_ADMIN') { const qc = req.query?.centreId as string | undefined; if (qc && /^[0-9a-f-]{36}$/i.test(qc)) { req.user = { ...req.user, centreId: qc, support: true }; if (req.method !== 'GET') this.dbs.db.insert(auditLog).values({ centreId: qc, userId: req.user.id, userName: req.user.name, method: req.method, path: String(req.url).replace(/([?&])(t|token)=[^&]*/g, '$1').slice(0, 300) }).catch(() => {}); } }
+    if (Date.now() - blockedAt > 20000) { try { const a = await this.dbs.db.select({ id: staffPermissions.userId }).from(staffPermissions).where(eq(staffPermissions.active, false)); const b = await this.dbs.db.select({ id: platformTeam.userId }).from(platformTeam).where(eq(platformTeam.active, false)); blocked = new Set([...a, ...b].map((x) => x.id)); blockedAt = Date.now(); } catch { /* keep the old list */ } }
+    if (req.user?.id && blocked.has(req.user.id)) throw new UnauthorizedException('Your account has been deactivated. Contact the owner.');
     const u = req.user;
     // STAFF counts as FACULTY for role checks; what they may actually touch is decided by their module list.
     const effRole = u.role === 'STAFF' ? 'FACULTY' : u.role;
