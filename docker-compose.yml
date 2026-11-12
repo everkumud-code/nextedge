@@ -44,7 +44,7 @@ services:
     image: caddy:2-alpine
     restart: unless-stopped
     ports: ["80:80", "443:443", "8081:8081"]   # 8081 = plain HTTP for old biometric machines that cannot do HTTPS (only /iclock is served)
-    environment: { DOMAIN: ${DOMAIN}, API_DOMAIN: ${API_DOMAIN} }
+    environment: { DOMAIN: "${DOMAIN}", API_DOMAIN: "${API_DOMAIN}" }
     volumes:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data

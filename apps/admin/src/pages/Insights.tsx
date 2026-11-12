@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { api, session } from '../api';
+import { api, session, downloadFile } from '../api';
 const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
 const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
-async function download(path: string, name: string) { const r = await fetch(API + path, { headers: { Authorization: `Bearer ${session.token}` } }); const b = await r.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; a.click(); }
+async function download(path: string, name: string) { await downloadFile(path, name); }
 
 /** Reports & graphs: strength, collection, attendance, exam averages, funnel, discipline; UDISE+ exports; teacher ratings. */
 export default function Insights() {

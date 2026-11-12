@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { api, session, uploadFile, openPdf } from '../api';
+import { api, session, uploadFile, openPdf, downloadFile } from '../api';
 import LiveBus from '../components/LiveBus';
 const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
 const today = new Date().toISOString().slice(0, 10);
@@ -29,7 +29,7 @@ export default function Records() {
   async function doAdmit() { try { const r = await api(`/admissions/${admit.id}/admit`, { method: 'POST', body: JSON.stringify({ batchId: admit.batchId, rollNo: admit.rollNo || undefined }) }); setMsg(`${admit.title} admitted — admission no ${r.admissionNo || '—'}, roll ${r.rollNo}. Parent can log in with the email on the application.`); setAdmit(null); load(); } catch (e: any) { setMsg(e.message); setAdmit(null); } }
   async function addSlots() { try { const r = await api('/records/my-ptm-slots', { method: 'POST', body: JSON.stringify({ date: ptm.date, times: ptm.times.split(',').map((x) => x.trim()).filter(Boolean), venue: ptm.venue, mode: ptm.mode }) }); setMsg(`${r.created} PTM slots published — parents can book from the app`); load(); } catch (e: any) { setMsg(e.message); } }
   async function remove(r: any) { if (!confirm(`Delete "${r.title}"?`)) return; await api(`/records/${kind}/${r.id}`, { method: 'DELETE' }); load(); }
-  async function csv() { const res = await fetch(`${API}/records/${kind}/export.csv`, { headers: { Authorization: `Bearer ${session.token}` } }); const b = await res.blob(); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = `${kind}.csv`; a.click(); }
+  async function csv() { await downloadFile(`/records/${kind}/export.csv`, `${kind}.csv`); }
   const F = (f: any) => { const v = form.data[f.key] ?? ''; const set = (val: any) => setForm({ ...form, data: { ...form.data, [f.key]: val } }); const cls = 'input';
     if (f.type === 'textarea') return <textarea className={cls} rows={3} value={v} onChange={(e) => set(e.target.value)} />;
     if (f.type === 'select') return <select className={cls} value={v} onChange={(e) => set(e.target.value)}><option value="">—</option>{f.options.map((o: string) => <option key={o}>{o}</option>)}</select>;
