@@ -606,6 +606,7 @@ export const planCatalog = pgTable('plan_catalog', {
   minStudents: integer('min_students').default(0).notNull(), // Core: bill at least this many students
   setupFee: numeric('setup_fee', { precision: 10, scale: 2 }).default('0').notNull(), // Pro (and optionally Elite): one-time
   yearlyPrice: numeric('yearly_price', { precision: 10, scale: 2 }).default('0').notNull(), // Pro: yearly package
+  customAmount: numeric('custom_amount', { precision: 10, scale: 2 }).default('0').notNull(), customCycle: text('custom_cycle').default('yearly').notNull(), // Elite: the standard package price and how often it is billed (each client can be given its own)
   customNote: text('custom_note'), // Elite: what is usually included
   sortOrder: integer('sort_order').default(0).notNull(),
 });

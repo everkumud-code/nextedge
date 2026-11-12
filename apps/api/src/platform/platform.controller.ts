@@ -43,7 +43,7 @@ export class PlatformController {
   /** The price list of the three Edge packs. */
   @Get('packs') packs() { return this.svc.packs(); }
   /** Owner sets the prices. applyToClients also copies them to clients already on this pack (only numbers that pack uses). */
-  @Put('packs/:key') async setPack(@CurrentUser() u: JwtUser, @Param('key') key: string, @Body() b: { name?: string; tagline?: string; pricePerStudent?: number; minStudents?: number; setupFee?: number; yearlyPrice?: number; customNote?: string; applyToClients?: boolean }) {
+  @Put('packs/:key') async setPack(@CurrentUser() u: JwtUser, @Param('key') key: string, @Body() b: { name?: string; tagline?: string; pricePerStudent?: number; minStudents?: number; setupFee?: number; yearlyPrice?: number; customAmount?: number; customCycle?: string; customNote?: string; applyToClients?: boolean }) {
     await this.ownerOnly(u); const db = this.dbs.db; const cur = (await this.svc.packs()).find((p) => p.key === key); if (!cur) throw new BadRequestException('Unknown pack');
     const money = (v: any, label: string, max = 100000000) => { const n = Number(v); if (!Number.isFinite(n) || n < 0 || n > max) throw new BadRequestException(`${label} must be a number, 0 or more`); return String(n); };
     const set: any = {};
@@ -54,12 +54,14 @@ export class PlatformController {
     if (b.minStudents !== undefined) { const n = Number(b.minStudents); if (!Number.isInteger(n) || n < 0 || n > 100000) throw new BadRequestException('Minimum students must be a whole number'); set.minStudents = n; }
     if (b.setupFee !== undefined) set.setupFee = money(b.setupFee, 'Setup cost');
     if (b.yearlyPrice !== undefined) set.yearlyPrice = money(b.yearlyPrice, 'Yearly package');
+    if (b.customAmount !== undefined) set.customAmount = money(b.customAmount, 'Custom package price');
+    if (b.customCycle !== undefined) { if (!['monthly', 'quarterly', 'yearly'].includes(b.customCycle)) throw new BadRequestException('Billing must be monthly, quarterly or yearly'); set.customCycle = b.customCycle; }
     if (!Object.keys(set).length && !b.applyToClients) return { ok: true, updated: 0 };
     if (Object.keys(set).length) await db.update(planCatalog).set(set).where(eq(planCatalog.key, key));
     let updated = 0;
     if (b.applyToClients) {
       const ids = (await db.select({ id: centres.id }).from(centres).where(eq(centres.plan, key))).map((c) => c.id); const fresh = await this.svc.packSettings(key); const apply: any = { updatedAt: new Date() };
-      if (key === 'core') { apply.pricePerStudent = fresh.pricePerStudent; apply.minStudents = fresh.minStudents; } else if (key === 'pro') { apply.yearlyPrice = fresh.yearlyPrice; } else { /* elite: amounts are per client, only the default setup cost */ }
+      if (key === 'core') { apply.pricePerStudent = fresh.pricePerStudent; apply.minStudents = fresh.minStudents; } else if (key === 'pro') { apply.yearlyPrice = fresh.yearlyPrice; } else { apply.customAmount = fresh.customAmount; apply.customCycle = fresh.customCycle; }
       for (const id of ids) { const a2: any = { ...apply }; if ((key === 'pro' || key === 'elite') && !(await this.svc.settings(id)).setupPaid) a2.setupFee = fresh.setupFee; await db.update(centreSettings).set(a2).where(eq(centreSettings.centreId, id)); updated++; }
     }
     return { ok: true, updated };

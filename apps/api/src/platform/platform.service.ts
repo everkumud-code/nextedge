@@ -16,11 +16,11 @@ export const PLAN_PRESETS: Record<string, { price: number; features: string[] }>
   // Demo package: every module (school and coaching alike), free, never billed, never expires. For demos, trials-with-everything and internal testing.
   demo: { price: 0, features: [...MODULES] },
 };
-/** First-run price list. Core starts at the old standard rate; Pro and Elite start at 0 so nothing is billed until the owner sets a price. */
+/** First-run price list = the prices the owner gave on 13 Nov 2026. All of it can be changed on Billing & plans > Packs & prices. */
 export const PACK_DEFAULTS = [
-  { key: 'core', name: 'Edge Core', tagline: 'Pay per student, per month', pricePerStudent: '40', minStudents: 50, setupFee: '0', yearlyPrice: '0', customNote: null, sortOrder: 1 },
-  { key: 'pro', name: 'Edge Pro', tagline: 'One-time setup plus a yearly package', pricePerStudent: '0', minStudents: 0, setupFee: '0', yearlyPrice: '0', customNote: null, sortOrder: 2 },
-  { key: 'elite', name: 'Edge Elite', tagline: 'A custom package for your institution', pricePerStudent: '0', minStudents: 0, setupFee: '0', yearlyPrice: '0', customNote: null, sortOrder: 3 },
+  { key: 'core', name: 'Edge Core', tagline: 'Pay per student, per month', pricePerStudent: '10', minStudents: 0, setupFee: '0', yearlyPrice: '0', customAmount: '0', customCycle: 'yearly', customNote: null, sortOrder: 1 },
+  { key: 'pro', name: 'Edge Pro', tagline: 'One-time setup plus a yearly package', pricePerStudent: '0', minStudents: 0, setupFee: '5000', yearlyPrice: '15000', customAmount: '0', customCycle: 'yearly', customNote: null, sortOrder: 2 },
+  { key: 'elite', name: 'Edge Elite', tagline: 'A custom package for your institution', pricePerStudent: '0', minStudents: 0, setupFee: '0', yearlyPrice: '0', customAmount: '21000', customCycle: 'yearly', customNote: null, sortOrder: 3 },
 ] as const;
 export const DEMO_CENTRE_NAMES = ['Demo Coaching Centre', 'Demo Public School'];
 
@@ -45,7 +45,7 @@ export class PlatformService {
     const p = (await this.packs()).find((x) => x.key === key); if (!p) return {} as Record<string, any>;
     if (key === 'core') return { pricePerStudent: p.pricePerStudent, minStudents: p.minStudents, billingCycle: 'monthly', setupFee: '0', yearlyPrice: '0', customAmount: '0' };
     if (key === 'pro') return { pricePerStudent: '0', minStudents: 0, billingCycle: 'annual', setupFee: p.setupFee, yearlyPrice: p.yearlyPrice, customAmount: '0', setupPaid: false };
-    return { pricePerStudent: '0', minStudents: 0, billingCycle: 'annual', setupFee: p.setupFee, yearlyPrice: '0', customAmount: '0', customCycle: 'yearly', setupPaid: false }; // elite: the amount is agreed per client
+    return { pricePerStudent: '0', minStudents: 0, billingCycle: 'annual', setupFee: p.setupFee, yearlyPrice: '0', customAmount: p.customAmount, customCycle: p.customCycle, setupPaid: false }; // elite: standard amount, changed per client
   }
   /** Boot-time catch-up: centres created before a module existed get it if their type includes it (a coaching centre never gets school-only modules). */
   async migrateFeatures() {
