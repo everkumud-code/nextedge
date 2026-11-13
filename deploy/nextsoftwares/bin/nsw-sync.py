@@ -13,7 +13,8 @@ import fcntl, json, os, re, socket, subprocess, sys, time, urllib.request
 
 ENV_FILE = os.environ.get("NSW_ENV", "/etc/nextsoftwares.env")
 STATE_DIR = "/var/lib/nextsoftwares"; HOSTS_FILE = "/etc/nginx/nextsoftwares-hosts.conf"; LIVE_DIR = "/etc/letsencrypt/live"; WEBROOT = "/var/www/letsencrypt-nextsoftwares"
-FIXED = {"admin": "edge", "fit": "brands", "glow": "brands", "care": "brands"}        # admin = the NextEdge platform team's login; the three separate brand logins
+FIXED = {"admin": "edge", "nextfit": "brands", "nextglow": "brands", "nextcare": "brands"}        # admin = the NextEdge platform team's login; the three separate brand logins
+ALIASES = {"fit": "nextfit", "glow": "nextglow", "care": "nextcare"}                                 # the first short addresses: they now only redirect to the full product name
 UPSTREAM = {"edge": ("http://127.0.0.1:3013", "http://127.0.0.1:3012"), "brands": ("http://127.0.0.1:4000", "http://127.0.0.1:4000")}   # (web app, api)
 PRODUCTS = [("edge", "http://127.0.0.1:3012/api/workspace/internal/list"), ("brands", "http://127.0.0.1:4000/internal/workspaces")]
 SLUG = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
@@ -39,6 +40,7 @@ def main():
     E = env(); key = E["NEXTSOFT_INTERNAL_KEY"]; domain = E.get("DOMAIN", "nextsoftwares.in"); server_ip = E.get("SERVER_IP", ""); email = E.get("CERT_EMAIL", "")
     os.makedirs(STATE_DIR, exist_ok=True)
     mapping = dict(FIXED); seen = {}
+    for a, t in ALIASES.items(): mapping[a] = "->" + t
     for product, url in PRODUCTS:
         state = f"{STATE_DIR}/{product}.json"
         try:
@@ -48,7 +50,7 @@ def main():
             except Exception: slugs = []; log(f"{product}: not answering and nothing known yet ({e})")
         for s in slugs:
             if not isinstance(s, str) or not SLUG.match(s): log(f"ignored a bad address from {product}: {str(s)[:40]!r}"); continue   # never let a strange name into the nginx config
-            if s in FIXED: log(f"ignored {s} from {product}: reserved for a brand login"); continue
+            if s in FIXED or s in ALIASES: log(f"ignored {s} from {product}: reserved for a brand login"); continue
             if s in mapping and mapping[s] != product: log(f"CONFLICT: {s} exists in {mapping[s]} and {product}; {mapping[s]} keeps it"); continue
             mapping[s] = product
     # certificates first (a block is only written for an address whose certificate exists)
@@ -72,6 +74,8 @@ def main():
     for s in sorted(mapping):
         host = f"{s}.{domain}"
         if not cert(host): continue
+        if mapping[s].startswith("->"):
+            blocks.append(f"server {{ listen 443 ssl; listen [::]:443 ssl; http2 on; server_name {host}; ssl_certificate {LIVE_DIR}/{host}/fullchain.pem; ssl_certificate_key {LIVE_DIR}/{host}/privkey.pem; return 301 https://{mapping[s][2:]}.{domain}$request_uri; }}  # alias\n"); continue
         web, api = UPSTREAM[mapping[s]]
         blocks.append(f"server {{ listen 443 ssl; listen [::]:443 ssl; http2 on; server_name {host}; ssl_certificate {LIVE_DIR}/{host}/fullchain.pem; ssl_certificate_key {LIVE_DIR}/{host}/privkey.pem; set $nsw_root {web}; set $nsw_api {api}; include /etc/nginx/snippets/nsw-workspace.conf; }}  # {mapping[s]}\n")
     text = "".join(blocks); old = open(HOSTS_FILE, encoding="utf-8").read() if os.path.exists(HOSTS_FILE) else ""
