@@ -50,13 +50,14 @@ function doText(n: Text) {
   if (skipped(n)) return; const cur = n.data; if (shownText.get(n) !== cur) origText.set(n, cur);
   const o = origText.get(n) ?? cur; const out = translate(o); shownText.set(n, out); if (out !== cur) n.data = out;
 }
+const attrBlocked = (el: Element) => !!el.closest('[data-no-i18n]') || (el as HTMLElement).isContentEditable;
 function doAttrs(el: Element) {
-  if (skipped(el)) return; let so = origAttr.get(el); let sh = shownAttr.get(el);
+  if (attrBlocked(el)) return; let so = origAttr.get(el); let sh = shownAttr.get(el);
   for (const a of ATTRS) { const cur = el.getAttribute(a); if (cur == null) continue; if (!so) { so = {}; origAttr.set(el, so); } if (!sh) { sh = {}; shownAttr.set(el, sh); } if (sh[a] !== cur) so[a] = cur; const out = translate(so[a] ?? cur); sh[a] = out; if (out !== cur) el.setAttribute(a, out); }
 }
 function walk(root: Node) {
-  if (root.nodeType === 3) { doText(root as Text); return; } if (root.nodeType !== 1) return; if (skipped(root)) return;
-  doAttrs(root as Element); const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
+  if (root.nodeType === 3) { doText(root as Text); return; } if (root.nodeType !== 1) return;
+  doAttrs(root as Element); if (SKIP_TAGS.has((root as Element).tagName)) return; const tw = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT);
   for (let n = tw.nextNode(); n; n = tw.nextNode()) { if (n.nodeType === 3) doText(n as Text); else doAttrs(n as Element); }
 }
 let observer: MutationObserver | null = null;

@@ -90,4 +90,10 @@ Login OTPs for you, your teachers, students and parents — plus notices, receip
 Parents pay fees from the app through | अभिभावक फ़ीस ऐप के ज़रिए इसके द्वारा भरते हैं: | Parents fees app ke zariye iske dwara bharte hain:
 your own PayU account | आपका अपना PayU खाता | aapka apna PayU account
 ; money goes straight to your bank. payu.in → merchant dashboard → Key & Salt. | ; पैसा सीधे आपके बैंक में जाता है। payu.in → merchant dashboard → Key और Salt। | ; paisa seedha aapke bank mein jata hai. payu.in → merchant dashboard → Key aur Salt.
+All alerts ( | सारी सूचनाएँ देखें ( | Saari alerts dekhein (
+Not set | तय नहीं है | Tay nahi hai
+None this week. Add date of birth on the student form to enable auto-wishes. | इस हफ़्ते किसी का नहीं। जन्मदिन की बधाई अपने आप भेजने के लिए विद्यार्थी के फ़ॉर्म में जन्म तिथि भरें। | Is hafte kisi ka nahi. Birthday wish apne aap bhejne ke liye student ke form mein date of birth bharein.
+Parent of {n} | {n} के अभिभावक | {n} ke parent
+until {n} · | {n} तक · | {n} tak ·
+the centre | केंद्र | centre
 `;
