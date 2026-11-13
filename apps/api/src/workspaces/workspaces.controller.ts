@@ -61,7 +61,7 @@ export class WorkspaceController {
   @Put('centre/:id') @Roles('SUPER_ADMIN') async set(@Param('id') id: string, @Body() b: { slug: string }) {
     const slug = String(b?.slug || '').trim().toLowerCase(); const e = slugError(slug); if (e) throw new BadRequestException(e);
     const [c] = await this.dbs.db.select({ id: centres.id }).from(centres).where(eq(centres.id, id)); if (!c) throw new NotFoundException();
-    const [other] = await this.dbs.db.select({ id: centres.id }).from(centres).where(and(eq(centres.slug, slug), ne(centres.id, id))); if (other) throw new BadRequestException(`The address “${slug}” is already used by another client.`);
+    const [other] = await this.dbs.db.select({ id: centres.id }).from(centres).where(and(eq(centres.slug, slug), ne(centres.id, id))); if (other || await takenElsewhere(slug)) throw new BadRequestException(`The address “${slug}” is already used by another client.`);
     await this.dbs.db.update(centres).set({ slug }).where(eq(centres.id, id)); return { ok: true, slug, address: `${slug}.${workspaceDomain()}` };
   }
 }
