@@ -325,18 +325,19 @@ async function demoRoles(c: Ctx) {
  * School demo only: the first demo timetable put each class teacher in every period of their class, so a teacher who was class teacher of
  * several sections was in several rooms at once (the Timetable audit showed thousands of clashes). This rebuilds it with a rotation in which,
  * in any period, every teacher is in exactly one class (16 classes rotate over 10 teachers; the classes without a teacher that period have
- * Library / Games / Activity). Runs only when a clash is found, so a timetable the owner has made in the demo is left alone.
+ * Library / Games / Activity). Runs only when a clash is found or the demo has no timetable, so a clash-free timetable made in the demo is left alone.
  */
 async function demoTimetableFix(c: Ctx) {
   if (c.type !== 'school') return; const { db } = c;
   const clash: any = await db.execute(sql`select 1 from timetable_slots where centre_id = ${c.centre.id} and faculty_id is not null group by faculty_id, weekday, start_time having count(*) > 1 limit 1`);
-  if (!(clash.rows ? clash.rows.length : clash.length)) return;
+  const [{ cnt }] = await db.select({ cnt: sql<number>`count(*)` }).from(s.timetableSlots).where(eq(s.timetableSlots.centreId, c.centre.id));
+  if (!(clash.rows ? clash.rows.length : clash.length) && Number(cnt) > 0) return; // build it when there is a clash, or when the demo has no timetable at all
   const grid: any[] = await db.select().from(s.bellPeriods).where(and(eq(s.bellPeriods.centreId, c.centre.id), eq(s.bellPeriods.isBreak, false))).orderBy(s.bellPeriods.no); if (!grid.length) return;
   const bs: any[] = await db.select().from(s.batches).where(eq(s.batches.centreId, c.centre.id)).orderBy(s.batches.sortOrder, s.batches.name);
   const ts: any[] = await db.select({ id: s.users.id, title: s.staffPermissions.title }).from(s.users).leftJoin(s.staffPermissions, eq(s.staffPermissions.userId, s.users.id)).where(and(eq(s.users.centreId, c.centre.id), eq(s.users.role, 'FACULTY'))).orderBy(s.users.createdAt);
   if (!ts.length || !bs.length) return;
-  const known: [RegExp, string][] = [[/math/i, 'Mathematics'], [/english/i, 'English'], [/hindi/i, 'Hindi'], [/sci|physics|chem|bio/i, 'Science'], [/social|history|geo|civics/i, 'Social Science'], [/comp/i, 'Computer'], [/art|craft|drawing/i, 'Art & craft'], [/sport|pt\b|games/i, 'Games']];
-  const fallback = ['English', 'Hindi', 'Mathematics', 'Science', 'Social Science', 'Computer', 'EVS', 'Moral science', 'GK', 'Music'];
+  const known: [RegExp, string][] = [[/math/i, 'Mathematics'], [/english/i, 'English'], [/hindi/i, 'Hindi'], [/social|history|geo|civics/i, 'Social Science'], [/sci|physics|chem|bio/i, 'Science'], [/comp/i, 'Computer'], [/art|craft|drawing/i, 'Art & craft'], [/sport|pt\b|games/i, 'Games']];
+  const fallback = ['Mathematics', 'English', 'Hindi', 'Science', 'Social Science', 'Computer', 'EVS', 'Moral science', 'GK', 'Music']; // teachers without a job title: the first is the Maths teacher
   const subjectOf = (t: any, i: number) => known.find(([re]) => re.test(String(t.title || '')))?.[1] || fallback[i % fallback.length];
   const free = ['Library', 'Games', 'Activity period']; const slots: any[] = []; const N = Math.max(bs.length, ts.length);
   bs.forEach((b, bi) => { for (let wd = 1; wd <= 6; wd++) grid.forEach((p, pi) => { const k = (bi + pi + wd * 5) % N; const t = ts[k]; slots.push({ centreId: c.centre.id, batchId: b.id, weekday: wd, startTime: p.startTime, endTime: p.endTime, subject: t ? subjectOf(t, k) : free[(bi + pi + wd) % free.length], facultyId: t ? t.id : null, period: p.no }); }); });
