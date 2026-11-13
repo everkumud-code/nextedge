@@ -1,8 +1,9 @@
 import { Body, Controller, Get, Post, Put, Query } from '@nestjs/common';
 import { IsIn, IsOptional, IsString } from 'class-validator';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, sql } from 'drizzle-orm';
+import { PlatformService } from '../platform/platform.service';
 import { DbService } from '../db/db.service';
-import { centres, notices, students, users } from '../db/schema';
+import { centres, files, notices, students, users } from '../db/schema';
 import { Roles } from '../common/auth.guard';
 import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
@@ -30,8 +31,14 @@ class GreetDto { @IsIn(Object.keys(GREETINGS)) kind: string; @IsOptional() @IsSt
 @Mod('notices')
 @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF')
 export class WishesController {
-  constructor(private dbs: DbService, private notify: NotificationsService) {}
+  constructor(private dbs: DbService, private notify: NotificationsService, private platform: PlatformService) {}
 
+  /** Name, logo and contact details for the social-media post maker. */
+  @Get('brand') async brand(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); const db = this.dbs.db; const [ce] = await db.select().from(centres).where(eq(centres.id, centreId)); const s: any = await this.platform.settings(centreId);
+    const [logo] = await db.select({ id: files.id }).from(files).where(and(eq(files.centreId, centreId), eq(files.ownerKind, 'logo'))).orderBy(desc(files.createdAt)).limit(1);
+    return { name: ce?.name || '', city: ce?.city || '', tagline: s.tagline || '', phone: s.phone || '', website: s.website || '', address: s.address || '', principal: s.principalName || '', board: s.board || '', colour: s.appColour || '', logoId: logo?.id || null, type: ce?.institutionType || 'coaching' };
+  }
   @Get('templates') templates() { return Object.entries(GREETINGS).map(([k, v]) => ({ kind: k, ...v })); }
 
   /** Who has a birthday today / this week. */
