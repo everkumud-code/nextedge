@@ -6,6 +6,7 @@ import { and, eq, inArray, sql } from 'drizzle-orm';
 import * as s from './schema';
 import { FACULTY_DEFAULT } from '../common/permissions';
 import { distribute } from '../houses/houses';
+import { repairClashes } from '../timetable/clash-repair';
 
 export const iso = (d: Date) => d.toISOString().slice(0, 10);
 export const todayIST = () => iso(new Date(Date.now() + 5.5 * 3600e3));
@@ -345,6 +346,15 @@ async function demoTimetableFix(c: Ctx) {
   for (let i = 0; i < slots.length; i += 500) await db.insert(s.timetableSlots).values(slots.slice(i, i + 500));
 }
 
+/** Demo centres: no teacher may be in two classes at overlapping times. The seeds give each batch its own start times and one teacher per subject, which could double-book that teacher; this moves the later lesson to a free teacher (the same subject where possible). Does nothing when there is no clash. */
+async function demoClashRepair(c: Ctx) {
+  const { db } = c; const slots: any[] = await db.select().from(s.timetableSlots).where(eq(s.timetableSlots.centreId, c.centre.id)); if (!slots.length) return;
+  const ts: any[] = await db.select({ id: s.users.id, title: s.staffPermissions.title, active: s.staffPermissions.active }).from(s.users).leftJoin(s.staffPermissions, eq(s.staffPermissions.userId, s.users.id)).where(and(eq(s.users.centreId, c.centre.id), eq(s.users.role, 'FACULTY')));
+  const changes = repairClashes(slots.map((x) => ({ id: x.id, facultyId: x.facultyId, weekday: x.weekday, startTime: x.startTime, endTime: x.endTime, subject: x.subject })), ts.filter((t) => t.active !== false).map((t) => ({ id: t.id, title: t.title })));
+  for (const ch of changes) await db.update(s.timetableSlots).set({ facultyId: ch.facultyId }).where(eq(s.timetableSlots.id, ch.id));
+  if (changes.length) console.log(`[demo-fill] ${c.centre.name}: moved ${changes.length} double-booked lessons to free teachers`);
+}
+
 /** School demo only: four houses with captains, the students shared between them, and a month of house points, so the student dashboard and the Houses page are alive. */
 async function demoHouses(c: Ctx) {
   if (c.type !== 'school') return; const { db } = c;
@@ -384,7 +394,7 @@ export async function fillDemoData() {
       const step = async (label: string, fn: () => Promise<any>) => { try { await fn(); } catch (e: any) { console.error(`[demo-fill] ${name} · ${label} failed:`, e?.message || e); } };
       await step('people', () => (type === 'school' ? schoolPeople(c) : coachingPeople(c))); if (!c.students.length) continue;
       await step('parents', () => ensureParents(c)); await step('payments', () => payments(c)); await step('attendance', () => attendance(c)); await step('homework', () => homework(c)); await step('tests', () => tests(c, type === 'school' ? (b: any) => /Class [678] - [AB]/.test(b.name) : () => true)); await step('study+live', () => studyAndLive(c)); await step('communication', () => communication(c));
-      if (type === 'school') await step('exams', () => schoolExams(c)); if (type === 'school') await step('timetable', () => schoolTimetable(c)); await step('records', () => schoolRecords(c)); await step('office+HR', () => schoolOffice(c)); await step('role logins', () => demoRoles(c)); await step('timetable fix', () => demoTimetableFix(c)); await step('houses', () => demoHouses(c)); await step('today', () => demoToday(c)); await step('showcase', () => showcase(c));
+      if (type === 'school') await step('exams', () => schoolExams(c)); if (type === 'school') await step('timetable', () => schoolTimetable(c)); await step('records', () => schoolRecords(c)); await step('office+HR', () => schoolOffice(c)); await step('role logins', () => demoRoles(c)); await step('timetable fix', () => demoTimetableFix(c)); await step('clash repair', () => demoClashRepair(c)); await step('houses', () => demoHouses(c)); await step('today', () => demoToday(c)); await step('showcase', () => showcase(c));
       console.log(`[demo-fill] ${name}: ${c.students.length} students, ${c.batches.length} batches, ${c.teachers.length} teachers ready`);
     }
     console.log(`[demo-fill] done in ${Math.round((Date.now() - t0) / 1000)}s`);
