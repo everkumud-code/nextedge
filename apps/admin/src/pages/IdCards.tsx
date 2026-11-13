@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { api, fileUrl, openPdf, uploadFile } from '../api';
+import { api, openPdf, uploadFile } from '../api';
+import AuthImg from '../components/AuthImg';
 const norm = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 
 /** Student ID cards: add photos (one by one or many at once, named by roll no / admission no / name), then print a class as one PDF. */
@@ -25,7 +26,7 @@ export default function IdCards() {
       {msg && <p className="text-sm mt-2 text-moss">{msg}</p>}
       <table className="card w-full mt-4 text-sm"><thead><tr><th className="th w-14">Roll</th><th className="th w-16">Photo</th><th className="th">Student</th><th className="th">{school ? 'Admission no' : 'Batch'}</th><th className="th">Parent mobile</th><th className="th"></th></tr></thead>
         <tbody>{list.map((s) => <tr key={s.id}><td className="td text-slate-500">{s.rollNo || '—'}</td>
-          <td className="td">{photos[s.id] ? <img src={fileUrl(photos[s.id])} alt="" className="w-10 h-12 object-cover rounded border" /> : <div className="w-10 h-12 rounded border border-dashed grid place-items-center text-[10px] text-slate-400">none</div>}</td>
+          <td className="td">{photos[s.id] ? <AuthImg id={photos[s.id]} className="w-10 h-12 object-cover rounded border" /> : <div className="w-10 h-12 rounded border border-dashed grid place-items-center text-[10px] text-slate-400">none</div>}</td>
           <td className="td font-medium"><Link className="hover:underline" to={`/students/${s.id}`}>{s.name}</Link></td><td className="td">{school ? s.admissionNo || '—' : batches.find((b) => b.id === s.batchId)?.name}</td><td className="td">{s.parentMobile}</td>
           <td className="td whitespace-nowrap"><label className="btn-quiet cursor-pointer">{photos[s.id] ? 'Change photo' : 'Add photo'}<input type="file" accept="image/*" className="hidden" onChange={(e) => one(s, e.target.files?.[0])} /></label> <button className="btn-quiet" onClick={() => openPdf(`/idcards/student/${s.id}.pdf`, 'Could not create the ID card')}>Card</button></td></tr>)}
           {!list.length && <tr><td className="td text-slate-500" colSpan={6}>No active students in this class.</td></tr>}</tbody></table>

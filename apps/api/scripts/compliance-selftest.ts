@@ -33,4 +33,16 @@ eq(r5.checks.find((c) => c.key === 'loc')!.status, 'ok', '"refused" counts as no
 const r6 = audit({ board: 'CISCE', profile: prof, sections: [{ id: 'a', label: 'Class 9-A', strength: 70 }], teachers: 1, students: mk(70, 'Class 9'), attendance: {} });
 eq(r6.checks.find((c) => c.key === 'section-size')!.status, 'info', 'no invented CISCE class-size limit'); eq(r6.checks.find((c) => c.key === 'teachers'), undefined, 'no teacher ratio for CISCE');
 eq(audit({ board: 'CBSE', profile: {}, sections: [], teachers: 0, students: [], attendance: {} }).checks.find((c) => c.key === 'profile')!.total, 5, 'empty profile lists 5 gaps');
+
+// photo consent: only families who said NO are listed; unknown is not a refusal
+const pc = mk(3, 'Class 6', { tag: 'pc' }) as any[]; pc[0].photoConsent = false; pc[1].photoConsent = true;
+const r7 = audit({ board: 'CBSE', profile: prof, sections: [], teachers: 1, students: pc, attendance: {} }); const c7 = r7.checks.find((c) => c.key === 'photo-consent')!;
+eq([c7.status, c7.total], ['warn', 1], 'one refusal is listed'); eq(audit({ board: 'CBSE', profile: prof, sections: [], teachers: 1, students: mk(2, 'Class 6', { tag: 'q' }), attendance: {} }).checks.find((c) => c.key === 'photo-consent')!.status, 'ok', 'unanswered is not a warning by itself');
+
+// every check has Hindi and Hinglish wording that differs from English (no untranslated check)
+const wide = { board: 'CBSE' as const, profile: {}, sections: [{ id: 'a', label: 'Class 9-A', strength: 50 }], teachers: 1, students: [...mk(50, 'Class 9', { tag: 'L', motherName: '' }), ...pc], attendance: { 'Class 9-0-L': { present: 10, total: 40 } } };
+const en = audit(wide, 'en').checks, hi = audit(wide, 'hi').checks, hn = audit(wide, 'hn').checks;
+eq(en.length === hi.length && hi.length === hn.length, true, 'same number of checks in every language');
+en.forEach((c, i) => { if (c.status !== 'info') { eq(hi[i].detail !== c.detail && hn[i].detail !== c.detail && hi[i].title !== c.title && hn[i].title !== c.title, true, 'translated: ' + c.key); } eq([hi[i].status, hn[i].status], [c.status, c.status], 'same verdict in every language: ' + c.key); });
+eq(/[ऀ-ॿ]/.test(hi.map((c) => c.title + c.detail).join('')), true, 'Hindi uses Devanagari');
 console.log(bad ? `${bad} FAILED` : 'compliance self-test: all passed'); process.exit(bad ? 1 : 0);

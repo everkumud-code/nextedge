@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api';
+import { useLang } from '../i18n';
 
 const TONE: Record<string, { box: string; chip: string; label: string }> = {
   ok: { box: 'border-moss/40', chip: 'bg-moss/15 text-moss', label: 'Fine' },
@@ -11,8 +12,8 @@ const TONE: Record<string, { box: string; chip: string; label: string }> = {
 
 /** Board compliance: advisory checks against CBSE norms (section size, teacher ratio, 75% attendance, LOC data, APAAR/PEN). Never blocks anything. */
 export default function Compliance() {
-  const [d, setD] = useState<any>(null); const [err, setErr] = useState(''); const [open, setOpen] = useState<string>('');
-  useEffect(() => { api('/insights/compliance').then(setD).catch((e) => setErr(e.message)); }, []);
+  const lang = useLang(); const [d, setD] = useState<any>(null); const [err, setErr] = useState(''); const [open, setOpen] = useState<string>('');
+  useEffect(() => { api(`/insights/compliance?lang=${lang}`).then(setD).catch((e) => setErr(e.message)); }, [lang]);
   if (err) return <p className="text-brick">{err}</p>; if (!d) return <p className="text-slate-500">Loading…</p>;
   const boardName = d.board === 'CBSE' ? 'CBSE' : d.board === 'CISCE' ? 'CISCE (ICSE / ISC)' : d.board === 'STATE' ? 'State board' : 'Board not set';
   return (

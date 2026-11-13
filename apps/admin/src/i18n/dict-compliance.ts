@@ -23,4 +23,9 @@ I am the parent / legal guardian of this child. I agree that | मैं इस 
 may collect and use my details and my child’s details for admission, school records, fees, communication, safety and what the board or law requires. I know I can ask the school to correct or delete this data, withdraw this consent, or complain to the school. | मेरी और मेरे बच्चे की जानकारी दाख़िले, स्कूल रिकॉर्ड, फ़ीस, संपर्क, सुरक्षा और बोर्ड या कानून की ज़रूरत के लिए ले और इस्तेमाल कर सकता है। मुझे पता है कि मैं स्कूल से यह जानकारी सुधरवा या मिटवा सकता/सकती हूँ, यह सहमति वापस ले सकता/सकती हूँ, या स्कूल से शिकायत कर सकता/सकती हूँ। | meri aur mere bachche ki jaankari admission, school record, fees, sampark, suraksha aur board ya kanoon ki zaroorat ke liye le aur istemaal kar sakta hai. Mujhe pata hai ki main school se yeh jaankari sudharwa ya mitwa sakta/sakti hoon, yeh sahmati wapas le sakta/sakti hoon, ya school se shikayat kar sakta/sakti hoon.
 Optional: the school may show my child’s photo in school events, notices and its website. | वैकल्पिक: स्कूल मेरे बच्चे की फ़ोटो स्कूल के कार्यक्रमों, सूचनाओं और वेबसाइट पर दिखा सकता है। | Optional: school mere bachche ki photo school ke programs, notices aur website par dikha sakta hai.
 (Leave unticked to say no — it does not affect admission.) | (मना करने के लिए खाली छोड़ें — इसका दाख़िले पर असर नहीं पड़ेगा।) | (Mana karne ke liye khaali chhodein — iska admission par asar nahi padega.)
+Photo may be shown (events, notices, website) | फ़ोटो दिखाई जा सकती है (कार्यक्रम, सूचना, वेबसाइट) | Photo dikhayi ja sakti hai (events, notices, website)
+Not asked yet | अभी पूछा नहीं गया | Abhi poochha nahi gaya
+Yes — parent agreed | हाँ — अभिभावक सहमत हैं | Haan — parent sahmat hain
+No — parent refused | नहीं — अभिभावक ने मना किया | Nahi — parent ne mana kiya
+Photo may be shown | फ़ोटो दिखाई जा सकती है | Photo dikhayi ja sakti hai
 `;
