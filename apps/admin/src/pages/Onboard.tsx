@@ -5,7 +5,7 @@ import { planOptions } from './PackFields';
 const toData = (f: File) => new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = () => rej(new Error('Could not read the file')); fr.readAsDataURL(f); });
 const mobile10 = (v: any) => { const d = String(v ?? '').replace(/\D/g, ''); return d.length >= 10 ? d.slice(-10) : ''; };
 const ORDER = ['staff', 'students', 'enquiries', 'books', 'items'];
-const LOGIN_URL = 'https://nextedge.nextresource.in';
+const LOGIN_URL = 'https://nextedge.nextsoftwares.in';
 const csvOf = (head: string[], rows: string[][]) => '﻿' + [head, ...rows].map((r) => r.map((c) => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n');
 const standardBells = () => { const out: any[] = []; let t = 8 * 60; const f = (m: number) => `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`; let n = 0; for (let i = 1; i <= 8; i++) { out.push({ no: ++n, name: `Period ${i}`, startTime: f(t), endTime: f(t + 40), isBreak: false }); t += 40; if (i === 4) { out.push({ no: ++n, name: 'Lunch break', startTime: f(t), endTime: f(t + 30), isBreak: true }); t += 30; } } return out; };
 

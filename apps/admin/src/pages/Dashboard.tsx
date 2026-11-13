@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, session } from '../api';
 import RoleHome from './RoleHome';
+import PlatformHome from './PlatformHome';
 const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
 /** Owner / staff home: numbers that matter today, what needs action, latest notices. */
@@ -109,9 +110,12 @@ function AlertsWidget() {
 }
 
 /** Everyone except the owner gets a home screen made for their job (student, parent, teacher, driver, front office, HR, accounts, other staff). */
-export default function Dashboard() {
+function CentreHome() {
   const [home, setHome] = useState<any>(undefined);
   useEffect(() => { if (session.user?.role === 'SUPER_ADMIN' && !session.viewCentre) { setHome({ kind: 'admin' }); return; } api('/dashboard/home').then(setHome).catch(() => setHome({ kind: 'admin' })); }, []);
   if (home === undefined) return <p className="text-slate-500">Loading…</p>;
   return home.kind === 'admin' ? <AdminDashboard /> : <RoleHome data={home} />;
 }
+
+/** The platform owner lands on the overview of all clients; inside a client (support mode) the usual home. */
+export default function Dashboard() { return session.user?.role === 'SUPER_ADMIN' && !session.viewCentre ? <PlatformHome /> : <CentreHome />; }

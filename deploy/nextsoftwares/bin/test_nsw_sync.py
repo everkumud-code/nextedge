@@ -21,10 +21,12 @@ class Sync(unittest.TestCase):
                 if rc == 0: self.make_cert(cmd[cmd.index("-d") + 1])
             return types.SimpleNamespace(returncode=rc, stdout="", stderr="bad config" if rc else "")
         nsw.run = fake_run; nsw.socket.gethostbyname = lambda h: self.dns
-        self.E, self.B = nsw.PRODUCTS[0][1], nsw.PRODUCTS[1][1]
+        self.E, self.B = nsw.PRODUCTS[0][1], nsw.PRODUCTS[1][1]; self.fixed_certs()
     def make_cert(self, host):
         os.makedirs(os.path.join(nsw.LIVE_DIR, host), exist_ok=True)
         for f in ("fullchain.pem", "privkey.pem"): open(os.path.join(nsw.LIVE_DIR, host, f), "w").write("x")
+    def fixed_certs(self):   # the four fixed addresses (admin, fit, glow, care) already have certificates on the server; without this they would use up the five-per-run limit
+        for b in list(nsw.FIXED) + list(nsw.ALIASES): self.make_cert(f"{b}.nextsoftwares.in")
     def hosts(self): return open(nsw.HOSTS_FILE).read() if os.path.exists(nsw.HOSTS_FILE) else ""
     def reloads(self): return [c for c in self.calls if c == ["systemctl", "reload", "nginx"]]
 
@@ -32,7 +34,10 @@ class Sync(unittest.TestCase):
         self.answers = {self.E: ["sharma"], self.B: ["irongym"]}; self.assertEqual(nsw.main(), 0); h = self.hosts()
         self.assertIn("server_name sharma.nextsoftwares.in;", h); self.assertIn("set $nsw_root http://127.0.0.1:3013; set $nsw_api http://127.0.0.1:3012;", h)   # NextEdge: web 3013, api 3012
         self.assertIn("server_name irongym.nextsoftwares.in;", h); self.assertIn("set $nsw_root http://127.0.0.1:4000; set $nsw_api http://127.0.0.1:4000;", h)   # brands app
-        for brand in ("fit", "glow", "care"): self.assertIn(f"server_name {brand}.nextsoftwares.in;", h)
+        for brand in ("nextfit", "nextglow", "nextcare"): self.assertIn(f"server_name {brand}.nextsoftwares.in;", h)
+        fitold = [l for l in h.splitlines() if "server_name fit.nextsoftwares.in;" in l][0]; self.assertIn("return 301 https://nextfit.nextsoftwares.in$request_uri;", fitold)   # the old short address only forwards
+        admin = [l for l in h.splitlines() if "server_name nextedge.nextsoftwares.in;" in l][0]; self.assertIn("set $nsw_root http://127.0.0.1:3013;", admin)   # NextEdge has its own name
+        old = [l for l in h.splitlines() if "server_name admin.nextsoftwares.in;" in l][0]; self.assertIn("return 301 https://nextedge.nextsoftwares.in$request_uri;", old)   # the first address only forwards
         self.assertEqual(len(self.reloads()), 1)
     def test_no_block_without_a_certificate(self):
         self.certbot_ok = False; self.answers = {self.E: ["sharma"], self.B: []}; nsw.main()
@@ -47,9 +52,9 @@ class Sync(unittest.TestCase):
     def test_nothing_known_and_down_does_not_crash(self):
         self.answers = {self.E: OSError("down"), self.B: OSError("down")}; self.assertEqual(nsw.main(), 0); self.assertIn("fit.nextsoftwares.in", self.hosts())
     def test_conflict_first_product_keeps_it_and_brand_names_are_reserved(self):
-        self.answers = {self.E: ["same", "fit"], self.B: ["same", "other"]}; nsw.main(); h = self.hosts()
+        self.answers = {self.E: ["same", "nextfit", "fit"], self.B: ["same", "other"]}; nsw.main(); h = self.hosts()
         self.assertEqual(h.count("server_name same.nextsoftwares.in;"), 1); self.assertIn("# edge", h.split("server_name same.nextsoftwares.in;")[1].splitlines()[0])
-        fit = [l for l in h.splitlines() if "server_name fit.nextsoftwares.in;" in l][0]; self.assertTrue(fit.endswith("# brands"))
+        fit = [l for l in h.splitlines() if "server_name nextfit.nextsoftwares.in;" in l][0]; self.assertTrue(fit.endswith("# brands"))
     def test_bad_names_never_reach_the_config(self):
         self.answers = {self.E: ["ok-one", "Bad_One", "../etc", "x y", "-lead", "a" * 64, "a;b", "a{b}"], self.B: []}; nsw.main(); h = self.hosts()
         self.assertIn("ok-one.nextsoftwares.in", h)
@@ -62,7 +67,7 @@ class Sync(unittest.TestCase):
         self.assertFalse([c for c in self.calls if c[0] == "certbot"])             # DNS is not ready: no attempt
         self.dns = "1.2.3.4"; os.remove(os.path.join(nsw.STATE_DIR, "cert-fails.json")); self.calls.clear(); nsw.main()
         self.assertEqual(len([c for c in self.calls if c[0] == "certbot"]), 5)
-        self.calls.clear(); nsw.main(); self.assertEqual(len([c for c in self.calls if c[0] == "certbot"]), 5)   # the next run does the next five (3 old ones are done)
+        self.calls.clear(); nsw.main(); self.assertEqual(len([c for c in self.calls if c[0] == "certbot"]), 2)   # the next run does the last two
     def test_failed_certificate_is_retried_after_half_an_hour(self):
         self.certbot_ok = False; self.answers = {self.E: ["sharma"], self.B: []}; nsw.main(); n = len([c for c in self.calls if c[0] == "certbot"])
         self.calls.clear(); nsw.main(); self.assertEqual(len([c for c in self.calls if c[0] == "certbot"]), 0)       # too soon

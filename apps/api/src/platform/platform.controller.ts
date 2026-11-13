@@ -101,7 +101,7 @@ export class PlatformController {
   @Get('centres/:id/app-config') async appConfig(@Param('id') id: string) {
     const s = await this.svc.settings(id); const [c] = await this.dbs.db.select().from(centres).where(eq(centres.id, id));
     const slug = (c.name || 'nextedge').toLowerCase().replace(/[^a-z0-9]+/g, '').slice(0, 20) || 'nextedge';
-    return { CENTRE_ID: id, APP_NAME: s.appName || c.name, PACKAGE_ID: s.packageId || `in.nextedge.${slug}`, APP_COLOUR: s.appColour || c.primaryColour || '#1673D9', APP_LOGO_URL: s.appLogoUrl || '', APP_ICON_URL: s.appIconUrl || s.appLogoUrl || '', API_BASE: (process.env.PUBLIC_API_URL || 'https://nextedge.nextresource.in') + '/api', note: 'Codemagic → coaching-connect → workflow "White-label release" → Start new build → set these as environment variables (or add them to the Codemagic app’s environment group for this client).' };
+    return { CENTRE_ID: id, APP_NAME: s.appName || c.name, PACKAGE_ID: s.packageId || `in.nextedge.${slug}`, APP_COLOUR: s.appColour || c.primaryColour || '#1673D9', APP_LOGO_URL: s.appLogoUrl || '', APP_ICON_URL: s.appIconUrl || s.appLogoUrl || '', API_BASE: (process.env.PUBLIC_API_URL || 'https://nextedge.nextsoftwares.in') + '/api', note: 'Codemagic → coaching-connect → workflow "White-label release" → Start new build → set these as environment variables (or add them to the Codemagic app’s environment group for this client).' };
   }
 
   /** Edit a client: name, city and the owner's login details. */

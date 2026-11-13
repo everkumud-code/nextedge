@@ -11,8 +11,8 @@ import { MailService } from '../notifications/mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { payuForm, payuVerify } from '../integrations/payu';
 
-const base = () => (process.env.PUBLIC_API_URL || 'https://nextedge.nextresource.in') + '/api';
-const admin = () => process.env.ADMIN_URL || 'https://nextedge.nextresource.in';
+const base = () => (process.env.PUBLIC_API_URL || 'https://nextedge.nextsoftwares.in') + '/api';
+const admin = () => process.env.ADMIN_URL || 'https://nextedge.nextsoftwares.in';
 const html = (ok: boolean, msg: string, back: string) => `<!doctype html><meta name="viewport" content="width=device-width"><body style="font-family:sans-serif;padding:40px;text-align:center"><h2>${ok ? '✅' : '❌'} ${msg}</h2><p><a href="${back}">Back to NextEdge</a></p><script>setTimeout(()=>location.href=${JSON.stringify(back)},2500)</script></body>`;
 
 /** Payment wall: subscription (platform PayU or manual claim) and student fees (centre PayU). */

@@ -34,10 +34,19 @@ export default function Login() {
   async function pick(userId: string) { setBusy(true); try { const r = await api('/auth/choose', { method: 'POST', body: JSON.stringify({ choiceToken: choice!.choiceToken, userId }) }); session.set(r.token, r.user); go('/'); } catch (e: any) { setErr(e.message); } finally { setBusy(false); } }
 
   return (
-    <div className="min-h-screen grid place-items-center bg-teal-900 relative">
-      <div className="absolute right-4 top-4 text-white"><LangSwitch dark /></div><div className="absolute top-3 right-3"><ThemePicker floating up={false} /></div>
-      <div className="w-full max-w-sm card p-8">
-        <img src="/nextedge-logo.png" alt="NextEdge" className="h-12 mb-2" />
+    <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr] relative" style={{ background: 'radial-gradient(900px 420px at 8% -8%, rgba(94,234,212,.22), transparent), radial-gradient(800px 520px at 100% 112%, rgba(242,169,59,.16), transparent), #0c3a3f' }}>
+      <div className="absolute right-4 top-4 text-white z-10"><LangSwitch dark /></div><div className="absolute top-3 right-3"><ThemePicker floating up={false} /></div>
+      <div className="hidden lg:flex flex-col justify-center px-14 text-white">
+        <div className="bg-white rounded-xl px-3 py-2 inline-block self-start mb-8"><img src="/nextedge-logo.png" alt="NextEdge" className="h-9" /></div>
+        <h1 className="text-4xl font-bold leading-tight tracking-tight max-w-lg">School and coaching management, all in one place.</h1>
+        <p className="text-teal-100/80 mt-3 max-w-md">Admissions, attendance, fees, exams and report cards, notices and the parent app. Every school gets its own address.</p>
+        <ul className="mt-8 grid grid-cols-2 gap-x-8 gap-y-3 max-w-lg text-sm">{['Attendance and timetable', 'Fees, receipts and payroll', 'Exams and report cards', 'Notices, homework and messaging', 'Parent and student app', 'Reports and graphs'].map((t) => <li key={t} className="flex items-center gap-2"><span className="w-5 h-5 rounded-full bg-teal-200/20 grid place-items-center text-teal-200 text-xs">✓</span>{t}</li>)}</ul>
+        <p className="text-xs text-teal-100/50 mt-12">A Next Resource company · nextsoftwares.in</p>
+      </div>
+      <div className="grid place-items-center p-6">
+      <div className="w-full max-w-sm card p-8 shadow-2xl">
+        <img src="/nextedge-logo.png" alt="NextEdge" className="h-12 mb-2 lg:hidden" />
+        <h2 className="text-2xl font-bold tracking-tight">Welcome back</h2>
         {step === 'login' && <>
           <p className="text-slate-600 mt-1 mb-4">Sign in with the email or mobile registered at your coaching or school.</p>
           {ws ? <div className="rounded-md border border-teal-200 bg-teal-50 px-3 py-2"><div className="text-xs text-slate-500">Signing in to</div><div className="font-semibold">{ws.name}{ws.city ? <span className="font-normal text-slate-500"> · {ws.city}</span> : null}</div><a className="text-xs underline text-slate-500" href={`https://www.${location.hostname.split('.').slice(1).join('.')}`}>Not your school? Go to the NextSoftwares login page</a></div>
@@ -63,6 +72,7 @@ export default function Login() {
           {choice.options.map((o) => <button key={o.userId} disabled={busy} onClick={() => pick(o.userId)} className="w-full text-left border border-slate-200 rounded-md px-3 py-2 mb-2 hover:bg-teal-100"><div className="font-semibold">{o.centreName}</div><div className="text-xs text-slate-600">{o.name} · {o.role.toLowerCase()}</div></button>)}
         </>}
         {err && <p className="mt-4 text-sm text-brick">{err}</p>}
+      </div>
       </div>
     </div>
   );
