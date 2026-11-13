@@ -41,6 +41,7 @@ import Payroll from './pages/Payroll';
 import Biometric from './pages/Biometric';
 import Insights from './pages/Insights';
 import Compliance from './pages/Compliance';
+import Offers from './pages/Offers';
 import SchoolProfile from './pages/SchoolProfile';
 import Apply, { ApplyStatus } from './pages/Apply';
 
@@ -65,6 +66,7 @@ export default function App() {
         <Route path="biometric" element={<Biometric />} />
         <Route path="insights" element={<Insights />} />
         <Route path="compliance" element={<Compliance />} />
+        <Route path="offers" element={<Offers />} />
         <Route path="school-profile" element={<SchoolProfile />} />
         <Route path="batches" element={<Batches />} />
         <Route path="attendance" element={<Attendance />} />

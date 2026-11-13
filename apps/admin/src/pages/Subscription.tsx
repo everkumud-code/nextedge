@@ -2,6 +2,21 @@ import { useEffect, useState } from 'react';
 import { downloadFile } from '../api';
 import { api } from '../api';
 const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
+/** A coupon code box. The discount shows on the next invoice. */
+function CouponBox({ s, reload }: { s: any; reload: () => void }) {
+  const [code, setCode] = useState(''); const [msg, setMsg] = useState(''); const [bad, setBad] = useState(false); const c = s.coupon;
+  async function apply() { setMsg(''); setBad(false); try { const r = await api('/subscription/coupon', { method: 'POST', body: JSON.stringify({ code }) }); setMsg(`Coupon ${r.code} added: ${r.label}.${r.dueInvoice ? ' You already have an unpaid invoice; ask the NextEdge team to raise it again to show the discount.' : ' It comes off your next invoice.'}`); setCode(''); reload(); } catch (e: any) { setBad(true); setMsg(e.message); } }
+  async function remove() { await api('/subscription/coupon', { method: 'DELETE' }); setMsg(''); reload(); }
+  return (
+    <div className="card p-4 mt-4"><h2 className="font-semibold">Coupon code</h2>
+      {c ? <div className="mt-2 text-sm"><div>Coupon <b className="tracking-wider">{c.code}</b>{c.label && <> — {c.label}</>}{c.scope === 'first' ? ' (first payment)' : ''}{c.validTo ? ` · valid until ${c.validTo}` : ''}</div>
+        {c.problem ? <div className="text-brick mt-1">{c.problem}</div> : c.discountNext > 0 && <div className="text-moss mt-1">You will save {inr(c.discountNext)} on your next invoice.</div>}
+        <button className="btn-quiet mt-2" onClick={remove}>Remove coupon</button></div>
+        : <div className="flex gap-2 mt-2 items-end flex-wrap"><div><label className="text-sm font-medium">Have a coupon code?</label><input className="input uppercase tracking-wider w-56" value={code} onChange={(e) => setCode(e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))} placeholder="Enter code" /></div><button className="btn" disabled={code.length < 3} onClick={apply}>Apply</button></div>}
+      {msg && <p className={`text-sm mt-2 ${bad ? 'text-brick' : 'text-moss'}`}>{msg}</p>}
+    </div>
+  );
+}
 export default function Subscription() {
   const [s, setS] = useState<any>(null); const [p, setP] = useState({ liveProvider: 'jitsi', zoomAccountId: '', zoomClientId: '', zoomClientSecret: '', defaultMeetingUrl: '' }); const [msg, setMsg] = useState(''); const [presets, setPresets] = useState<any>({}); const [em, setEm] = useState({ provider: 'gmail', host: '', port: '', user: '', pass: '', fromName: '' }); const [emMsg, setEmMsg] = useState(''); const [pu, setPu] = useState({ payuKey: '', payuSalt: '', payuTest: true, manualPayInfo: '' }); const [puMsg, setPuMsg] = useState('');
   const load = () => api('/subscription').then((r) => { setS(r); setP({ liveProvider: r.liveProvider, zoomAccountId: '', zoomClientId: '', zoomClientSecret: '', defaultMeetingUrl: r.defaultMeetingUrl || '' }); }); useEffect(() => { load(); api('/subscription/email-presets').then(setPresets); }, []);
@@ -11,6 +26,7 @@ export default function Subscription() {
     <div>
       <h1 className="text-2xl font-bold">Subscription & settings</h1>
       <div className="card p-4 mt-4 flex items-center justify-between gap-4" data-testid="backup-card"><div><h2 className="font-semibold">Download a backup of your data</h2><p className="text-sm text-slate-600">One file with your students, fees, attendance, exams, staff and everything else. Keep it somewhere safe. Passwords and message-provider keys are not included.</p></div><button className="btn whitespace-nowrap" onClick={() => downloadFile('/backup/centre', 'backup.json')}>Download backup</button></div>
+      {s.plan !== 'demo' && <CouponBox s={s} reload={load} />}
       <div className="grid grid-cols-2 gap-4 mt-6">
         <div className="card p-4"><h2 className="font-semibold mb-2">Your plan</h2>
           {s.plan === 'demo' && <div className="mb-2 p-3 rounded bg-edge-50 text-sm"><b>Demo package</b> — every feature is switched on for you. It is free and never expires.</div>}

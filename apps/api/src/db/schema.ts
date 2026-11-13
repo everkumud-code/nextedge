@@ -366,6 +366,7 @@ export const centreSettings = pgTable('centre_settings', {
   siteEnabled: boolean('site_enabled').default(false).notNull(), about: text('about'), tagline: text('tagline'), // public school website (off by default)
   channels: text('channels').default('{}').notNull(), // JSON: this centre's own SMS / WhatsApp account (overrides the platform's)
   workStart: text('work_start').default('09:00').notNull(), lateAfterMin: integer('late_after_min').default(15).notNull(), halfDayMin: integer('half_day_min').default(240).notNull(),
+  couponCode: text('coupon_code'), // a coupon the owner gave this client (or the client typed); applied when the next invoice is raised
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
@@ -381,6 +382,7 @@ export const subscriptionInvoices = pgTable('subscription_invoices', {
   paidOn: date('paid_on'),
   mode: text('mode'), reference: text('reference'), paymentLink: text('payment_link'),
   plan: text('plan'), setupFee: numeric('setup_fee', { precision: 10, scale: 2 }).default('0').notNull(), note: text('note'), // which pack, how much of the amount is the one-time setup, and a plain-words description
+  discount: numeric('discount', { precision: 10, scale: 2 }).default('0').notNull(), couponCode: text('coupon_code'), // rupees taken off by a coupon (amount is already after the discount)
   claimedRef: text('claimed_ref'), claimedAt: timestamp('claimed_at'), claimedNote: text('claimed_note'), // owner says "paid manually" → super-admin approves
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
@@ -609,4 +611,27 @@ export const planCatalog = pgTable('plan_catalog', {
   customAmount: numeric('custom_amount', { precision: 10, scale: 2 }).default('0').notNull(), customCycle: text('custom_cycle').default('yearly').notNull(), // Elite: the standard package price and how often it is billed (each client can be given its own)
   customNote: text('custom_note'), // Elite: what is usually included
   sortOrder: integer('sort_order').default(0).notNull(),
+});
+
+// ---------- Coupons: discounts the owner gives to clients (schools / coaching) on their NextEdge subscription ----------
+export const coupons = pgTable('coupons', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  code: text('code').notNull().unique(), // upper case, e.g. DIWALI20
+  title: text('title'), // shown to the owner only, e.g. "Diwali offer"
+  kind: text('kind').notNull(), // percent | amount
+  value: numeric('value', { precision: 10, scale: 2 }).notNull(),
+  plans: text('plans').default('[]').notNull(), // JSON array of pack keys; empty = every pack
+  scope: text('scope').default('first').notNull(), // first = first payment only | every = every invoice
+  validFrom: date('valid_from'), validTo: date('valid_to'),
+  maxUses: integer('max_uses'), usedCount: integer('used_count').default(0).notNull(),
+  active: boolean('active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+export const couponRedemptions = pgTable('coupon_redemptions', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  couponId: uuid('coupon_id').notNull().references(() => coupons.id),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  invoiceId: uuid('invoice_id').references(() => subscriptionInvoices.id),
+  discount: numeric('discount', { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
 });
