@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Admin and team login — NextSoftwares</title>
+<style>
+  :root { --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f6f8fb; --card:#fff; --c:#0F766E; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#e5edf7; --muted:#9fb0c7; --line:#25324a; --bg:#0b1220; --card:#121c2f; } }
+  * { box-sizing:border-box; } html,body { margin:0; }
+  body { font-family:"Segoe UI","Nirmala UI","Noto Sans",system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; display:flex; flex-direction:column; }
+  header { padding:18px 24px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .brand { font-weight:800; font-size:22px; letter-spacing:-.3px; color:var(--ink); text-decoration:none; } .brand b { color:#0F766E; } header a.back { color:var(--muted); text-decoration:none; font-size:14px; }
+  main { flex:1; width:100%; max-width:520px; margin:0 auto; padding:10px 20px 40px; }
+  h1 { font-size:clamp(26px,5vw,34px); letter-spacing:-.6px; margin:14px 0 6px; } .lead { color:var(--muted); margin:0 0 20px; }
+  .tabs { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:16px; }
+  .tab { border:1.5px solid var(--line); background:var(--card); border-radius:12px; padding:10px 6px; font:inherit; font-weight:700; font-size:14px; color:var(--ink); cursor:pointer; border-top:4px solid var(--t); }
+  .tab[aria-pressed="true"] { border-color:var(--t); box-shadow:0 0 0 3px color-mix(in srgb,var(--t) 22%,transparent); }
+  .card { background:var(--card); border:1.5px solid var(--line); border-radius:18px; padding:22px; border-top:5px solid var(--c); }
+  label { display:block; font-weight:600; font-size:14px; margin:12px 0 6px; } input { width:100%; padding:13px 14px; border:1.5px solid var(--line); border-radius:12px; font:inherit; font-size:17px; background:var(--bg); color:var(--ink); outline:none; } input:focus { border-color:var(--c); }
+  .btn { width:100%; margin-top:14px; background:var(--c); color:#fff; border:0; border-radius:12px; padding:13px; font:inherit; font-weight:700; font-size:16px; cursor:pointer; } .btn:disabled { opacity:.55; cursor:default; }
+  .links { margin-top:12px; font-size:14px; display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; } .links a { color:var(--muted); }
+  .msg { margin-top:12px; font-size:15px; } .err { color:#c0392b; } .ok { color:#0F766E; }
+  .pick { display:grid; gap:8px; margin-top:12px; } .pick button { text-align:left; background:var(--bg); border:1.5px solid var(--line); border-radius:12px; padding:11px 14px; font:inherit; color:var(--ink); cursor:pointer; } .pick small { display:block; color:var(--muted); }
+  footer { text-align:center; color:var(--muted); font-size:13px; padding:18px; } footer a { color:inherit; }
+</style>
+</head>
+<body>
+<header><a class="brand" href="/">Next<b>Softwares</b></a><a class="back" href="/">← Schools, gyms, salons, clinics: log in here</a></header>
+<main>
+  <h1>Admin and team login</h1>
+  <p class="lead">For the NextSoftwares admin and team. Choose the product you want to manage, then sign in with a code sent to your e-mail or mobile.</p>
+  <div class="tabs" id="tabs"></div>
+  <div class="card" id="card">
+    <div id="stepId">
+      <label id="idLbl" for="ident">E-mail</label><input id="ident" autocomplete="username" inputmode="email" placeholder="you@example.com">
+      <div class="links"><a href="#" id="swMode">Use mobile number instead</a><a href="#" id="haveCode">I already have a code</a></div>
+      <button class="btn" id="send" type="button">Send code</button>
+    </div>
+    <div id="stepCode" hidden>
+      <label for="code">Code</label><input id="code" inputmode="numeric" maxlength="6" placeholder="6-digit code" autocomplete="one-time-code">
+      <button class="btn" id="verify" type="button">Sign in</button>
+      <div class="links"><a href="#" id="back">← Back</a></div>
+    </div>
+    <div class="pick" id="pick" hidden></div>
+    <div class="msg" id="msg"></div>
+  </div>
+</main>
+<footer>© NextSoftwares · A <a href="https://www.nextresource.in/">Next Resource</a> company</footer>
+<script>
+(function () {
+  var BASE = location.hostname.replace(/^www\./, ''); if (!/\./.test(BASE) || /^(localhost|127\.)/.test(BASE)) BASE = 'nextsoftwares.in';
+  var PRODUCTS = [
+    { key: 'edge', name: 'NextEdge', colour: '#0F766E', kind: 'edge' },
+    { key: 'fit', name: 'NextFit', colour: '#0A6EDB', kind: 'brands', host: 'nextfit' },
+    { key: 'glow', name: 'NextGlow', colour: '#E0287A', kind: 'brands', host: 'nextglow' },
+    { key: 'care', name: 'NextCare', colour: '#0FA38A', kind: 'brands', host: 'nextcare' }
+  ];
+  var $ = function (s) { return document.querySelector(s); }; var cur = PRODUCTS[0], mode = 'email', choice = null;
+  function setMsg(t, cls) { var m = $('#msg'); m.className = 'msg ' + (cls || ''); m.textContent = t || ''; }
+  function post(url, body) { return fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) }).then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { if (!r.ok) throw new Error(Array.isArray(d.message) ? d.message.join(', ') : (d.message || d.error || 'Something went wrong')); return d; }); }); }
+  function choose(p) { cur = p; document.documentElement.style.setProperty('--c', p.colour); [].forEach.call($('#tabs').children, function (b, i) { b.setAttribute('aria-pressed', PRODUCTS[i] === p ? 'true' : 'false'); }); reset(); history.replaceState(null, '', '#' + p.key); }
+  function reset() { choice = null; $('#stepId').hidden = false; $('#stepCode').hidden = true; $('#pick').hidden = true; $('#code').value = ''; setMsg(''); }
+  PRODUCTS.forEach(function (p) { var b = document.createElement('button'); b.type = 'button'; b.className = 'tab'; b.style.setProperty('--t', p.colour); b.textContent = p.name; b.setAttribute('aria-pressed', 'false'); b.onclick = function () { choose(p); }; $('#tabs').appendChild(b); });
+  var first = PRODUCTS.filter(function (p) { return p.key === location.hash.slice(1); })[0] || PRODUCTS[0]; choose(first);
+  $('#swMode').onclick = function (e) { e.preventDefault(); mode = mode === 'email' ? 'phone' : 'email'; $('#idLbl').textContent = mode === 'email' ? 'E-mail' : 'Mobile number'; $('#ident').value = ''; $('#ident').placeholder = mode === 'email' ? 'you@example.com' : '10-digit mobile'; $('#ident').inputMode = mode === 'email' ? 'email' : 'numeric'; $('#swMode').textContent = mode === 'email' ? 'Use mobile number instead' : 'Use e-mail instead'; };
+  $('#haveCode').onclick = function (e) { e.preventDefault(); if (!$('#ident').value.trim()) { setMsg('Enter your ' + (mode === 'email' ? 'e-mail' : 'mobile number') + ' first.', 'err'); return; } showCode(); };
+  $('#back').onclick = function (e) { e.preventDefault(); reset(); };
+  function ident() { var v = $('#ident').value.trim(); return mode === 'email' ? v.toLowerCase() : v.replace(/\s/g, ''); }
+  function showCode() { $('#stepId').hidden = true; $('#stepCode').hidden = false; $('#code').focus(); }
+  function go(url) { setMsg('Signed in. Opening ' + cur.name + '…', 'ok'); location.href = url; }
+
+  $('#send').onclick = function () {
+    var id = ident(); if (!id) { setMsg('Enter your ' + (mode === 'email' ? 'e-mail' : 'mobile number') + '.', 'err'); return; }
+    $('#send').disabled = true; setMsg('Sending…');
+    var req = cur.kind === 'edge' ? post('/edge-api/auth/send-otp', Object.assign({ centreName: 'Platform' }, mode === 'email' ? { email: id } : { mobile: id }))
+                                  : post('/brands-api/auth/otp/request', mode === 'email' ? { email: id, purpose: 'login' } : { phone: id, purpose: 'login' });
+    req.then(function (r) { if (r && r.token && r.user && cur.kind === 'edge') { return edgeDone(r); } showCode(); setMsg(mode === 'email' ? 'If this e-mail belongs to the team, a code is on its way. It works for 10 minutes.' : 'Code requested. If no SMS arrives, use your e-mail or ask for a code from the server.', 'ok'); })
+       .catch(function (e) { setMsg(e.message, 'err'); if (cur.kind === 'brands') { /* delivery not set up yet: a code issued on the server still works */ $('#haveCode').style.fontWeight = '700'; } })
+       .then(function () { $('#send').disabled = false; });
+  };
+  function edgeDone(r) {
+    if (!r.user || r.user.role !== 'SUPER_ADMIN') { setMsg('This is not a NextEdge platform account.', 'err'); return; }
+    go('https://admin.' + BASE + '/#nsw=' + btoa(unescape(encodeURIComponent(JSON.stringify({ token: r.token, user: r.user })))));
+  }
+  $('#verify').onclick = function () {
+    var id = ident(), code = $('#code').value.trim(); if (!/^\d{6}$/.test(code)) { setMsg('Enter the 6-digit code.', 'err'); return; }
+    $('#verify').disabled = true; setMsg('Checking…');
+    var req = cur.kind === 'edge' ? post('/edge-api/auth/verify-otp', Object.assign({ centreName: 'Platform', otp: code }, mode === 'email' ? { email: id } : { mobile: id }))
+                                  : post('/brands-api/auth/otp/verify', Object.assign({ code: code }, mode === 'email' ? { email: id } : { phone: id }));
+    req.then(function (r) {
+      if (cur.kind === 'edge') {
+        if (r.choose) { choice = r; var box = $('#pick'); box.innerHTML = ''; box.hidden = false; setMsg('Choose the account:'); r.options.forEach(function (o) { var b = document.createElement('button'); b.type = 'button'; b.innerHTML = '<b></b><small></small>'; b.firstChild.textContent = o.name; b.lastChild.textContent = (o.centreName || 'Platform') + ' · ' + o.role; b.onclick = function () { post('/edge-api/auth/choose', { choiceToken: choice.choiceToken, userId: o.userId }).then(edgeDone).catch(function (e) { setMsg(e.message, 'err'); }); }; box.appendChild(b); }); return; }
+        return edgeDone(r);
+      }
+      if (!r.user || ['superadmin', 'team'].indexOf(r.user.role) < 0) { setMsg('This login is for the NextSoftwares admin and team. Schools, gyms, salons and clinics log in on the main page.', 'err'); return; }
+      go('https://' + cur.host + '.' + BASE + '/admin#t=' + encodeURIComponent(r.token));
+    }).catch(function (e) { setMsg(e.message, 'err'); }).then(function () { $('#verify').disabled = false; });
+  };
+  document.addEventListener('keydown', function (e) { if (e.key !== 'Enter') return; if (!$('#stepCode').hidden) $('#verify').click(); else if (!$('#stepId').hidden) $('#send').click(); });
+})();
+</script>
+</body>
+</html>
