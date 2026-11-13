@@ -92,7 +92,10 @@ export class AuthService {
   private async issue(user: { id: string; name: string; role: any; centreId: string | null }, demoFrom?: string) {
     let modules: string[] = [];
     if (user.role === 'SUPER_ADMIN') { const [t] = await this.dbs.db.select().from(platformTeam).where(eq(platformTeam.userId, user.id)); if (t && !t.active) throw new UnauthorizedException('Your account is deactivated. Contact the platform owner.'); }
-    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') modules = [...MODULES];
+    if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
+      modules = [...MODULES];
+      if (user.role === 'ADMIN') { const [p] = await this.dbs.db.select().from(staffPermissions).where(eq(staffPermissions.userId, user.id)); if (p && !p.active) throw new UnauthorizedException('Your account is deactivated. Contact the owner.'); }
+    }
     else if (user.role === 'FACULTY' || user.role === 'STAFF') {
       const [p] = await this.dbs.db.select().from(staffPermissions).where(eq(staffPermissions.userId, user.id));
       if (p && !p.active) throw new UnauthorizedException('Your staff account is deactivated. Contact the owner.');

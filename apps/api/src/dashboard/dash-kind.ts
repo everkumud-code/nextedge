@@ -10,6 +10,7 @@ export function dashKind(role: string, title?: string | null): DashKind {
   if (role === 'STUDENT') return 'student'; if (role === 'PARENT') return 'parent'; if (role === 'FACULTY') return 'teacher';
   if (role === 'ADMIN' || role === 'SUPER_ADMIN' || role === 'EXPERT') return 'admin';
   const t = String(title || '').toLowerCase();
+  if (/^\s*((school|centre|center|general|operations|campus)\s+)?(manager|administrator)\s*$/.test(t)) return 'admin'; // a manager who runs things for the owner: same home screen as the owner, limited by the modules ticked for them
   if (/\b(driver|bus|transport|conductor)\b/.test(t)) return 'driver';
   if (/\b(hr|human resources?|personnel)\b/.test(t)) return 'hr';
   if (/\b(account|accounts|accountant|cashier|finance|fees?)\b/.test(t)) return 'accounts';
