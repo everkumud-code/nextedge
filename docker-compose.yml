@@ -40,7 +40,7 @@ services:
   admin:
     build:
       context: ./apps/admin
-      args: { VITE_API_URL: "https://${API_DOMAIN}" }
+      args: { VITE_API_URL: "${VITE_API_URL:-}" }
     restart: unless-stopped
 
   caddy:

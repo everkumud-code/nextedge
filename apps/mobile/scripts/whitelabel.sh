@@ -2,7 +2,7 @@
 # Turns this Flutter project into a client's white-label app. Env: CENTRE_ID APP_NAME PACKAGE_ID APP_COLOUR (#RRGGBB) APP_LOGO_URL APP_ICON_URL API_BASE
 set -e; cd "$(dirname "$0")/.."
 : "${CENTRE_ID:?CENTRE_ID required}"; : "${APP_NAME:?APP_NAME required}"; : "${PACKAGE_ID:?PACKAGE_ID required}"
-APP_COLOUR=${APP_COLOUR:-#1673D9}; API_BASE=${API_BASE:-https://nextedge.nextresource.in/api}
+APP_COLOUR=${APP_COLOUR:-#1673D9}; API_BASE=${API_BASE:-https://admin.nextsoftwares.in/api}
 echo "White-label: $APP_NAME ($PACKAGE_ID) centre=$CENTRE_ID colour=$APP_COLOUR"
 # 1. logo + icon
 if [ -n "$APP_LOGO_URL" ]; then curl -fsSL "$APP_LOGO_URL" -o assets/brand-logo.png; fi
