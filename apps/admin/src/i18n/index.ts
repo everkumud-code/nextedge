@@ -3,7 +3,8 @@
  *
  * Sentences are translated as whole sentences (see the dictionary files), never word by word. The translator works on the screen itself:
  * any text it has a translation for is replaced, anything else stays in English, so a missing sentence can never break a page.
- * The choice is remembered on the device and can be changed from the login page and the side menu.
+ * English is the default. The first time someone signs in on a device they are asked once (LangPrompt); after that the choice is remembered on the device
+ * and only changes when they change it themselves, from the login page or the side menu.
  */
 import { useEffect, useState } from 'react';
 import { CORE } from './dict-core';
@@ -29,7 +30,9 @@ for (const raw of [CORE, PEOPLE, MONEY, SCHOOL, OFFICE, PAGES, MORE, COMPLIANCE,
   else MAP.set(en, [hi, hn]);
 }
 
-const read = (): Lang => { try { const v = localStorage.getItem(KEY); if (v === 'en' || v === 'hi' || v === 'hn') return v; } catch { /* private mode */ } return 'hn'; };
+const read = (): Lang => { try { const v = localStorage.getItem(KEY); if (v === 'en' || v === 'hi' || v === 'hn') return v; } catch { /* private mode */ } return 'en'; };
+/** True once this device has a saved choice. The first-login question is asked only while this is false; storage that cannot be read counts as chosen, so nobody is asked on every visit. */
+export const hasChosenLang = () => { try { const v = localStorage.getItem(KEY); return v === 'en' || v === 'hi' || v === 'hn'; } catch { return true; } };
 let lang: Lang = read();
 const listeners = new Set<() => void>();
 export const getLang = () => lang;

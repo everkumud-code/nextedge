@@ -3,6 +3,7 @@ import Assistant from './Assistant';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import LangSwitch from './LangSwitch';
+import LangPrompt from './LangPrompt';
 import { api, session } from '../api';
 
 const ROLE: Record<string, string> = { SUPER_ADMIN: 'Platform admin', ADMIN: 'Owner', FACULTY: 'Teacher', STAFF: 'Staff', STUDENT: 'Student', PARENT: 'Parent', EXPERT: 'Counsellor' };
@@ -60,7 +61,7 @@ export default function Layout() {
             </div>;
           })}
         </nav>
-        <div className="px-5 py-2 border-t border-teal-800 text-teal-100"><LangSwitch dark /></div>
+        <div className="px-5 py-2 border-t border-teal-800 text-teal-100"><LangSwitch dark /></div><LangPrompt />
         <ThemePicker />
         <button onClick={() => { session.clear(); go('/login'); }} className="px-5 py-3 text-left text-sm text-teal-100/80 hover:text-white border-t border-teal-800">Log out</button>
       </aside>
