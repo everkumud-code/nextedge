@@ -73,9 +73,10 @@ export class TimetableController {
   @Post('grid/cell') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF') async cell(@CurrentUser() u: JwtUser, @Body() b: { batchId: string; weekday: number; periodNo: number; subject?: string; facultyId?: string; room?: string }, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c); const db = this.dbs.db; const [p] = await db.select().from(bellPeriods).where(and(eq(bellPeriods.centreId, centreId), eq(bellPeriods.no, b.periodNo))); if (!p) throw new BadRequestException('Set up the bell periods first');
     if (p.isBreak) throw new BadRequestException(`${p.name} is a break — no class can be placed`);
-    await db.delete(timetableSlots).where(and(eq(timetableSlots.centreId, centreId), eq(timetableSlots.batchId, b.batchId), eq(timetableSlots.weekday, b.weekday), eq(timetableSlots.period, b.periodNo)));
-    if (!b.subject?.trim()) return { ok: true, cleared: true };
-    if (b.facultyId) { const clash = (await db.select().from(timetableSlots).where(and(eq(timetableSlots.centreId, centreId), eq(timetableSlots.weekday, b.weekday), eq(timetableSlots.facultyId, b.facultyId)))).find((s) => this.overlap(s, p)); if (clash) { const [bt] = await db.select({ n: batches.name }).from(batches).where(eq(batches.id, clash.batchId)); throw new BadRequestException(`This teacher already has ${clash.subject} with ${bt?.n || 'another class'} at that time`); } }
+    const here = and(eq(timetableSlots.centreId, centreId), eq(timetableSlots.batchId, b.batchId), eq(timetableSlots.weekday, b.weekday), eq(timetableSlots.period, b.periodNo)); const mine = new Set((await db.select({ id: timetableSlots.id }).from(timetableSlots).where(here)).map((x) => x.id));
+    if (!b.subject?.trim()) { await db.delete(timetableSlots).where(here); return { ok: true, cleared: true }; }
+    if (b.facultyId) { const clash = (await db.select().from(timetableSlots).where(and(eq(timetableSlots.centreId, centreId), eq(timetableSlots.weekday, b.weekday), eq(timetableSlots.facultyId, b.facultyId)))).find((s) => !mine.has(s.id) && this.overlap(s, p)); if (clash) { const [bt] = await db.select({ n: batches.name }).from(batches).where(eq(batches.id, clash.batchId)); throw new BadRequestException(`This teacher already has ${clash.subject} with ${bt?.n || 'another class'} at that time`); } }
+    await db.delete(timetableSlots).where(here); // only now that the new lesson is known to be allowed
     const [row] = await db.insert(timetableSlots).values({ centreId, batchId: b.batchId, weekday: b.weekday, startTime: p.startTime, endTime: p.endTime, subject: b.subject.trim(), facultyId: b.facultyId || null, room: b.room || null, period: b.periodNo } as any).returning(); return row;
   }
 
