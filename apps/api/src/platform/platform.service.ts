@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { and, eq, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { centreSettings, centres, planCatalog, students, subscriptionInvoices, users } from '../db/schema';
+import { centreSettings, centres, couponRedemptions, coupons, planCatalog, students, subscriptionInvoices, users } from '../db/schema';
+import { discountFor, label as couponLabel, whyNot, type CouponRow } from './coupons';
 import { featuresFor, MODULES } from '../common/permissions';
 import { NotificationsService } from '../notifications/notifications.service';
 import { createPaymentLink, razorpayReady } from '../integrations/razorpay';
@@ -64,6 +65,33 @@ export class PlatformService {
 
   async activeStudents(centreId: string) { const [{ n }] = await this.dbs.db.select({ n: sql<number>`count(*)` }).from(students).where(and(eq(students.centreId, centreId), eq(students.active, true))); return Number(n); }
 
+  // ---------- coupons ----------
+  toRow(c: typeof coupons.$inferSelect): CouponRow { return { code: c.code, kind: c.kind === 'amount' ? 'amount' : 'percent', value: Number(c.value), plans: JSON.parse(c.plans || '[]'), scope: c.scope === 'every' ? 'every' : 'first', validFrom: c.validFrom, validTo: c.validTo, maxUses: c.maxUses, usedCount: c.usedCount, active: c.active }; }
+  async hasPaid(centreId: string) { const [{ n }] = await this.dbs.db.select({ n: sql<number>`count(*)` }).from(subscriptionInvoices).where(and(eq(subscriptionInvoices.centreId, centreId), eq(subscriptionInvoices.status, 'paid'))); return Number(n) > 0; }
+  /** Puts a coupon on a client (the owner does it, or the client types the code). Throws with a plain reason when it cannot be used. */
+  async attachCoupon(centreId: string, rawCode: string) {
+    const db = this.dbs.db; const code = String(rawCode || '').toUpperCase().replace(/[^A-Z0-9_-]/g, ''); if (!code) throw new BadRequestException('Enter a coupon code.');
+    const [c] = await db.select().from(coupons).where(eq(coupons.code, code)); if (!c) throw new BadRequestException('This coupon code is not valid.');
+    const [pc] = await db.select({ plan: centres.plan }).from(centres).where(eq(centres.id, centreId)); const why = whyNot(this.toRow(c), { plan: pc?.plan || 'core', today: today(), hasPaid: await this.hasPaid(centreId) }); if (why) throw new BadRequestException(why);
+    await db.update(centreSettings).set({ couponCode: code, updatedAt: new Date() }).where(eq(centreSettings.centreId, centreId));
+    const [due] = await db.select({ id: subscriptionInvoices.id }).from(subscriptionInvoices).where(and(eq(subscriptionInvoices.centreId, centreId), eq(subscriptionInvoices.status, 'due')));
+    return { ok: true, code, label: couponLabel(this.toRow(c)), dueInvoice: !!due };
+  }
+  async detachCoupon(centreId: string) { await this.dbs.db.update(centreSettings).set({ couponCode: null, updatedAt: new Date() }).where(eq(centreSettings.centreId, centreId)); return { ok: true }; }
+  /** The discount the attached coupon gives on an invoice of `amount` right now, or null (no coupon, or it no longer applies: it stays attached and is checked again next time). */
+  async couponFor(centreId: string, plan: string, amount: number): Promise<{ row: CouponRow; discount: number } | null> {
+    const db = this.dbs.db; const s: any = await this.settings(centreId); if (!s.couponCode) return null;
+    const [c] = await db.select().from(coupons).where(eq(coupons.code, s.couponCode)); if (!c) return null; const row = this.toRow(c);
+    if (whyNot(row, { plan, today: today(), hasPaid: await this.hasPaid(centreId) })) return null; const discount = discountFor(row, amount); return discount > 0 ? { row, discount } : null;
+  }
+  /** What the client sees about its coupon on the Subscription page. */
+  async couponStatus(centreId: string, plan: string, estimate: number) {
+    const db = this.dbs.db; const s: any = await this.settings(centreId); if (!s.couponCode) return null;
+    const [c] = await db.select().from(coupons).where(eq(coupons.code, s.couponCode)); if (!c) return { code: s.couponCode, label: '', problem: 'This coupon no longer exists.', discountNext: 0 };
+    const row = this.toRow(c); const problem = whyNot(row, { plan, today: today(), hasPaid: await this.hasPaid(centreId) });
+    return { code: row.code, label: couponLabel(row), scope: row.scope, validTo: row.validTo, problem, discountNext: problem ? 0 : discountFor(row, estimate) };
+  }
+
   /** Creates (or returns) the invoice for the next period. Core = students x rate; Pro = yearly package (+ setup the first time); Elite = the amount agreed with this client (+ setup the first time). */
   async raiseInvoice(centreId: string) {
     const db = this.dbs.db; const [pc] = await db.select({ plan: centres.plan, name: centres.name }).from(centres).where(eq(centres.id, centreId)); if (pc?.plan === 'demo') throw new BadRequestException('The demo package is free and is never billed.');
@@ -74,8 +102,10 @@ export class PlatformService {
     if (plan === 'core') { const annual = s.billingCycle === 'annual'; days = annual ? 365 : 30; amount = Math.round(n * rate * (annual ? 10 : 1)); note = `Edge Core: ${n} students x Rs ${rate}${annual ? ' x 10 months (2 months free)' : ' per month'}`; if (!(rate > 0)) throw new BadRequestException('Set the Edge Core price per student first (Billing & plans, Packs & prices, or this client\'s own price per student).'); }
     else if (plan === 'pro') { const y = Number(s.yearlyPrice); if (!(y > 0) && !(setup > 0)) throw new BadRequestException('Set the Edge Pro prices first (Billing & plans, Packs & prices, or this client\'s own setup and yearly price).'); days = 365; n = actual; rate = 0; amount = Math.round(y + setup); note = `Edge Pro: yearly package Rs ${y}${setup ? ` + one-time setup Rs ${setup}` : ''}`; }
     else { const a = Number(s.customAmount); if (!(a > 0) && !(setup > 0)) throw new BadRequestException('Set this client\'s Edge Elite amount first (Billing & plans, the client\'s Custom amount).'); const cyc = s.customCycle; days = cyc === 'monthly' ? 30 : cyc === 'quarterly' ? 90 : 365; n = actual; rate = 0; amount = Math.round(a + setup); note = `Edge Elite: custom package Rs ${a} ${cyc}${setup ? ` + one-time setup Rs ${setup}` : ''}${s.customNote ? ` (${s.customNote})` : ''}`; }
+    const cp = await this.couponFor(centreId, plan, amount); let discount = 0; if (cp) { discount = cp.discount; amount -= discount; note += ` - coupon ${cp.row.code} (${couponLabel(cp.row)}): Rs ${discount} off`; }
     const to = addDays(from, days);
-    const [inv] = await db.insert(subscriptionInvoices).values({ centreId, periodFrom: from, periodTo: to, students: n, pricePerStudent: String(rate), amount: String(amount), plan, setupFee: String(setup), note }).returning();
+    const [inv] = await db.insert(subscriptionInvoices).values({ centreId, periodFrom: from, periodTo: to, students: n, pricePerStudent: String(rate), amount: String(amount), plan, setupFee: String(setup), note, discount: String(discount), couponCode: cp ? cp.row.code : null }).returning();
+    if (amount <= 0) { await this.markPaid(inv.id, 'coupon', cp ? `Coupon ${cp.row.code}` : undefined); return { ...inv, status: 'paid' }; } // a 100% coupon: nothing to pay
     if (razorpayReady()) { try { const [ce] = await db.select().from(centres).where(eq(centres.id, centreId)); const [admin] = await db.select().from(users).where(and(eq(users.centreId, centreId), eq(users.role, 'ADMIN')));
       const link = await createPaymentLink(amount, `NextEdge subscription · ${ce.name}`, { name: admin?.name || ce.name, contact: admin?.mobile || '9999999999' }, `sub-${inv.id}`, { subscriptionInvoiceId: inv.id, centreId });
       await db.update(subscriptionInvoices).set({ paymentLink: link.short_url }).where(eq(subscriptionInvoices.id, inv.id)); inv.paymentLink = link.short_url; } catch (e: any) { this.log.warn(`Razorpay link failed: ${e.message}`); } }
@@ -85,6 +115,7 @@ export class PlatformService {
   async markPaid(invoiceId: string, mode: string, reference?: string) {
     const db = this.dbs.db; const [inv] = await db.select().from(subscriptionInvoices).where(eq(subscriptionInvoices.id, invoiceId)); if (!inv || inv.status === 'paid') return inv;
     await db.update(subscriptionInvoices).set({ status: 'paid', paidOn: today(), mode, reference: reference || inv.claimedRef || null }).where(eq(subscriptionInvoices.id, invoiceId));
+    if (inv.couponCode) { const [cp] = await db.select().from(coupons).where(eq(coupons.code, inv.couponCode)); if (cp) { await db.update(coupons).set({ usedCount: sql`${coupons.usedCount} + 1` }).where(eq(coupons.id, cp.id)); await db.insert(couponRedemptions).values({ couponId: cp.id, centreId: inv.centreId, invoiceId: inv.id, discount: inv.discount }); } }
     await db.update(centreSettings).set({ paidUntil: inv.periodTo, status: 'active', updatedAt: new Date(), ...(Number(inv.setupFee) > 0 ? { setupPaid: true } : {}) }).where(eq(centreSettings.centreId, inv.centreId));
     const admins = await db.select({ id: users.id }).from(users).where(and(eq(users.centreId, inv.centreId), eq(users.role, 'ADMIN')));
     this.notify.notifyUsers(inv.centreId, admins.map((a) => a.id), 'Subscription renewed ✅', `Paid ₹${Number(inv.amount).toLocaleString('en-IN')} · active till ${inv.periodTo}.`, { data: { type: 'subscription' } });

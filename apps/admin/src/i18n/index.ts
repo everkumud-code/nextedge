@@ -13,6 +13,7 @@ import { SCHOOL } from './dict-school';
 import { OFFICE } from './dict-office';
 import { PAGES } from './dict-pages';
 import { COMPLIANCE } from './dict-compliance';
+import { OFFERS } from './dict-offers';
 import { MORE } from './dict-more';
 
 export type Lang = 'en' | 'hi' | 'hn';
@@ -21,7 +22,7 @@ const norm = (s: string) => s.replace(/\s+/g, ' ').trim();
 const MAP = new Map<string, [string, string]>();
 // Sentences with a changing part are written with {n}: "{n} open doubts" matches "3 open doubts" and keeps the 3.
 const PATS: { re: RegExp; names: string[]; hi: string; hn: string }[] = [];
-for (const raw of [CORE, PEOPLE, MONEY, SCHOOL, OFFICE, PAGES, MORE, COMPLIANCE]) for (const line of raw.split('\n')) {
+for (const raw of [CORE, PEOPLE, MONEY, SCHOOL, OFFICE, PAGES, MORE, COMPLIANCE, OFFERS]) for (const line of raw.split('\n')) {
   const p = line.split(' | '); if (p.length < 3) continue; const en = norm(p[0]); if (!en) continue; const hi = p[1].trim(), hn = p.slice(2).join(' | ').trim();
   if (en.includes('{')) { const names: string[] = []; const src = en.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{(\w+)\}/g, (_m, nm) => { names.push(nm); return '(.+?)'; }); PATS.push({ re: new RegExp('^' + src + '$'), names, hi, hn }); }
   else MAP.set(en, [hi, hn]);

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { auditLog, batches, centreSettings, centres, facultyBatches, planCatalog, platformSettings, platformTeam, staffPermissions, students, subscriptionInvoices, users } from '../db/schema';
@@ -221,8 +221,12 @@ export class SubscriptionController {
     const [pc] = await this.dbs.db.select({ plan: centres.plan }).from(centres).where(eq(centres.id, u.centreId));
     const setupDue = !s.setupPaid ? Number(s.setupFee) : 0; const estimateNext = pc?.plan === 'pro' ? Number(s.yearlyPrice) + setupDue : pc?.plan === 'elite' ? Number(s.customAmount) + setupDue : Math.max(s.minStudents, n) * Number(s.pricePerStudent) * (s.billingCycle === 'annual' ? 10 : 1);
     const packName = (await this.svc.packs()).find((x) => x.key === pc?.plan)?.name || null;
-    return { ...safe, plan: pc?.plan, packName, activeStudents: n, openInvoice: inv || null, estimateNext };
+    const coupon = await this.svc.couponStatus(u.centreId, pc?.plan || 'core', estimateNext);
+    return { ...safe, plan: pc?.plan, packName, activeStudents: n, openInvoice: inv || null, estimateNext, coupon };
   }
+  /** The owner of a school / coaching types a coupon code the NextEdge team gave. */
+  @Post('coupon') @Roles('ADMIN') applyCoupon(@CurrentUser() u: JwtUser, @Body() b: { code: string }) { return this.svc.attachCoupon(u.centreId!, b.code); }
+  @Delete('coupon') @Roles('ADMIN') removeCoupon(@CurrentUser() u: JwtUser) { return this.svc.detachCoupon(u.centreId!); }
   @Post('invoice') @Roles('ADMIN') async raise(@CurrentUser() u: JwtUser) { return this.svc.raiseInvoice(u.centreId!); }
   /** Owner picks how live classes run: jitsi | zoom (needs Zoom S2S keys) | meet | teams | custom (standing link). */
   @Put('live-provider') @Roles('ADMIN') async provider(@CurrentUser() u: JwtUser, @Body() b: { liveProvider: string; zoomAccountId?: string; zoomClientId?: string; zoomClientSecret?: string; defaultMeetingUrl?: string }) {
