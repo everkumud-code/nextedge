@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, session } from '../api';
+import AutoTimetable from './AutoTimetable';
 const DAYS = [1, 2, 3, 4, 5, 6]; const DN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const ymd = (d: Date) => d.toISOString().slice(0, 10);
 const dayName = (s: string) => new Date(s + 'T00:00:00Z').toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' });
@@ -11,12 +12,13 @@ export default function TimetableSchool() {
   const [tab, setTab] = useState<string>(canEdit ? 'grid' : 'mine'); const [batches, setBatches] = useState<any[]>([]); const [faculty, setFaculty] = useState<any[]>([]); const [periods, setPeriods] = useState<any[]>([]); const [batchId, setBatchId] = useState('');
   const loadPeriods = () => api('/timetable/periods').then(setPeriods).catch(() => {});
   useEffect(() => { loadPeriods(); if (canEdit) { api('/batches').then((b) => { setBatches(b); if (b[0]) setBatchId(b[0].id); }); api('/timetable/faculty').then(setFaculty).catch(() => {}); } }, []);
-  const tabs: [string, string][] = canEdit ? [['grid', 'Class timetable'], ['subs', 'Substitutions'], ['load', 'Teacher load'], ['bells', 'Bell timings'], ['mine', 'My week']] : [['mine', 'My week']];
+  const tabs: [string, string][] = canEdit ? [['grid', 'Class timetable'], ['auto', 'Auto timetable'], ['subs', 'Substitutions'], ['load', 'Teacher load'], ['bells', 'Bell timings'], ['mine', 'My week']] : [['mine', 'My week']];
   return (
     <div>
       <h1 className="text-2xl font-bold">Timetable</h1>
       <div className="flex gap-2 mt-3 flex-wrap">{tabs.map(([k, l]) => <button key={k} className={tab === k ? 'btn' : 'btn-quiet'} onClick={() => setTab(k)}>{l}</button>)}</div>
       {tab === 'grid' && <Grid batches={batches} faculty={faculty} periods={periods} batchId={batchId} setBatchId={setBatchId} goBells={() => setTab('bells')} />}
+      {tab === 'auto' && <AutoTimetable batches={batches} faculty={faculty} periods={periods} goBells={() => setTab('bells')} />}
       {tab === 'bells' && <Bells periods={periods} onSaved={(p: any[]) => setPeriods(p)} />}
       {tab === 'subs' && <Subs batches={batches} />}
       {tab === 'load' && <Load />}

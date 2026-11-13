@@ -1,7 +1,7 @@
-import { BadRequestException, Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { auditLog, batches, centreSettings, centres, facultyBatches, platformSettings, staffPermissions, students, subscriptionInvoices, users } from '../db/schema';
+import { auditLog, batches, centreSettings, centres, facultyBatches, platformSettings, platformTeam, staffPermissions, students, subscriptionInvoices, users } from '../db/schema';
 import { Roles } from '../common/auth.guard';
 import { MODULES } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
@@ -15,11 +15,14 @@ import { featuresFor } from '../common/permissions';
 @Roles('SUPER_ADMIN')
 export class PlatformController {
   constructor(private dbs: DbService, private svc: PlatformService, private mail: MailService) {}
+  /** Team managers can run clients and billing; mailbox, OTP switch, deleting centres and the team list stay with the owner. */
+  private async ownerOnly(u: JwtUser) { const [t] = await this.dbs.db.select({ id: platformTeam.userId }).from(platformTeam).where(eq(platformTeam.userId, u.id)); if (t) throw new ForbiddenException('Only the platform owner can do this.'); }
 
   @Get('modules') modules() { return MODULES; }
   /** Super-admin mailbox (Gmail App Password) + OTP switch, managed from the Platform page. */
   @Get('email-status') async emailStatus() { const p = await this.mail.platform(); const box = await this.mail.platformMailbox(); return { configured: !!box, from: box?.from || null, user: p?.smtpUser || process.env.PLATFORM_SMTP_USER || null, verifiedAt: p?.smtpVerifiedAt || null, otpEnabled: await this.mail.otpEnabled(), otpModeEnv: (process.env.OTP_MODE || '').trim() || null, presets: SMTP_PRESETS }; }
-  @Put('email') async setEmail(@Body() b: { provider: string; host?: string; port?: number; user: string; pass: string; fromName?: string; testTo?: string }) {
+  @Put('email') async setEmail(@CurrentUser() u: JwtUser, @Body() b: { provider: string; host?: string; port?: number; user: string; pass: string; fromName?: string; testTo?: string }) {
+    await this.ownerOnly(u);
     const preset = SMTP_PRESETS[b.provider] || SMTP_PRESETS.gmail; const host = b.host || preset.host; const port = Number(b.port || preset.port);
     if (!host || !b.user || !b.pass) return { ok: false, error: 'Email and app password are required' };
     const smtp = { host, port, user: b.user.trim(), pass: b.pass.replace(/\s+/g, ''), from: `${b.fromName || 'NextEdge'} <${b.user.trim()}>` };
@@ -29,7 +32,8 @@ export class PlatformController {
     await this.dbs.db.update(platformSettings).set({ smtpHost: host, smtpPort: port, smtpUser: smtp.user, smtpPass: smtp.pass, smtpFrom: smtp.from, smtpVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(platformSettings.id, 'platform'));
     this.mail.invalidate(); return { ok: true };
   }
-  @Put('otp') async setOtp(@Body() b: { enabled: boolean }) {
+  @Put('otp') async setOtp(@CurrentUser() u: JwtUser, @Body() b: { enabled: boolean }) {
+    await this.ownerOnly(u);
     if (b.enabled && !(await this.mail.platformMailbox())) return { ok: false, error: 'Connect the platform mailbox first, so OTPs have a way to go out.' };
     await this.mail.platform(); await this.dbs.db.update(platformSettings).set({ otpEnabled: !!b.enabled, updatedAt: new Date() }).where(eq(platformSettings.id, 'platform')); this.mail.invalidate();
     return { ok: true, otpEnabled: await this.mail.otpEnabled(), note: (process.env.OTP_MODE || '').trim() ? `Server env OTP_MODE=${process.env.OTP_MODE} overrides this switch - clear it to use the switch.` : undefined };
@@ -112,14 +116,16 @@ export class PlatformController {
     });
   }
   /** Remove one client. The caller must type the exact name. */
-  @Post('centres/:id/delete') async removeCentre(@Param('id') id: string, @Body() b: { confirmName?: string }) {
+  @Post('centres/:id/delete') async removeCentre(@CurrentUser() u: JwtUser, @Param('id') id: string, @Body() b: { confirmName?: string }) {
+    await this.ownerOnly(u);
     const db = this.dbs.db; const [c] = await db.select().from(centres).where(eq(centres.id, id)); if (!c) throw new BadRequestException('No such client');
     if ((b.confirmName || '').trim().toLowerCase() !== c.name.trim().toLowerCase()) throw new BadRequestException('Type the exact name of the client to confirm');
     const [plat] = await db.select({ id: users.id }).from(users).where(and(eq(users.centreId, id), inArray(users.role, ['SUPER_ADMIN', 'EXPERT']))).limit(1); if (plat) throw new BadRequestException('This centre holds platform accounts and cannot be deleted');
     await this.purgeCentre(id); return { ok: true, deleted: c.name };
   }
   /** Remove every client whose name does not start with "Demo". dryRun=true only lists them. Real run needs confirm: "DELETE". */
-  @Post('centres/purge-non-demo') async purgeNonDemo(@Body() b: { dryRun?: boolean; confirm?: string }) {
+  @Post('centres/purge-non-demo') async purgeNonDemo(@CurrentUser() u: JwtUser, @Body() b: { dryRun?: boolean; confirm?: string }) {
+    await this.ownerOnly(u);
     const db = this.dbs.db; const all = await db.select().from(centres); const victims = all.filter((c) => !/^\s*demo\b/i.test(c.name));
     const info = await Promise.all(victims.map(async (c) => { const [n] = await db.select({ n: sql<number>`count(*)` }).from(students).where(eq(students.centreId, c.id)); const [ow] = await db.select({ email: users.email, name: users.name }).from(users).where(and(eq(users.centreId, c.id), eq(users.role, 'ADMIN'))).orderBy(users.createdAt).limit(1); return { id: c.id, name: c.name, type: (c as any).institutionType || 'coaching', students: Number(n.n), owner: ow?.name ? `${ow.name} · ${ow.email || ''}` : '' }; }));
     if (b.dryRun || b.confirm !== 'DELETE') return { dryRun: true, kept: all.filter((c) => /^\s*demo\b/i.test(c.name)).map((c) => c.name), willDelete: info };

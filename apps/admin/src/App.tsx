@@ -10,6 +10,7 @@ import Fees from './pages/Fees';
 import Notices from './pages/Notices';
 import Study from './pages/Study';
 import Timetable from './pages/Timetable';
+import Team from './pages/Team';
 import Clients from './pages/Clients';
 import TimetableSchool from './pages/TimetableSchool';
 import Alerts from './pages/Alerts';
@@ -84,6 +85,7 @@ export default function App() {
         <Route path="inbox" element={<Inbox />} />
         <Route path="wishes" element={<Wishes />} />
         <Route path="platform" element={<Platform />} />
+        <Route path="team" element={<Team />} />
         <Route path="subscription" element={<Subscription />} />
         <Route path="staff-attendance" element={<StaffAttendance />} />
         <Route path="counsellor" element={<Counsellor />} />

@@ -564,3 +564,31 @@ export const busLocations = pgTable('bus_locations', {
   lat: numeric('lat', { precision: 10, scale: 7 }).notNull(), lng: numeric('lng', { precision: 10, scale: 7 }).notNull(),
   speed: numeric('speed', { precision: 6, scale: 1 }), source: text('source'), at: timestamp('at').defaultNow().notNull(),
 });
+
+// ---------- Platform team: extra people who help run NextEdge itself (the original owner has no row here) ----------
+export const platformTeam = pgTable('platform_team', {
+  userId: uuid('user_id').primaryKey().references(() => users.id),
+  title: text('title'), // e.g. Support manager
+  active: boolean('active').default(true).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// ---------- Automatic timetable: what each class needs, and each teacher's limits ----------
+export const timetableRequirements = pgTable('timetable_requirements', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  batchId: uuid('batch_id').notNull(), // the class/section
+  subject: text('subject').notNull(),
+  facultyId: uuid('faculty_id'), // empty = no teacher needed (e.g. library, free study)
+  perWeek: integer('per_week').notNull().default(1),
+  doubles: integer('doubles').notNull().default(0), // how many of the periods are 2-period blocks (labs)
+  maxPerDay: integer('max_per_day'), // empty = decided automatically from periods/week
+});
+export const timetableTeacherRules = pgTable('timetable_teacher_rules', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  facultyId: uuid('faculty_id').notNull(),
+  maxPerDay: integer('max_per_day'), maxPerWeek: integer('max_per_week'),
+  offDays: text('off_days').default('[]').notNull(), // JSON [weekday numbers]
+  blocked: text('blocked').default('[]').notNull(), // JSON [{weekday, period}]
+});
