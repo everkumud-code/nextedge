@@ -28,6 +28,7 @@ import Staff from './pages/Staff';
 import Enquiries from './pages/Enquiries';
 import Inbox from './pages/Inbox';
 import Wishes from './pages/Wishes';
+import PostMaker from './pages/PostMaker';
 import Platform from './pages/Platform';
 import Subscription from './pages/Subscription';
 import StaffAttendance from './pages/StaffAttendance';
@@ -93,6 +94,7 @@ export default function App() {
         <Route path="enquiries" element={<Enquiries />} />
         <Route path="inbox" element={<Inbox />} />
         <Route path="wishes" element={<Wishes />} />
+        <Route path="post-maker" element={<PostMaker />} />
         <Route path="platform" element={<Platform />} />
         <Route path="team" element={<Team />} />
         <Route path="onboard" element={<Onboard />} />

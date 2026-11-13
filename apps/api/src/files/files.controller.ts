@@ -17,6 +17,7 @@ export class FilesController {
 
   @Post() @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF', 'FACULTY') async upload(@CurrentUser() u: JwtUser, @Body() b: UploadDto, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c); const db = this.dbs.db;
+    if (b.ownerKind === 'logo' && !['SUPER_ADMIN', 'ADMIN'].includes(u.role)) throw new ForbiddenException('Only the owner can change the logo.');
     const f = await saveFile(db, centreId, b);
     return { ...f, url: `/api/files/${f.id}` };
   }
