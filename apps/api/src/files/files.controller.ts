@@ -36,13 +36,14 @@ export class FilesController {
   @Public() @Get(':id') async get(@Param('id') id: string, @Req() req: any, @Res() res: any) {
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new NotFoundException();
     const [f] = await this.dbs.db.select().from(files).where(eq(files.id, id)); if (!f) throw new NotFoundException();
-    if (!f.isPublic) {
+    const open = f.isPublic && f.ownerKind !== 'student-photo'; // rows saved before this rule are marked public too
+    if (!open) {
       const tok = (req.query?.t as string) || (req.headers.authorization || '').replace('Bearer ', ''); if (!tok) throw new UnauthorizedException('Login required');
       let user: any; try { user = await this.jwt.verifyAsync(tok); } catch { throw new UnauthorizedException('Session expired'); }
       if (user.role !== 'SUPER_ADMIN' && user.centreId !== f.centreId) throw new ForbiddenException();
       if (!['SUPER_ADMIN', 'ADMIN', 'STAFF', 'FACULTY'].includes(user.role)) throw new ForbiddenException();
     }
-    res.setHeader('Content-Type', f.mime); res.setHeader('Content-Disposition', `inline; filename="${f.name.replace(/"/g, '')}"`); res.setHeader('Cache-Control', f.isPublic ? 'public, max-age=3600' : 'private, no-store');
+    res.setHeader('Content-Type', f.mime); res.setHeader('Content-Disposition', `inline; filename="${f.name.replace(/"/g, '')}"`); res.setHeader('Cache-Control', open ? 'public, max-age=3600' : 'private, no-store');
     res.end(Buffer.from(f.data, 'base64'));
   }
 

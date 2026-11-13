@@ -5,7 +5,8 @@ import { files } from '../db/schema';
 
 export const MIMES = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
 export const KINDS = ['student-photo', 'staff-photo', 'gallery', 'admission-doc', 'other'];
-export const PUBLIC_KINDS = ['student-photo', 'staff-photo', 'gallery'];
+/** Student photos are children’s personal data: staff-only (served through a login), never public. */
+export const PUBLIC_KINDS = ['staff-photo', 'gallery'];
 export const MAX_PDF_BYTES = 3 * 1024 * 1024; export const MAX_IMAGE_BYTES = 8 * 1024 * 1024;
 export type Upload = { ownerKind: string; ownerId?: string; name: string; mime: string; data: string };
 

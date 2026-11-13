@@ -36,7 +36,7 @@ export class InsightsController {
   }
 
   /** Board-compliance checks (CBSE norms are built in; other boards get the checks that are board-neutral). Advisory, never blocks anything. */
-  @Get('compliance') async compliance(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
+  @Get('compliance') async compliance(@CurrentUser() u: JwtUser, @Query('centreId') c?: string, @Query('lang') lang?: string) {
     const centreId = centreOf(u, c); const db = this.dbs.db; const s = await this.platform.settings(centreId);
     const bs = await db.select().from(batches).where(eq(batches.centreId, centreId)); const sts = await db.select().from(students).where(and(eq(students.centreId, centreId), eq(students.active, true)));
     const [{ t }] = await db.select({ t: sql<number>`count(*)` }).from(users).where(and(eq(users.centreId, centreId), eq(users.role, 'FACULTY')));
@@ -46,7 +46,7 @@ export class InsightsController {
     const bm = new Map(bs.map((b) => [b.id, b])); const strength = new Map<string, number>(); for (const x of sts) if (x.batchId) strength.set(x.batchId, (strength.get(x.batchId) || 0) + 1);
     const result = audit({ board: normBoard(s.board), profile: { academicSession: s.academicSession, affiliationNo: s.affiliationNo, udiseCode: s.udiseCode, principalName: s.principalName, board: s.board },
       sections: bs.map((b) => ({ id: b.id, label: b.name, className: b.className, strength: strength.get(b.id) || 0 })), teachers: Number(t),
-      students: sts.map((x) => ({ id: x.id, name: x.name, className: bm.get(x.batchId || '')?.className || x.className, section: bm.get(x.batchId || '')?.section, dob: x.dob, gender: x.gender, fatherName: x.fatherName, motherName: x.motherName, category: x.category, apaarId: x.apaarId, pen: x.pen, admissionNo: x.admissionNo })), attendance: att });
+      students: sts.map((x) => ({ id: x.id, name: x.name, className: bm.get(x.batchId || '')?.className || x.className, section: bm.get(x.batchId || '')?.section, dob: x.dob, gender: x.gender, fatherName: x.fatherName, motherName: x.motherName, category: x.category, apaarId: x.apaarId, pen: x.pen, admissionNo: x.admissionNo, photoConsent: x.photoConsent })), attendance: att }, lang === 'hi' || lang === 'hn' ? lang : 'en');
     return { ...result, boardText: s.board || '', students: sts.length, sections: bs.length, since: `${y}-04-01` };
   }
 
