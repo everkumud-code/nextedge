@@ -11,7 +11,7 @@ const standardBells = () => { const out: any[] = []; let t = 8 * 60; const f = (
 
 /** Onboard a school or coaching that is moving from another software: details, then their export file(s), then one click. */
 export default function Onboard() {
-  const [packs, setPacks] = useState<any[]>([]); const [f, setF] = useState({ institutionType: 'school', name: '', city: '', adminName: '', adminMobile: '', adminEmail: '', plan: 'core' });
+  const [packs, setPacks] = useState<any[]>([]); const [f, setF] = useState({ institutionType: 'school', name: '', city: '', adminName: '', adminMobile: '', adminEmail: '', plan: 'pro' });
   const [items, setItems] = useState<any[]>([]); const [busy, setBusy] = useState(false); const [err, setErr] = useState(''); const [createClasses, setCreateClasses] = useState(true); const [bells, setBells] = useState(true);
   const [progress, setProgress] = useState<string[]>([]); const [report, setReport] = useState<any>(null); const pick = useRef<HTMLInputElement>(null); const files = useRef<Map<string, File>>(new Map());
   const [kinds, setKinds] = useState<any[]>([]);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
 
-const PACKS: [string, string][] = [['core', 'Edge Core'], ['pro', 'Edge Pro'], ['elite', 'Edge Elite']];
+const PACKS: [string, string][] = [['pro', 'Edge Pro'], ['elite', 'Edge Elite']];
 const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 const blank = () => ({ id: '', code: '', title: '', kind: 'percent', value: '', plans: [] as string[], scope: 'first', validFrom: '', validTo: '', maxUses: '', active: true });
 const gen = () => 'NE' + Array.from({ length: 6 }, () => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[Math.floor(Math.random() * 32)]).join('');

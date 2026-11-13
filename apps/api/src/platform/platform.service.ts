@@ -17,11 +17,10 @@ export const PLAN_PRESETS: Record<string, { price: number; features: string[] }>
   // Demo package: every module (school and coaching alike), free, never billed, never expires. For demos, trials-with-everything and internal testing.
   demo: { price: 0, features: [...MODULES] },
 };
-/** First-run price list = the prices the owner gave on 13 Nov 2026. All of it can be changed on Billing & plans > Packs & prices. */
+/** First-run price list = the prices the owner gave on 13 Nov 2026: two packs only, Pro and Elite, one-time setup 71,402 and 18,905 a year. All of it can be changed on Billing & plans > Packs & prices. */
 export const PACK_DEFAULTS = [
-  { key: 'core', name: 'Edge Core', tagline: 'Pay per student, per month', pricePerStudent: '10', minStudents: 0, setupFee: '0', yearlyPrice: '0', customAmount: '0', customCycle: 'yearly', customNote: null, sortOrder: 1 },
-  { key: 'pro', name: 'Edge Pro', tagline: 'One-time setup plus a yearly package', pricePerStudent: '0', minStudents: 0, setupFee: '5000', yearlyPrice: '15000', customAmount: '0', customCycle: 'yearly', customNote: null, sortOrder: 2 },
-  { key: 'elite', name: 'Edge Elite', tagline: 'A custom package for your institution', pricePerStudent: '0', minStudents: 0, setupFee: '0', yearlyPrice: '0', customAmount: '21000', customCycle: 'yearly', customNote: null, sortOrder: 3 },
+  { key: 'pro', name: 'Edge Pro', tagline: 'One-time setup plus a yearly package', pricePerStudent: '0', minStudents: 0, setupFee: '71402', yearlyPrice: '18905', customAmount: '0', customCycle: 'yearly', customNote: null, sortOrder: 1 },
+  { key: 'elite', name: 'Edge Elite', tagline: 'One-time setup plus a yearly package', pricePerStudent: '0', minStudents: 0, setupFee: '71402', yearlyPrice: '18905', customAmount: '0', customCycle: 'yearly', customNote: null, sortOrder: 2 },
 ] as const;
 export const DEMO_CENTRE_NAMES = ['Demo Coaching Centre', 'Demo Public School'];
 
@@ -39,19 +38,20 @@ export class PlatformService {
   async packs() {
     const db = this.dbs.db; let rows = await db.select().from(planCatalog).orderBy(planCatalog.sortOrder);
     if (rows.length < PACK_DEFAULTS.length) { for (const d of PACK_DEFAULTS) if (!rows.some((r) => r.key === d.key)) await db.insert(planCatalog).values({ ...d } as any).onConflictDoNothing(); rows = await db.select().from(planCatalog).orderBy(planCatalog.sortOrder); }
+    // there is no other pack: the old pay-per-student one disappears once no client is on it
+    if (rows.some((r) => r.key === 'core') && !(await db.select({ id: centres.id }).from(centres).where(eq(centres.plan, 'core')).limit(1)).length) { await db.delete(planCatalog).where(eq(planCatalog.key, 'core')); rows = rows.filter((r) => r.key !== 'core'); }
     return rows;
   }
   /** What a client gets copied from the price list when it is put on a pack (the owner can then change that client's own numbers). */
   async packSettings(key: string) {
     const p = (await this.packs()).find((x) => x.key === key); if (!p) return {} as Record<string, any>;
-    if (key === 'core') return { pricePerStudent: p.pricePerStudent, minStudents: p.minStudents, billingCycle: 'monthly', setupFee: '0', yearlyPrice: '0', customAmount: '0' };
-    if (key === 'pro') return { pricePerStudent: '0', minStudents: 0, billingCycle: 'annual', setupFee: p.setupFee, yearlyPrice: p.yearlyPrice, customAmount: '0', setupPaid: false };
-    return { pricePerStudent: '0', minStudents: 0, billingCycle: 'annual', setupFee: p.setupFee, yearlyPrice: '0', customAmount: p.customAmount, customCycle: p.customCycle, setupPaid: false }; // elite: standard amount, changed per client
+    return { pricePerStudent: '0', minStudents: 0, billingCycle: 'annual', setupFee: p.setupFee, yearlyPrice: p.yearlyPrice, customAmount: '0', setupPaid: false };   // Pro and Elite: one-time setup + yearly package
   }
   /** Boot-time catch-up: centres created before a module existed get it if their type includes it (a coaching centre never gets school-only modules). */
   async migrateFeatures() {
     const db = this.dbs.db; await this.packs();
-    await db.update(centres).set({ plan: 'core' }).where(sql`${centres.plan} in ('starter', 'standard')`); // old plan names become Edge Core
+    await db.update(centres).set({ plan: 'pro' }).where(sql`${centres.plan} in ('starter', 'standard')`); // old plan names become Edge Pro
+    for (const c of await db.select({ id: centres.id }).from(centres).where(eq(centres.plan, 'core'))) { await db.update(centres).set({ plan: 'pro' }).where(eq(centres.id, c.id)); await this.settings(c.id); await db.update(centreSettings).set({ ...(await this.packSettings('pro')), updatedAt: new Date() } as any).where(eq(centreSettings.centreId, c.id)); } // the pay-per-student pack is gone
     // The two built-in demo clients run on the demo package so their logins never expire.
     for (const name of DEMO_CENTRE_NAMES) { const [c] = await db.select().from(centres).where(eq(centres.name, name)); if (c && c.plan !== 'demo') await db.update(centres).set({ plan: 'demo' }).where(eq(centres.id, c.id)); }
     const rows = await db.select({ id: centreSettings.centreId, f: centreSettings.features, t: centres.institutionType, plan: centres.plan, status: centreSettings.status }).from(centreSettings).innerJoin(centres, eq(centres.id, centreSettings.centreId));
@@ -100,8 +100,7 @@ export class PlatformService {
     const from = s.paidUntil ? addDays(s.paidUntil, 1) : today(); const setup = !s.setupPaid && plan !== 'core' ? Number(s.setupFee) : 0;
     let n = Math.max(s.minStudents, actual), rate = Number(s.pricePerStudent), amount = 0, days = 30, note = '';
     if (plan === 'core') { const annual = s.billingCycle === 'annual'; days = annual ? 365 : 30; amount = Math.round(n * rate * (annual ? 10 : 1)); note = `Edge Core: ${n} students x Rs ${rate}${annual ? ' x 10 months (2 months free)' : ' per month'}`; if (!(rate > 0)) throw new BadRequestException('Set the Edge Core price per student first (Billing & plans, Packs & prices, or this client\'s own price per student).'); }
-    else if (plan === 'pro') { const y = Number(s.yearlyPrice); if (!(y > 0) && !(setup > 0)) throw new BadRequestException('Set the Edge Pro prices first (Billing & plans, Packs & prices, or this client\'s own setup and yearly price).'); days = 365; n = actual; rate = 0; amount = Math.round(y + setup); note = `Edge Pro: yearly package Rs ${y}${setup ? ` + one-time setup Rs ${setup}` : ''}`; }
-    else { const a = Number(s.customAmount); if (!(a > 0) && !(setup > 0)) throw new BadRequestException('Set this client\'s Edge Elite amount first (Billing & plans, the client\'s Custom amount).'); const cyc = s.customCycle; days = cyc === 'monthly' ? 30 : cyc === 'quarterly' ? 90 : 365; n = actual; rate = 0; amount = Math.round(a + setup); note = `Edge Elite: custom package Rs ${a} ${cyc}${setup ? ` + one-time setup Rs ${setup}` : ''}${s.customNote ? ` (${s.customNote})` : ''}`; }
+    else { const y = Number(s.yearlyPrice); const label = plan === 'elite' ? 'Edge Elite' : 'Edge Pro'; if (!(y > 0) && !(setup > 0)) throw new BadRequestException(`Set the ${label} prices first (Billing & plans, Packs & prices, or this client's own setup and yearly price).`); days = 365; n = actual; rate = 0; amount = Math.round(y + setup); note = `${label}: yearly package Rs ${y}${setup ? ` + one-time setup Rs ${setup}` : ''}`; }
     const cp = await this.couponFor(centreId, plan, amount); let discount = 0; if (cp) { discount = cp.discount; amount -= discount; note += ` - coupon ${cp.row.code} (${couponLabel(cp.row)}): Rs ${discount} off`; }
     const to = addDays(from, days);
     const [inv] = await db.insert(subscriptionInvoices).values({ centreId, periodFrom: from, periodTo: to, students: n, pricePerStudent: String(rate), amount: String(amount), plan, setupFee: String(setup), note, discount: String(discount), couponCode: cp ? cp.row.code : null }).returning();

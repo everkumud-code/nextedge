@@ -10,7 +10,7 @@ export const centres = pgTable('centres', {
   id: uuid('id').primaryKey().defaultRandom(),
   name: text('name').notNull(),
   city: text('city'),
-  plan: text('plan').default('core').notNull(),
+  plan: text('plan').default('pro').notNull(),
   primaryColour: text('primary_colour').default('#F2A93B'),
   birthdayWish: text('birthday_wish'),
   institutionType: text('institution_type').default('coaching').notNull(), // coaching | school

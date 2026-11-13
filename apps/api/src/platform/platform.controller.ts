@@ -61,7 +61,7 @@ export class PlatformController {
     let updated = 0;
     if (b.applyToClients) {
       const ids = (await db.select({ id: centres.id }).from(centres).where(eq(centres.plan, key))).map((c) => c.id); const fresh = await this.svc.packSettings(key); const apply: any = { updatedAt: new Date() };
-      if (key === 'core') { apply.pricePerStudent = fresh.pricePerStudent; apply.minStudents = fresh.minStudents; } else if (key === 'pro') { apply.yearlyPrice = fresh.yearlyPrice; } else { apply.customAmount = fresh.customAmount; apply.customCycle = fresh.customCycle; }
+      if (key === 'core') { apply.pricePerStudent = fresh.pricePerStudent; apply.minStudents = fresh.minStudents; } else { apply.yearlyPrice = fresh.yearlyPrice; }
       for (const id of ids) { const a2: any = { ...apply }; if ((key === 'pro' || key === 'elite') && !(await this.svc.settings(id)).setupPaid) a2.setupFee = fresh.setupFee; await db.update(centreSettings).set(a2).where(eq(centreSettings.centreId, id)); updated++; }
     }
     return { ok: true, updated };

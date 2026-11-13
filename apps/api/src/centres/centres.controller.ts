@@ -22,7 +22,7 @@ export class CentresController {
   /** Onboard a centre with its first admin in one call. */
   @Post() async create(@Body() dto: CentreDto) {
     const type = dto.institutionType === 'school' ? 'school' : 'coaching';
-    const plan = dto.plan && PLAN_PRESETS[dto.plan] ? dto.plan : 'core'; const demo = plan === 'demo';
+    const plan = dto.plan && PLAN_PRESETS[dto.plan] ? dto.plan : 'pro'; const demo = plan === 'demo';
     const slug = await this.ws.freeSlug(dto.name, dto.slug?.trim().toLowerCase() || undefined);
     const [c] = await this.dbs.db.insert(centres).values({ name: dto.name, city: dto.city, plan, institutionType: type, slug }).returning();
     await this.dbs.db.insert(centreSettings).values({ centreId: c.id, features: JSON.stringify(featuresFor(type, plan)), ...(demo ? { status: 'active', pricePerStudent: '0', minStudents: 0 } : { trialEndsAt: new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10), ...(await this.platform.packSettings(plan)) }) }).onConflictDoNothing();
