@@ -22,6 +22,8 @@ export const KINDS: Record<string, { label: string; fields: FieldDef[] }> = {
     { key: 'address', label: 'Address', synonyms: ['address', 'residence', 'village', 'locality', 'city'] },
     { key: 'category', label: 'Category', synonyms: ['category', 'caste category', 'cat'] },
     { key: 'bloodGroup', label: 'Blood group', synonyms: ['blood group', 'blood', 'bg'] },
+    { key: 'apaarId', label: 'APAAR ID', synonyms: ['apaar', 'apaar id', 'apaar no', 'apar id', 'abc id', 'one nation one student id'] },
+    { key: 'pen', label: 'PEN (permanent education number)', synonyms: ['pen', 'pen no', 'pen number', 'permanent education number'] },
   ] },
   staff: { label: 'Teachers & staff', fields: [
     { key: 'name', label: 'Name', required: true, synonyms: ['name', 'teacher', 'teacher name', 'staff', 'staff name', 'employee', 'employee name', 'faculty', 'full name'] },
