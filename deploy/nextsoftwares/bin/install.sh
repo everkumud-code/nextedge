@@ -17,7 +17,9 @@ prepare() {
   fi
   say "files"
   mkdir -p /var/www/nextsoftwares-portal /var/www/letsencrypt-nextsoftwares /var/lib/nextsoftwares
+  chmod 755 /var/www/nextsoftwares-portal /var/www/letsencrypt-nextsoftwares
   sed "s/nextsoftwares\.in/$DOMAIN/g" "$SRC/portal/index.html" > /var/www/nextsoftwares-portal/index.html
+  mkdir -p /var/www/nextsoftwares-portal/manual; sed "s/nextsoftwares\.in/$DOMAIN/g" "$SRC/portal/manual/index.html" > /var/www/nextsoftwares-portal/manual/index.html; chmod -R a+rX /var/www/nextsoftwares-portal
   cp "$SRC/nginx/nextsoftwares.conf" /etc/nginx/sites-available/nextsoftwares   # written for nextsoftwares.in; for another domain edit it first
   install -m 755 "$HERE/nsw-sync.py" /usr/local/sbin/nsw-sync.py
   mkdir -p /etc/nginx/snippets; install -m 644 "$SRC/nginx/nsw-workspace.conf" /etc/nginx/snippets/nsw-workspace.conf
@@ -52,7 +54,8 @@ go_live() {
     # a temporary http-only site answers the challenge (the real one needs the certificate that does not exist yet)
     printf 'server { listen 80; listen [::]:80; server_name %s www.%s; location /.well-known/acme-challenge/ { root /var/www/letsencrypt-nextsoftwares; } location / { return 404; } }\n' "$DOMAIN" "$DOMAIN" > /etc/nginx/sites-enabled/nextsoftwares-acme
     nginx -t && systemctl reload nginx
-    certbot certonly --webroot -w /var/www/letsencrypt-nextsoftwares -d "$DOMAIN" -d "www.$DOMAIN" --cert-name "$DOMAIN" --non-interactive --agree-tos -m "$CERT_EMAIL"
+    chmod 755 /var/www/letsencrypt-nextsoftwares   # nginx workers must read the challenge files (prepare runs with umask 077, which made it 700 -> 403)
+    certbot certonly --webroot -w /var/www/letsencrypt-nextsoftwares -d "$DOMAIN" -d "www.$DOMAIN" --cert-name "$DOMAIN" --non-interactive --agree-tos -m "$CERT_EMAIL" || { rm -f /etc/nginx/sites-enabled/nextsoftwares-acme; nginx -t && systemctl reload nginx; die "certificate request failed; the temporary site was removed"; }
     rm -f /etc/nginx/sites-enabled/nextsoftwares-acme
   fi
   say "turning the site on"

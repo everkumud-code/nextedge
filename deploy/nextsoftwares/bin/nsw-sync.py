@@ -13,7 +13,7 @@ import fcntl, json, os, re, socket, subprocess, sys, time, urllib.request
 
 ENV_FILE = os.environ.get("NSW_ENV", "/etc/nextsoftwares.env")
 STATE_DIR = "/var/lib/nextsoftwares"; HOSTS_FILE = "/etc/nginx/nextsoftwares-hosts.conf"; LIVE_DIR = "/etc/letsencrypt/live"; WEBROOT = "/var/www/letsencrypt-nextsoftwares"
-FIXED = {"fit": "brands", "glow": "brands", "care": "brands"}        # the three separate brand logins
+FIXED = {"admin": "edge", "fit": "brands", "glow": "brands", "care": "brands"}        # admin = the NextEdge platform team's login; the three separate brand logins
 UPSTREAM = {"edge": ("http://127.0.0.1:3013", "http://127.0.0.1:3012"), "brands": ("http://127.0.0.1:4000", "http://127.0.0.1:4000")}   # (web app, api)
 PRODUCTS = [("edge", "http://127.0.0.1:3012/api/workspace/internal/list"), ("brands", "http://127.0.0.1:4000/internal/workspaces")]
 SLUG = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")
