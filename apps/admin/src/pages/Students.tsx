@@ -3,7 +3,13 @@ import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { canDownload, api, session } from '../api';
 
-const blank = () => ({ name: '', batchId: '', rollNo: '', dob: '', gender: '', parentName: '', fatherName: '', motherName: '', parentMobile: '', parentEmail: '', mobile: '', email: '', address: '', category: '', religion: '', bloodGroup: '', previousSchool: '', admissionNo: '', className: '', apaarId: '', pen: '', photoConsent: '' });
+/** The school's houses as a drop-down (empty when the school has none). */
+function HouseSelect({ value, onChange }: { value: string; onChange: (e: any) => void }) {
+  const [hs, setHs] = useState<any[]>([]); useEffect(() => { api('/houses').then((r) => setHs(r.houses || [])).catch(() => {}); }, []);
+  return <select className="input" value={value} onChange={onChange}><option value="">{hs.length ? '— no house —' : 'No houses yet (add them in Houses)'}</option>{hs.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}</select>;
+}
+
+const blank = () => ({ name: '', batchId: '', rollNo: '', dob: '', gender: '', parentName: '', fatherName: '', motherName: '', parentMobile: '', parentEmail: '', mobile: '', email: '', address: '', category: '', religion: '', bloodGroup: '', previousSchool: '', admissionNo: '', className: '', apaarId: '', pen: '', photoConsent: '', houseId: '' });
 const PAGE = 50;
 // Defined outside the screen component on purpose: a component created inside another one is rebuilt on every keystroke and the typing box loses focus.
 const F = ({ label, children, span }: any) => <div className={span ? `col-span-${span}` : ''}><label className="text-sm font-medium">{label}</label>{children}</div>;
@@ -26,7 +32,7 @@ export default function Students() {
   async function save() {
     setErr(''); try {
       const body: any = { ...form }; const pc = form.photoConsent; Object.keys(body).forEach((k) => body[k] === '' && delete body[k]); body.photoConsent = pc === 'yes' || pc === true ? true : pc === 'no' || pc === false ? false : null; const id = form.id; delete body.id;
-      if (id) { ['createdAt', 'centreId', 'userId', 'active', 'leftOn', 'leftReason', 'photoUrl', 'admissionDate', 'className'].forEach((k) => delete body[k]); ['parentEmail', 'email', 'dob', 'gender', 'fatherName', 'motherName', 'address', 'category', 'religion', 'bloodGroup', 'previousSchool', 'mobile', 'parentName', 'apaarId', 'pen'].forEach((k) => { if (form[k] === '' ) body[k] = ''; }); await api(`/students/${id}`, { method: 'PUT', body: JSON.stringify(body) }); setMsg('Student updated'); }
+      if (id) { ['createdAt', 'centreId', 'userId', 'active', 'leftOn', 'leftReason', 'photoUrl', 'admissionDate', 'className'].forEach((k) => delete body[k]); ['parentEmail', 'email', 'dob', 'gender', 'fatherName', 'motherName', 'address', 'category', 'religion', 'bloodGroup', 'previousSchool', 'mobile', 'parentName', 'apaarId', 'pen', 'houseId'].forEach((k) => { if (form[k] === '' ) body[k] = ''; }); await api(`/students/${id}`, { method: 'PUT', body: JSON.stringify(body) }); setMsg('Student updated'); }
       else { await api('/students', { method: 'POST', body: JSON.stringify(body) }); setMsg(`${form.name} added — parent login created`); }
       setForm(null); load();
     } catch (e: any) { setErr(e.message); }
@@ -98,7 +104,7 @@ export default function Students() {
           <F label="Parent email * (login)"><input className="input" type="email" value={form.parentEmail || ''} onChange={set('parentEmail')} /></F>
           <F label="Student mobile (own login)"><input className="input" maxLength={10} value={form.mobile || ''} onChange={set('mobile')} /></F>
           <F label="Student email (own login)"><input className="input" type="email" value={form.email || ''} onChange={set('email')} /></F>
-          {school && <><F label="Category"><select className="input" value={form.category} onChange={set('category')}><option value="">—</option>{['General', 'OBC', 'SC', 'ST', 'EWS'].map((c) => <option key={c}>{c}</option>)}</select></F><F label="Religion"><input className="input" value={form.religion} onChange={set('religion')} /></F><F label="Previous school" span={2}><input className="input" value={form.previousSchool} onChange={set('previousSchool')} /></F><F label="APAAR ID (12 digits)" span={2}><input className="input" inputMode="numeric" placeholder="or write: refused / not generated" value={form.apaarId || ''} onChange={set('apaarId')} /></F><F label="PEN (11 digits)" span={2}><input className="input" inputMode="numeric" value={form.pen || ''} onChange={set('pen')} /></F><F label="Photo may be shown (events, notices, website)" span={4}><select className="input" value={form.photoConsent === true ? 'yes' : form.photoConsent === false ? 'no' : form.photoConsent || ''} onChange={set('photoConsent')}><option value="">Not asked yet</option><option value="yes">Yes — parent agreed</option><option value="no">No — parent refused</option></select></F></>}
+          {school && <><F label="Category"><select className="input" value={form.category} onChange={set('category')}><option value="">—</option>{['General', 'OBC', 'SC', 'ST', 'EWS'].map((c) => <option key={c}>{c}</option>)}</select></F><F label="Religion"><input className="input" value={form.religion} onChange={set('religion')} /></F><F label="Previous school" span={2}><input className="input" value={form.previousSchool} onChange={set('previousSchool')} /></F><F label="APAAR ID (12 digits)" span={2}><input className="input" inputMode="numeric" placeholder="or write: refused / not generated" value={form.apaarId || ''} onChange={set('apaarId')} /></F><F label="PEN (11 digits)" span={2}><input className="input" inputMode="numeric" value={form.pen || ''} onChange={set('pen')} /></F><F label="Photo may be shown (events, notices, website)" span={4}><select className="input" value={form.photoConsent === true ? 'yes' : form.photoConsent === false ? 'no' : form.photoConsent || ''} onChange={set('photoConsent')}><option value="">Not asked yet</option><option value="yes">Yes — parent agreed</option><option value="no">No — parent refused</option></select></F><F label="House" span={4}><HouseSelect value={form.houseId || ''} onChange={set('houseId')} /></F></>}
           <F label="Address" span={4}><input className="input" value={form.address} onChange={set('address')} /></F>
         </div>
         {err && <p className="text-brick text-sm mt-3">{err}</p>}

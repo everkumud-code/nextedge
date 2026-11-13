@@ -41,6 +41,7 @@ import Payroll from './pages/Payroll';
 import Biometric from './pages/Biometric';
 import Insights from './pages/Insights';
 import Compliance from './pages/Compliance';
+import Houses from './pages/Houses';
 import Offers from './pages/Offers';
 import Library from './pages/Library';
 import SchoolProfile from './pages/SchoolProfile';
@@ -67,6 +68,7 @@ export default function App() {
         <Route path="biometric" element={<Biometric />} />
         <Route path="insights" element={<Insights />} />
         <Route path="compliance" element={<Compliance />} />
+        <Route path="houses" element={<Houses />} />
         <Route path="offers" element={<Offers />} />
         <Route path="library" element={<Library />} />
         <Route path="school-profile" element={<SchoolProfile />} />
