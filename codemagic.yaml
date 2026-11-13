@@ -78,7 +78,7 @@ workflows:
       # Set per client (from Platform page → Copy build variables): CENTRE_ID, APP_NAME, PACKAGE_ID, APP_COLOUR, APP_LOGO_URL, APP_ICON_URL, API_BASE
       # For Play Store signing add a keystore under Codemagic → Code signing identities and reference it here.
       vars:
-        API_BASE: https://coaching-connect-api.onrender.com/api
+        API_BASE: https://nextedge.nextresource.in/api
     scripts:
       - name: Create platform folders
         script: cd apps/mobile && flutter create . --org in.nextedge --project-name coaching_connect --platforms android,ios

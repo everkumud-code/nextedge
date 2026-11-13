@@ -1,6 +1,6 @@
 # Demo logins (no password, no OTP while OTP_MODE=none)
 
-Admin panel: https://coaching-connect-admin.onrender.com — type the **coaching/school name** exactly, then the email, then Login.
+Admin panel: https://nextedge.nextresource.in — type the **coaching/school name** exactly, then the email, then Login.
 
 ## Demo Coaching Centre (coaching)
 | Role | Email |

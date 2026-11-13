@@ -14,7 +14,7 @@ async function bootstrap() {
   if (process.env.SEED_ON_BOOT === 'true') { try { await (await import('./db/seed')).seed(); } catch (e) { console.error('Seed failed', e); } }
   const app = await NestFactory.create<any>(AppModule, { rawBody: true });
   app.useBodyParser('json', { limit: '12mb' });
-  const co = process.env.CORS_ORIGIN; const listed = co && co !== '*' ? co.split(',').map((x) => x.trim()) : null; const own = /^https:\/\/coaching-connect-[a-z0-9-]+\.onrender\.com$/; /* our own admin panel and web app on Render are always allowed */ app.enableCors({ origin: listed ? (o: string | undefined, cb: (e: Error | null, ok?: boolean) => void) => cb(null, !o || listed.includes(o) || own.test(o)) : true, credentials: true });
+  const co = process.env.CORS_ORIGIN; const listed = co && co !== '*' ? co.split(',').map((x) => x.trim()) : null; app.enableCors({ origin: listed ? (o: string | undefined, cb: (e: Error | null, ok?: boolean) => void) => cb(null, !o || listed.includes(o)) : true, credentials: true });
   app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
   app.useGlobalFilters(new SafeInputFilter(app.get(HttpAdapterHost).httpAdapter));
   app.use('/iclock', require('express').text({ type: () => true, limit: '2mb' })); // biometric machines send plain text

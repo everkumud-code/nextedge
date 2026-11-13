@@ -13,7 +13,7 @@ Full, editable SOW with diagrams: https://claude.ai/code/artifact/fabb1bea-a996-
 6. Chat — batch group, student↔faculty, parent↔centre, broadcast; moderation, keyword filter, no phone numbers exposed, 12-month retention.
 7. Management — admissions + Excel import, batches/timetable with clash detection, attendance (QR/roll call/live), fees (plans, Razorpay, receipts, dues, defaulters), faculty hours, enquiry CRM, reports dashboard, parent monthly PDF.
 
-**Architecture:** Flutter app + React admin → NestJS API on Render (centre_id on every row, JWT + role per call) → Postgres, Redis, Cloudflare R2; external: Agora, Razorpay, Firebase (FCM), MSG91/WhatsApp API. White-label = one binary per centre from a config file; shared backend.
+**Architecture:** Flutter app + React admin → NestJS API on your own server (centre_id on every row, JWT + role per call) → Postgres, Redis, Cloudflare R2; external: Agora, Razorpay, Firebase (FCM), MSG91/WhatsApp API. White-label = one binary per centre from a config file; shared backend.
 
 **Non-functional:** Android 9+/iOS 14+, <40 MB, 2 GB RAM phones; home <2 s on 4G; offline notes/timetable; 500 centres / 2 lakh students; 99.5% uptime; DPDP Act 2023, data in India, no ad SDKs; EN + HI UI; audit log on fees/attendance/marks.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the whole Flutter app for the web, so it can be opened in iPhone Safari (or any browser) and added to the Home Screen.
-# Used by the Render static site "coaching-connect-app": build command  bash apps/mobile/render_build.sh , publish path  apps/mobile/build/web
+# Run:  bash apps/mobile/build_web.sh   -> the site is created in apps/mobile/build/web (serve it from any web server).
 set -euo pipefail
 cd "$(dirname "$0")"
 FL="$HOME/flutter"

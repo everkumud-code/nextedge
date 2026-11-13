@@ -83,7 +83,7 @@ export class AttendanceController {
   }
 
   /** CSV of the monthly register (opens in Excel). */
-  @Get('register.csv') @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF')
+  @Get('register.csv') @Roles('SUPER_ADMIN', 'ADMIN') /* data export: owner only, never staff */
   async registerCsv(@CurrentUser() u: JwtUser, @Query('batchId') batchId: string, @Query('month') month: string, @Res() res: any, @Query('centreId') c?: string) {
     const r = await this.register(u, batchId, month, c); const code: Record<string, string> = { PRESENT: 'P', ABSENT: 'A', LATE: 'L', LEAVE: 'Lv' };
     const lines = [['Roll', 'Name', ...r.days.map((d) => d.slice(8)), 'Present', 'Total', '%'].join(','), ...r.students.map((s) => [s.rollNo || '', `"${s.name}"`, ...r.days.map((d) => code[s.days[d]] || ''), s.present, s.total, s.pct ?? ''].join(','))];

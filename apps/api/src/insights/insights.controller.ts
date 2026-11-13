@@ -35,7 +35,7 @@ export class InsightsController {
   }
 
   /** UDISE+ style exports. type = students | staff | enrolment */
-  @Get('udise.csv') async udise(@CurrentUser() u: JwtUser, @Res() res: any, @Query('type') type = 'enrolment', @Query('centreId') c?: string) {
+  @Get('udise.csv') @Roles('SUPER_ADMIN', 'ADMIN') /* data export: owner only, never staff */ async udise(@CurrentUser() u: JwtUser, @Res() res: any, @Query('type') type = 'enrolment', @Query('centreId') c?: string) {
     const centreId = centreOf(u, c); const db = this.dbs.db; const s = await this.platform.settings(centreId); const [ce] = await db.select().from(centres).where(eq(centres.id, centreId)); let lines: string[] = [];
     const sts = await db.select().from(students).where(and(eq(students.centreId, centreId), eq(students.active, true))); const bs = await db.select().from(batches).where(eq(batches.centreId, centreId)); const bn = (id: string | null) => bs.find((b) => b.id === id);
     if (type === 'students') {

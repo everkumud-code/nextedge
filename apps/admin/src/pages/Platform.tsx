@@ -26,7 +26,7 @@ export default function Platform() {
           <div><label className="text-sm font-medium">App password (16 letters)</label><input className="input" type="password" placeholder="xxxx xxxx xxxx xxxx" value={pm.pass} onChange={(e) => setPm({ ...pm, pass: e.target.value })} /></div>
           <div><label className="text-sm font-medium">Sender name</label><input className="input" value={pm.fromName} onChange={(e) => setPm({ ...pm, fromName: e.target.value })} /></div>
         </div>
-        <p className="text-xs text-slate-500 mt-2">Gmail: turn on 2-Step Verification, then <a className="underline" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">myaccount.google.com/apppasswords</a> → create → paste the 16-letter password here. Works on hosting with outbound email (Hostinger VPS / Render paid); Render free blocks it.</p>
+        <p className="text-xs text-slate-500 mt-2">Gmail: turn on 2-Step Verification, then <a className="underline" href="https://myaccount.google.com/apppasswords" target="_blank" rel="noreferrer">myaccount.google.com/apppasswords</a> → create → paste the 16-letter password here. Works on any server that can send email (a normal VPS does).</p>
         <div className="flex items-center gap-3 mt-2"><button className="btn" disabled={!pm.user || !pm.pass} onClick={async () => { setPmMsg('Testing…'); const r = await api('/platform/email', { method: 'PUT', body: JSON.stringify(pm) }); setPmMsg(r.ok ? 'Connected — test mail sent to your inbox' : r.error); if (r.ok) { setPm({ ...pm, pass: '' }); loadEs(); } }}>Test & save</button>{pmMsg && <span className="text-sm">{pmMsg}</span>}</div>
       </div>}
       <PacksCard />

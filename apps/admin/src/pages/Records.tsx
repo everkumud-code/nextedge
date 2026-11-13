@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { api, session, uploadFile, openPdf, downloadFile } from '../api';
+import { api, session, uploadFile, openPdf, downloadFile, canDownload } from '../api';
 import LiveBus from '../components/LiveBus';
 const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
 const today = new Date().toISOString().slice(0, 10);
@@ -50,7 +50,7 @@ export default function Records() {
         <button className="btn" onClick={() => setForm(blank())}>+ Add {kd.label.toLowerCase().replace(/s$/, '')}</button>
         <input className="input w-56" placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="flex gap-1">{['', ...kd.statuses].map((s) => <button key={s} className={`px-3 py-1 rounded-full border text-sm ${statusF === s ? 'border-edge-500 bg-edge-100' : 'border-slate-200'}`} onClick={() => setStatusF(s)}>{s || 'all'} {s ? counts[s] || 0 : rows.length}</button>)}</div>
-        <button className="btn-quiet ml-auto" onClick={csv}>Excel (CSV)</button>
+        {canDownload() && <button className="btn-quiet ml-auto" onClick={csv}>Excel (CSV)</button>}
       </div>
       {msg && <p className="text-sm mt-2 text-moss">{msg}</p>}
       <table className="card w-full mt-4 text-sm"><thead><tr>{kd.dateLabel !== null && <th className="th">Date</th>}<th className="th">{kd.titleLabel}</th>{kd.about === 'student' && <th className="th">Student</th>}{kd.about === 'staff' && <th className="th">Staff</th>}{kd.ref && <th className="th">{kd.ref.label}</th>}{cols.map((c: any) => <th key={c.key} className="th">{c.label}</th>)}<th className="th">Status</th><th className="th"></th></tr></thead>

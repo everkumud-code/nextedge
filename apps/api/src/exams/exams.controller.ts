@@ -114,7 +114,7 @@ export class ExamsController {
   }
 
   /** Report cards of a whole class in one PDF (one student after another). */
-  @Get('report-cards.pdf') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF', 'FACULTY') async classCards(@CurrentUser() u: JwtUser, @Res() res: any, @Query('batchId') batchId: string, @Query('term') term?: string, @Query('centreId') c?: string) {
+  @Get('report-cards.pdf') @Roles('SUPER_ADMIN', 'ADMIN') /* bulk download: owner only; one student's card stays open to staff */ async classCards(@CurrentUser() u: JwtUser, @Res() res: any, @Query('batchId') batchId: string, @Query('term') term?: string, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c); const db = this.dbs.db; if (!batchId) throw new BadRequestException('Choose a class');
     const list = await db.select().from(students).where(and(eq(students.centreId, centreId), eq(students.batchId, batchId), eq(students.active, true))); if (!list.length) throw new NotFoundException('No students in this class');
     list.sort((a, b) => (parseInt(a.rollNo || '0') || 9999) - (parseInt(b.rollNo || '0') || 9999) || a.name.localeCompare(b.name));

@@ -8,10 +8,9 @@ White-label app + admin panel for coaching centres (students, parents, faculty, 
 - `docs/SOW.md` — full scope of work
 - `CLAUDE.md` — build rules and backlog for Claude Code
 
-## Deploy on Render (one click)
-1. Push this repo to GitHub.
-2. Render Dashboard → **New → Blueprint** → pick the repo → Apply. `render.yaml` creates the API, admin site, Postgres and Redis.
-3. Open the API shell on Render once and run `npm run db:seed` to create the demo centre.
-4. Admin panel URL is shown on the `coaching-connect-admin` service. Login: `9999900001`, OTP `123456` (dev mode).
+## Run it on your own server (Docker)
+1. Copy `deploy/.env.example` to `.env` and set `DOMAIN`, `API_DOMAIN`, the database password and `JWT_SECRET`.
+2. `docker compose up -d --build` starts the API, the admin panel, Postgres and Redis. On a shared server use `deploy/vps/` (it runs everything on 127.0.0.1 behind nginx).
+3. The admin panel is served at your `DOMAIN`. For a demo database set `SEED_ON_BOOT=true` once.
 
 See `SETUP-HINDI.md` for the step-by-step guide in Hindi.

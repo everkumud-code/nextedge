@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api, session, downloadFile } from '../api';
+import { api, session, downloadFile, canDownload } from '../api';
 type Status = 'PRESENT' | 'ABSENT' | 'LATE' | 'LEAVE';
 const today = new Date().toISOString().slice(0, 10); const thisMonth = today.slice(0, 7);
 const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
@@ -73,7 +73,7 @@ export default function Attendance() {
         <div className="flex gap-3 mt-4 items-end flex-wrap">
           <div><label className="text-sm font-medium">Batch</label><select className="input" value={batchId} onChange={(e) => setBatchId(e.target.value)}>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>
           <div><label className="text-sm font-medium">Month</label><input className="input" type="month" max={thisMonth} value={month} onChange={(e) => setMonth(e.target.value)} /></div>
-          <a className="btn-quiet" href={`${API}/attendance/register.csv?batchId=${batchId}&month=${month}`} onClick={async (e) => { e.preventDefault(); await downloadFile(`/attendance/register.csv?batchId=${batchId}&month=${month}`, `attendance-${batchName}-${month}.csv`); }}>Download Excel (CSV)</a>
+          {canDownload() && <a className="btn-quiet" href={`${API}/attendance/register.csv?batchId=${batchId}&month=${month}`} onClick={async (e) => { e.preventDefault(); await downloadFile(`/attendance/register.csv?batchId=${batchId}&month=${month}`, `attendance-${batchName}-${month}.csv`); }}>Download Excel (CSV)</a>}
           <button className="btn-quiet" onClick={() => window.print()}>Print</button>
         </div>
         {reg && <div className="card mt-4 overflow-x-auto"><table className="w-full text-xs"><thead><tr><th className="th sticky left-0 bg-white">Roll</th><th className="th sticky left-12 bg-white">Student</th>{reg.days.map((d: string) => <th key={d} className="th text-center px-1">{d.slice(8)}</th>)}<th className="th text-center">P</th><th className="th text-center">T</th><th className="th text-center">%</th></tr></thead>

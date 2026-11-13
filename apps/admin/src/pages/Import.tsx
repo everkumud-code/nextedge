@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { api } from '../api';
+import { api, downloadFile } from '../api';
 
 const toData = (f: File) => new Promise<string>((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result)); fr.onerror = () => rej(new Error('Could not read the file')); fr.readAsDataURL(f); });
 const isImage = (f?: File | null) => !!f && (/^image\//.test(f.type) || /\.(jpe?g|png|webp)$/i.test(f.name));
@@ -7,7 +7,7 @@ const csvOf = (head: string[], rows: string[][]) => [head, ...rows].map((r) => r
 
 /** Import students, teachers, enquiries, books or stock from Excel, CSV, Word, PDF or a photo of a register: read -> check -> fix -> import. */
 export default function Import() {
-  const [meta, setMeta] = useState<{ ai: boolean; kinds: any[] } | null>(null); const [kind, setKind] = useState('students'); const [file, setFile] = useState<File | null>(null); const [batches, setBatches] = useState<any[]>([]); const [batchId, setBatchId] = useState('');
+  const [meta, setMeta] = useState<{ ai: boolean; kinds: any[] } | null>(null); const [kind, setKind] = useState('students'); const [file, setFile] = useState<File | null>(null); const [batches, setBatches] = useState<any[]>([]); const [batchId, setBatchId] = useState(''); const [createClasses, setCreateClasses] = useState(true);
   const [data, setData] = useState<any>(null); const [rows, setRows] = useState<string[][]>([]); const [mapping, setMapping] = useState<Record<number, string>>({}); const [check, setCheck] = useState<any[] | null>(null); const [done, setDone] = useState<any>(null);
   const [busy, setBusy] = useState(false); const [err, setErr] = useState(''); const pick = useRef<HTMLInputElement>(null); const seq = useRef(0);
   useEffect(() => { api('/import/kinds').then(setMeta).catch((e) => setErr(e.message)); api('/batches').then(setBatches).catch(() => {}); }, []);
@@ -15,7 +15,7 @@ export default function Import() {
   const records = useMemo(() => rows.map((r) => Object.fromEntries(Object.entries(mapping).filter(([, k]) => k).map(([i, k]) => [k, r[Number(i)] ?? '']))), [rows, mapping]);
   const missing = (def?.fields || []).filter((f: any) => f.required && !Object.values(mapping).includes(f.key) && !(kind === 'students' && f.key === 'class'));
 
-  async function runCheck(recs = records) { const my = ++seq.current; if (!recs.length || !def) return; try { const r = await api('/import/commit', { method: 'POST', body: JSON.stringify({ kind, rows: recs, batchId: batchId || undefined, dryRun: true }) }); if (my === seq.current) setCheck(r.results); } catch (e: any) { if (my === seq.current) setErr(e.message); } }
+  async function runCheck(recs = records) { const my = ++seq.current; if (!recs.length || !def) return; try { const r = await api('/import/commit', { method: 'POST', body: JSON.stringify({ kind, rows: recs, batchId: batchId || undefined, dryRun: true, createClasses: kind === 'students' && createClasses }) }); if (my === seq.current) setCheck(r.results); } catch (e: any) { if (my === seq.current) setErr(e.message); } }
   useEffect(() => { if (data) { const t = setTimeout(() => runCheck(), 350); return () => clearTimeout(t); } }, [rows, mapping, batchId, kind, data]);
 
   async function read() {
@@ -24,7 +24,7 @@ export default function Import() {
     catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
   async function doImport() {
-    setErr(''); setBusy(true); try { const r = await api('/import/commit', { method: 'POST', body: JSON.stringify({ kind, rows: records, batchId: batchId || undefined }) }); setDone(r); } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+    setErr(''); setBusy(true); try { const r = await api('/import/commit', { method: 'POST', body: JSON.stringify({ kind, rows: records, batchId: batchId || undefined, createClasses: kind === 'students' && createClasses }) }); setDone(r); } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
   const reset = () => { setData(null); setRows([]); setMapping({}); setCheck(null); setDone(null); setFile(null); setErr(''); if (pick.current) pick.current.value = ''; };
   const n = (s: string) => (check || []).filter((c) => c.status === s).length;
@@ -38,7 +38,9 @@ export default function Import() {
         <h2 className="font-semibold mb-2">1. What are you importing?</h2>
         <div className="flex gap-2 flex-wrap">{meta.kinds.map((k) => <button key={k.key} className={kind === k.key ? 'btn sm' : 'btn-quiet'} onClick={() => setKind(k.key)}>{k.label}</button>)}</div>
         {kind === 'students' && <div className="mt-3"><label className="text-sm font-medium">Class for students whose class is not in the file</label><select className="input w-72" value={batchId} onChange={(e) => setBatchId(e.target.value)}><option value="">— take it from the file —</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>}
+        {kind === 'students' && <label className="block text-sm mt-3"><input type="checkbox" checked={createClasses} onChange={(e) => setCreateClasses(e.target.checked)} /> Create the classes and sections found in the file if they do not exist yet (so "VI-A", "6 A" and "Class 6 / A" all become class 6-A).</label>}
         <h2 className="font-semibold mt-5 mb-2">2. Choose the file</h2>
+        <p className="text-sm text-slate-600 mb-2">Moving from another software? Export your list from it as Excel or CSV and upload it here: the columns are recognised even if they are in another order or have other names. Want a ready format? Download a blank template: {meta.kinds.map((k: any, i: number) => <span key={k.key}>{i > 0 && ' · '}<button type="button" className="underline" onClick={() => downloadFile(`/import/template/${k.key}`, `nextedge-${k.key}-template.csv`)}>{k.label}</button></span>)}.</p>
         <input ref={pick} type="file" className="hidden" accept=".xlsx,.csv,.tsv,.txt,.docx,.pdf,.jpg,.jpeg,.png,.webp,image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
         <div className="flex items-center gap-3"><button className="btn-quiet" onClick={() => pick.current?.click()}>{file ? 'Change file' : 'Choose file'}</button><span className="text-sm">{file ? `${file.name} (${Math.round(file.size / 1024)} KB)` : 'Excel (.xlsx), CSV, Word (.docx), PDF, or a photo (JPG / PNG)'}</span></div>
         {isImage(file) && <p className={`text-sm mt-3 ${meta.ai ? 'text-slate-600' : 'text-brick'}`}>{meta.ai ? 'The photo is read by an AI reader and the text is sent for reading. Handwriting can be misread, so you will check every row before importing.' : 'Reading photos is not switched on for this server yet (the platform team needs to add the AI key). Please upload an Excel, CSV, Word or PDF file instead.'}</p>}
