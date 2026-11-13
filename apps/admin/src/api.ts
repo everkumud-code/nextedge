@@ -1,5 +1,5 @@
 const BASE = (import.meta.env.VITE_API_URL ?? '') + '/api';
-export type User = { id: string; name: string; role: string; centreId: string | null; modules?: string[]; features?: string[]; subscriptionStatus?: string; institutionType?: string; centreName?: string };
+export type User = { id: string; name: string; role: string; centreId: string | null; modules?: string[]; features?: string[]; subscriptionStatus?: string; institutionType?: string; centreName?: string; demoFrom?: string };
 export const session = {
   get token() { return localStorage.getItem('token'); },
   get user(): User | null { const u = localStorage.getItem('user'); return u ? JSON.parse(u) : null; },

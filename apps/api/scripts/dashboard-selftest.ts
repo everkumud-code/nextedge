@@ -1,0 +1,14 @@
+import { dashKind, pct, presentStreak } from '../src/dashboard/dash-kind';
+let bad = 0; const eq = (a: any, b: any, m: string) => { if (JSON.stringify(a) !== JSON.stringify(b)) { bad++; console.log('FAIL', m, '→', JSON.stringify(a), 'expected', JSON.stringify(b)); } };
+eq(['STUDENT', 'PARENT', 'FACULTY', 'ADMIN', 'SUPER_ADMIN'].map((r) => dashKind(r, 'Driver')), ['student', 'parent', 'teacher', 'admin', 'admin'], 'login role wins over any title');
+const staff = (t?: string | null) => dashKind('STAFF', t);
+eq([staff('School bus driver'), staff('Driver'), staff('Transport in-charge')], ['driver', 'driver', 'driver'], 'drivers');
+eq([staff('HR Manager'), staff('HR executive'), staff('Human Resources')], ['hr', 'hr', 'hr'], 'hr');
+eq([staff('Accountant'), staff('Accounts'), staff('Fee cashier'), staff('Finance officer')], ['accounts', 'accounts', 'accounts', 'accounts'], 'accounts');
+eq([staff('Receptionist'), staff('Front office'), staff('Office clerk'), staff('Front desk'), staff('Admission counsellor')], ['frontoffice', 'frontoffice', 'frontoffice', 'frontoffice', 'frontoffice'], 'front office');
+eq([staff('Peon'), staff('Lab assistant'), staff('Librarian'), staff(''), staff(null), staff(undefined)], ['staff', 'staff', 'staff', 'staff', 'staff', 'staff'], 'other non-teaching staff');
+eq(staff('Physics faculty'), 'staff', 'a STAFF login with a teaching title is still general staff (teachers use FACULTY)');
+eq(staff('Hrithik, peon'), 'staff', '"hr" inside another word is not HR');
+eq([presentStreak([]), presentStreak([{ date: '2026-11-10', status: 'PRESENT' }, { date: '2026-11-11', status: 'PRESENT' }, { date: '2026-11-12', status: 'LATE' }]), presentStreak([{ date: '2026-11-10', status: 'ABSENT' }, { date: '2026-11-11', status: 'PRESENT' }, { date: '2026-11-12', status: 'PRESENT' }]), presentStreak([{ date: '2026-11-10', status: 'PRESENT' }, { date: '2026-11-11', status: 'ABSENT' }, { date: '2026-11-12', status: 'PRESENT' }]), presentStreak([{ date: '2026-11-10', status: 'PRESENT' }, { date: '2026-11-11', status: 'LEAVE' }, { date: '2026-11-12', status: 'PRESENT' }])], [0, 3, 2, 1, 2], 'streaks');
+eq([pct(3, 4), pct(0, 0), pct(1, 3), pct(0, 5)], [75, null, 33, 0], 'percent');
+console.log(bad ? `${bad} FAILED` : 'dashboard self-test: all passed'); process.exit(bad ? 1 : 0);

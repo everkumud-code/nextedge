@@ -36,4 +36,8 @@ export class AuthController {
   }
   @Public() @Post('choose') choose(@Body() dto: ChooseDto) { return this.auth.choose(dto.choiceToken, dto.userId); }
   @Get('me') me(@CurrentUser() user: JwtUser) { return user; }
+  /** Demo only: which example logins can this person step into? */
+  @Get('demo-roles') demoRoles(@CurrentUser() user: JwtUser) { return this.auth.demoRoles(user); }
+  @Post('demo-switch') demoSwitch(@CurrentUser() user: JwtUser, @Body() b: { userId: string }) { return this.auth.demoSwitch(user, b?.userId); }
+  @Post('demo-back') demoBack(@CurrentUser() user: JwtUser) { return this.auth.demoBack(user); }
 }
