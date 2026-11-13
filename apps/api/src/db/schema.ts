@@ -367,6 +367,7 @@ export const centreSettings = pgTable('centre_settings', {
   channels: text('channels').default('{}').notNull(), // JSON: this centre's own SMS / WhatsApp account (overrides the platform's)
   workStart: text('work_start').default('09:00').notNull(), lateAfterMin: integer('late_after_min').default(15).notNull(), halfDayMin: integer('half_day_min').default(240).notNull(),
   couponCode: text('coupon_code'), // a coupon the owner gave this client (or the client typed); applied when the next invoice is raised
+  libraryLoanDays: integer('library_loan_days').default(14).notNull(), libraryFinePerDay: integer('library_fine_per_day').default(0).notNull(), // Library: how long a book may stay out, and the default late fine per day (rupees; 0 = no fine)
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
