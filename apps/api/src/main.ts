@@ -5,6 +5,7 @@ import { HttpAdapterHost } from '@nestjs/core';
 import { SafeInputFilter } from './common/safe-input.filter';
 import { AppModule } from './app.module';
 import { PlatformService } from './platform/platform.service';
+import { WorkspaceService } from './workspaces/workspaces.controller';
 
 // One bad request must never take the whole API down (a free-tier server has a single process).
 process.on('uncaughtException', (e) => console.error('uncaughtException', e));
@@ -20,6 +21,7 @@ async function bootstrap() {
   app.use('/iclock', require('express').text({ type: () => true, limit: '2mb' })); // biometric machines send plain text
   app.setGlobalPrefix('api', { exclude: [{ path: 'iclock/cdata', method: RequestMethod.ALL }, { path: 'iclock/getrequest', method: RequestMethod.ALL }, { path: 'iclock/devicecmd', method: RequestMethod.ALL }] });
   try { await app.get(PlatformService).migrateFeatures(); } catch (e) { console.error('Feature migration failed', e); }
+  try { const n = await app.get(WorkspaceService).ensureSlugs(); if (n) console.log(`[workspaces] gave ${n} client(s) a web address`); } catch (e) { console.error('Workspace addresses failed', e); }
   const port = Number(process.env.PORT) || 3000;
   await app.listen(port);
   console.log(`API listening on :${port} · OTP_MODE=${(process.env.OTP_MODE || 'live').trim()}`);

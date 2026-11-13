@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NextSoftwares — Login</title>
+<meta name="description" content="One login page for NextEdge (schools and coaching), NextFit (gyms), NextGlow (salons) and NextCare (clinics).">
+<style>
+  :root { --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f6f8fb; --card:#fff; --edge:#0F766E; --fit:#0A6EDB; --glow:#E0287A; --care:#0FA38A; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#e5edf7; --muted:#9fb0c7; --line:#25324a; --bg:#0b1220; --card:#121c2f; } }
+  * { box-sizing:border-box; } html,body { margin:0; }
+  body { font-family:"Segoe UI","Nirmala UI","Noto Sans",system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; display:flex; flex-direction:column; }
+  header { padding:20px 24px; display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .brand { font-weight:800; font-size:22px; letter-spacing:-.3px; } .brand b { color:var(--edge); }
+  header a { color:var(--muted); text-decoration:none; font-size:14px; } header a:hover { color:var(--ink); }
+  main { flex:1; width:100%; max-width:980px; margin:0 auto; padding:8px 20px 40px; }
+  h1 { font-size:clamp(26px,5vw,40px); line-height:1.1; margin:18px 0 8px; letter-spacing:-.8px; }
+  .lead { color:var(--muted); font-size:17px; margin:0 0 26px; max-width:620px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; }
+  .tile { background:var(--card); border:1.5px solid var(--line); border-radius:16px; padding:18px; text-align:left; cursor:pointer; font:inherit; color:inherit; transition:transform .12s, box-shadow .12s, border-color .12s; position:relative; overflow:hidden; }
+  .tile:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(15,23,42,.1); } .tile[aria-pressed="true"] { border-color:var(--c); box-shadow:0 0 0 3px color-mix(in srgb,var(--c) 22%,transparent); }
+  .tile::before { content:""; position:absolute; left:0; top:0; right:0; height:5px; background:var(--c); }
+  .dot { width:42px; height:42px; border-radius:12px; background:var(--c); color:#fff; display:grid; place-items:center; font-weight:800; font-size:18px; margin-bottom:12px; }
+  .tile h3 { margin:0 0 2px; font-size:19px; } .tile p { margin:0; color:var(--muted); font-size:14px; }
+  .panel { margin-top:18px; background:var(--card); border:1.5px solid var(--line); border-radius:16px; padding:22px; border-top:5px solid var(--c); }
+  .panel h2 { margin:0 0 4px; font-size:22px; } .panel .sub { color:var(--muted); margin:0 0 16px; font-size:15px; }
+  label { display:block; font-weight:600; font-size:14px; margin:14px 0 6px; }
+  .addr { display:flex; align-items:stretch; border:1.5px solid var(--line); border-radius:12px; overflow:hidden; background:var(--bg); } .addr:focus-within { border-color:var(--c); }
+  .addr input { flex:1; min-width:0; border:0; background:transparent; padding:13px 14px; font:inherit; font-size:17px; color:var(--ink); outline:none; text-align:right; }
+  .addr span { padding:13px 14px 13px 2px; color:var(--muted); font-size:16px; white-space:nowrap; align-self:center; }
+  .btn { display:inline-flex; align-items:center; justify-content:center; gap:8px; background:var(--c); color:#fff; border:0; border-radius:12px; padding:13px 22px; font:inherit; font-weight:700; font-size:16px; cursor:pointer; text-decoration:none; }
+  .btn:disabled { opacity:.55; cursor:default; } .btn.ghost { background:transparent; color:var(--ink); border:1.5px solid var(--line); }
+  .row { display:flex; gap:10px; flex-wrap:wrap; margin-top:14px; align-items:center; }
+  .msg { margin-top:12px; font-size:15px; } .msg.err { color:#c0392b; } .msg.ok { color:var(--edge); }
+  .found { display:grid; gap:8px; margin-top:12px; } .found button { text-align:left; background:var(--bg); border:1.5px solid var(--line); border-radius:12px; padding:11px 14px; font:inherit; color:var(--ink); cursor:pointer; } .found button:hover { border-color:var(--c); }
+  .found small { color:var(--muted); display:block; }
+  details { margin-top:16px; } summary { cursor:pointer; color:var(--muted); font-size:14px; }
+  footer { text-align:center; color:var(--muted); font-size:13px; padding:20px; }
+  footer a { color:inherit; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Next<b>Softwares</b></div>
+  <nav><a href="https://edge.nextresource.in/">About NextEdge</a></nav>
+</header>
+<main>
+  <h1>Log in to your workspace</h1>
+  <p class="lead">Choose your product. Every school, gym, salon and clinic has its own address, like <b>yourname.</b><span id="dom">nextsoftwares.in</span>.</p>
+  <div class="grid" id="tiles"></div>
+  <div id="panel"></div>
+</main>
+<footer>© NextSoftwares · A Next Resource initiative · <a href="mailto:hello@nextresource.in">Need help?</a></footer>
+
+<script>
+(function () {
+  var HOST = location.hostname.toLowerCase(); var BASE = HOST.replace(/^www\./, ''); if (!/\./.test(BASE) || /^(localhost|127\.)/.test(BASE)) BASE = 'nextsoftwares.in'; // local testing falls back to the real name
+  document.getElementById('dom').textContent = BASE;
+  var PRODUCTS = [
+    { key: 'edge', name: 'NextEdge', tag: 'Schools & coaching', colour: '#0F766E', letter: 'E', mode: 'address', who: 'school or coaching' },
+    { key: 'fit', name: 'NextFit', tag: 'Gyms & fitness studios', colour: '#0A6EDB', letter: 'F', mode: 'phone', who: 'gym', host: 'fit' },
+    { key: 'glow', name: 'NextGlow', tag: 'Salons & spas', colour: '#E0287A', letter: 'G', mode: 'phone', who: 'salon', host: 'glow' },
+    { key: 'care', name: 'NextCare', tag: 'Clinics & labs', colour: '#0FA38A', letter: 'C', mode: 'phone', who: 'clinic', host: 'care' }
+  ];
+  var tiles = document.getElementById('tiles'), panel = document.getElementById('panel'); var chosen = null;
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function go(slug) { location.href = 'https://' + slug + '.' + BASE + '/'; }
+  PRODUCTS.forEach(function (p) {
+    var b = document.createElement('button'); b.className = 'tile'; b.style.setProperty('--c', p.colour); b.setAttribute('aria-pressed', 'false'); b.type = 'button';
+    b.innerHTML = '<div class="dot">' + p.letter + '</div><h3>' + p.name + '</h3><p>' + p.tag + '</p>'; b.onclick = function () { choose(p, b); }; tiles.appendChild(b);
+  });
+  function choose(p, el) {
+    chosen = p; [].forEach.call(tiles.children, function (t) { t.setAttribute('aria-pressed', t === el ? 'true' : 'false'); });
+    var addrBox = '<label for="slug">Your ' + p.who + '’s address</label><div class="addr"><input id="slug" autocomplete="off" autocapitalize="none" spellcheck="false" placeholder="yourname"><span>.' + esc(BASE) + '</span></div><div class="row"><button class="btn" id="go" type="button" disabled>Go to my login</button></div><div id="msg" class="msg"></div>';
+    var html = '<div class="panel" style="--c:' + p.colour + '"><h2>' + p.name + ' login</h2>';
+    if (p.mode === 'phone') {
+      html += '<p class="sub">Sign in with the mobile number registered at your ' + p.who + '. We will send an OTP.</p><div class="row"><a class="btn" href="https://' + p.host + '.' + esc(BASE) + '/">Login with mobile number</a></div>' +
+        '<details><summary>I have my ' + p.who + '’s own address</summary>' + addrBox + '</details>';
+    } else {
+      html += '<p class="sub">Your school or coaching has its own address. Type it below. If you do not remember it, search by name.</p>' + addrBox +
+        '<details open><summary>I do not remember the address</summary><label for="q">School or coaching name</label><input class="addr" style="width:100%;padding:13px 14px;font:inherit;font-size:17px;color:var(--ink);text-align:left;outline:none" id="q" placeholder="e.g. Sharma Classes" autocomplete="off"><div class="found" id="found"></div></details>';
+    }
+    panel.innerHTML = html + '</div>'; wire(p); panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  function clean(v) { return String(v || '').toLowerCase().replace(/^https?:\/\//, '').replace(new RegExp('\\.?' + BASE.replace(/\./g, '\\.') + '.*$'), '').replace(/[^a-z0-9-]/g, ''); }
+  function get(url) { return fetch(url, { headers: { Accept: 'application/json' } }).then(function (r) { return r.ok ? r.json() : { found: false }; }).catch(function () { return { found: false }; }); }
+  function wire(p) {
+    var input = document.getElementById('slug'), btn = document.getElementById('go'), msg = document.getElementById('msg'); if (!input) return;
+    input.oninput = function () { var c = clean(input.value); if (c !== input.value) input.value = c; btn.disabled = c.length < 3; msg.textContent = ''; };
+    function submit() {
+      var s = clean(input.value); if (s.length < 3) return; btn.disabled = true; msg.className = 'msg'; msg.textContent = 'Checking…';
+      Promise.all([get('/edge-api/workspace/check/' + s), get('/brands-api/public/workspace/' + s)]).then(function (r) {
+        var hit = r[0].found ? r[0] : r[1].found ? r[1] : null;
+        if (hit) { msg.className = 'msg ok'; msg.textContent = 'Found ' + hit.name + '. Opening your login…'; go(s); }
+        else { msg.className = 'msg err'; msg.textContent = 'No workspace has the address “' + s + '.' + BASE + '”. Check the spelling, or ask your school / outlet for the correct address.'; btn.disabled = false; }
+      });
+    }
+    btn.onclick = submit; input.onkeydown = function (e) { if (e.key === 'Enter') submit(); };
+    var q = document.getElementById('q'), found = document.getElementById('found'), t = null;
+    if (q) q.oninput = function () {
+      clearTimeout(t); var v = q.value.trim(); if (v.length < 3) { found.innerHTML = ''; return; }
+      t = setTimeout(function () { get('/edge-api/auth/centres?q=' + encodeURIComponent(v)).then(function (rows) {
+        rows = (Array.isArray(rows) ? rows : []).filter(function (x) { return x.slug; }).slice(0, 6);
+        found.innerHTML = rows.length ? '' : '<div class="msg">No match. Try another word from the name.</div>';
+        rows.forEach(function (x) { var b = document.createElement('button'); b.type = 'button'; b.innerHTML = esc(x.name) + '<small>' + esc(x.city || '') + ' · ' + esc(x.slug) + '.' + esc(BASE) + '</small>'; b.onclick = function () { go(x.slug); }; found.appendChild(b); });
+      }); }, 250);
+    };
+  }
+  var pre = (location.hash || '').replace('#', ''); var first = PRODUCTS.filter(function (p) { return p.key === pre; })[0]; if (first) choose(first, tiles.children[PRODUCTS.indexOf(first)]);
+})();
+</script>
+</body>
+</html>

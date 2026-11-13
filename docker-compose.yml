@@ -25,6 +25,9 @@ services:
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET}
       OTP_MODE: ${OTP_MODE:-dev}
+      WORKSPACE_DOMAIN: ${WORKSPACE_DOMAIN:-nextsoftwares.in}            # clients get <name>.nextsoftwares.in
+      NEXTSOFT_INTERNAL_KEY: ${NEXTSOFT_INTERNAL_KEY:-}                  # shared with the server's sync script (never public)
+      OTHER_PRODUCT_CHECK_URLS: ${OTHER_PRODUCT_CHECK_URLS:-}            # sibling products, so an address is never given twice
       MSG91_AUTH_KEY: ${MSG91_AUTH_KEY:-}
       MSG91_TEMPLATE_ID: ${MSG91_TEMPLATE_ID:-}
       CORS_ORIGIN: https://${DOMAIN}

@@ -14,8 +14,9 @@ export default function Login() {
   const [centreName, setCentreName] = useState(''); const [ident, setIdent] = useState(''); const [otp, setOtp] = useState(''); const [channel, setChannel] = useState<Channel | ''>('');
   const [mode, setMode] = useState<{ otpEnabled: boolean; channels: Record<Channel, boolean> } | null>(null);
   const [step, setStep] = useState<'login' | 'otp' | 'choose'>('login'); const [choice, setChoice] = useState<{ choiceToken: string; options: any[] } | null>(null);
+  const [ws, setWs] = useState<{ id: string; name: string; city?: string } | null>(null); // set when the page is opened on <client>.nextsoftwares.in
   const [hint, setHint] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false); const go = useNavigate();
-  useEffect(() => { api('/auth/mode').then(setMode).catch(() => {}); }, []);
+  useEffect(() => { api('/auth/mode').then(setMode).catch(() => {}); api('/workspace/by-host').then((w) => { if (w?.found) { setWs({ id: w.id, name: w.name, city: w.city }); setCentreName(w.name); } }).catch(() => {}); }, []);
   const mobileMode = isMobile(ident); const valid = centreName.trim().length > 1 && (isEmail(ident) || mobileMode);
   const options: Channel[] = (['email', 'sms', 'whatsapp'] as Channel[]).filter((c) => (c === 'email' ? !mobileMode || true : mode?.channels?.[c]));
   const chosen: Channel = (channel || (mobileMode ? (mode?.channels?.sms ? 'sms' : mode?.channels?.whatsapp ? 'whatsapp' : 'email') : 'email')) as Channel;
@@ -24,12 +25,12 @@ export default function Login() {
   async function send(ch: Channel = chosen) {
     setErr(''); setBusy(true);
     try {
-      const r = await api('/auth/send-otp', { method: 'POST', body: JSON.stringify({ centreName: centreName.trim(), ...who(), channel: mode?.otpEnabled ? ch : undefined }) });
+      const r = await api('/auth/send-otp', { method: 'POST', body: JSON.stringify({ ...(ws ? { centreId: ws.id } : { centreName: centreName.trim() }), ...who(), channel: mode?.otpEnabled ? ch : undefined }) });
       if (r.token) { session.set(r.token, r.user); go('/'); return; }
       setHint(r.devHint ? `Dev mode: OTP is ${r.devHint}` : `OTP sent by ${LABEL[(r.via as Channel) || ch] || r.via} to ${r.to || ident}.${r.via === 'email' ? ' Check spam if it does not arrive in a minute.' : ''}`); setStep('otp');
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
-  async function verify() { setErr(''); setBusy(true); try { const r = await api('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ centreName: centreName.trim(), ...who(), otp }) }); if (r.choose) { setChoice(r); setStep('choose'); return; } session.set(r.token, r.user); go('/'); } catch (e: any) { setErr(e.message); } finally { setBusy(false); } }
+  async function verify() { setErr(''); setBusy(true); try { const r = await api('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ ...(ws ? { centreId: ws.id } : { centreName: centreName.trim() }), ...who(), otp }) }); if (r.choose) { setChoice(r); setStep('choose'); return; } session.set(r.token, r.user); go('/'); } catch (e: any) { setErr(e.message); } finally { setBusy(false); } }
   async function pick(userId: string) { setBusy(true); try { const r = await api('/auth/choose', { method: 'POST', body: JSON.stringify({ choiceToken: choice!.choiceToken, userId }) }); session.set(r.token, r.user); go('/'); } catch (e: any) { setErr(e.message); } finally { setBusy(false); } }
 
   return (
@@ -39,8 +40,9 @@ export default function Login() {
         <img src="/nextedge-logo.png" alt="NextEdge" className="h-12 mb-2" />
         {step === 'login' && <>
           <p className="text-slate-600 mt-1 mb-4">Sign in with the email or mobile registered at your coaching or school.</p>
-          <label className="block text-sm font-medium mb-1">Coaching / school name</label>
-          <input className="input" placeholder="e.g. Sharma Classes" value={centreName} onChange={(e) => setCentreName(e.target.value)} autoFocus />
+          {ws ? <div className="rounded-md border border-teal-200 bg-teal-50 px-3 py-2"><div className="text-xs text-slate-500">Signing in to</div><div className="font-semibold">{ws.name}{ws.city ? <span className="font-normal text-slate-500"> · {ws.city}</span> : null}</div><a className="text-xs underline text-slate-500" href={`https://www.${location.hostname.split('.').slice(1).join('.')}`}>Not your school? Go to the NextSoftwares login page</a></div>
+            : <><label className="block text-sm font-medium mb-1">Coaching / school name</label>
+          <input className="input" placeholder="e.g. Sharma Classes" value={centreName} onChange={(e) => setCentreName(e.target.value)} autoFocus /></>}
           <label className="block text-sm font-medium mb-1 mt-3">Email or mobile</label>
           <input className="input" placeholder="you@example.com or 10-digit mobile" value={ident} onChange={(e) => setIdent(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && valid && send()} />
           {mode?.otpEnabled && options.length > 1 && <div className="mt-3"><div className="text-sm font-medium mb-1">Send my OTP by</div><div className="flex gap-2">{options.map((c) => <button key={c} type="button" className={chosen === c ? 'btn sm' : 'btn-quiet'} onClick={() => setChannel(c)}>{LABEL[c]}</button>)}</div></div>}

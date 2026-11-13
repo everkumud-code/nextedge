@@ -10,6 +10,19 @@ const STATUS: Record<string, string> = { trial: 'bg-slate-200', active: 'bg-moss
 // Defined outside the screen component on purpose: a component created inside another one is rebuilt on every keystroke and the typing box loses focus.
 const F = ({ l, children, span }: any) => <div className={span ? `col-span-${span}` : ''}><label className="text-sm font-medium">{l}</label>{children}</div>;
 
+/** The client's own web address (<name>.nextsoftwares.in) with a button to change it. */
+function ClientAddress({ c, onSaved }: { c: any; onSaved: () => void }) {
+  const [dom, setDom] = useState('nextsoftwares.in'); const [msg, setMsg] = useState('');
+  useEffect(() => { api('/workspace/config').then((r) => r?.domain && setDom(r.domain)).catch(() => {}); }, []);
+  if (!c.slug) return null;
+  async function change() {
+    const n = prompt(`New web address for ${c.name}.
+Only small letters, numbers and hyphens. Old links will stop working, so tell the client.`, c.slug); if (!n || n.trim().toLowerCase() === c.slug) return;
+    try { await api(`/workspace/centre/${c.id}`, { method: 'PUT', body: JSON.stringify({ slug: n.trim().toLowerCase() }) }); setMsg(''); onSaved(); } catch (e: any) { setMsg(e.message); }
+  }
+  return <div className="text-xs mt-0.5"><a className="text-edge-600 underline" href={`https://${c.slug}.${dom}`} target="_blank" rel="noreferrer">{c.slug}.{dom}</a> <button className="underline text-slate-500 ml-1" onClick={change}>change</button>{msg && <div className="text-brick">{msg}</div>}</div>;
+}
+
 /** Platform home for the super admin: clients split into Coaching centres and Schools; create, view people, edit, open in support mode. */
 export default function Clients() {
   const [rows, setRows] = useState<any[]>([]); const [packs, setPacks] = useState<any[]>([]); const [mods, setMods] = useState<string[]>([]); const [tab, setTab] = useState<'coaching' | 'school'>('coaching'); const [q, setQ] = useState(''); const [msg, setMsg] = useState(''); const [create, setCreate] = useState<any | null>(null); const [edit, setEdit] = useState<any | null>(null); const [err, setErr] = useState(''); const [del, setDel] = useState<any | null>(null); const [purge, setPurge] = useState<any | null>(null);
@@ -44,7 +57,7 @@ export default function Clients() {
       {msg && <p className="text-sm mt-3 text-moss">{msg}</p>}
       <table className="card w-full mt-4 text-sm"><thead><tr><th className="th">{school ? 'School' : 'Coaching'}</th><th className="th">{school ? 'Principal / owner' : 'Owner'}</th><th className="th text-right">Students</th><th className="th">Plan</th><th className="th">Status</th><th className="th"></th></tr></thead>
         <tbody>{shown.map((c) => { const s = c.settings; const end = s.status === 'trial' ? s.trialEndsAt : s.paidUntil; return <tr key={c.id}>
-          <td className="td"><Link to={`/clients/${c.id}`} className="font-semibold hover:underline">{c.name}</Link><div className="text-xs text-slate-500">{c.city || '—'} · since {dt(c.createdAt)}</div></td>
+          <td className="td"><Link to={`/clients/${c.id}`} className="font-semibold hover:underline">{c.name}</Link><div className="text-xs text-slate-500">{c.city || '—'} · since {dt(c.createdAt)}</div><ClientAddress c={c} onSaved={load} /></td>
           <td className="td">{c.owner?.name || '—'}<div className="text-xs text-slate-500">{c.owner?.email || ''} {c.owner?.mobile ? '· ' + c.owner.mobile : ''}</div></td>
           <td className="td text-right font-semibold">{c.activeStudents}</td>
           <td className="td">{c.plan === 'demo' ? <><span className="tag bg-edge-100 text-edge-700">Demo package</span><div className="text-xs text-slate-500">all features · free</div></> : <>{packLabel(packs, c.plan)} <span className="text-xs text-slate-500">{packSummary(c, packs)}</span></>}</td>
