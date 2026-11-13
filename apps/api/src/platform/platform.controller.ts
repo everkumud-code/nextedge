@@ -1,7 +1,7 @@
 import { BadRequestException, Body, Controller, ForbiddenException, Get, Param, Post, Put, Query } from '@nestjs/common';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { auditLog, batches, centreSettings, centres, facultyBatches, platformSettings, platformTeam, staffPermissions, students, subscriptionInvoices, users } from '../db/schema';
+import { auditLog, batches, centreSettings, centres, facultyBatches, planCatalog, platformSettings, platformTeam, staffPermissions, students, subscriptionInvoices, users } from '../db/schema';
 import { Roles } from '../common/auth.guard';
 import { MODULES } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
@@ -40,6 +40,32 @@ export class PlatformController {
   }
   @Post('email-test') async emailTest(@Body() b: { to: string }) { try { const ok = await sendEmailVia(await this.mail.platformMailbox(), b.to, 'NextEdge platform email test', 'Platform mailbox is working.'); return { ok }; } catch (e: any) { return { ok: false, error: e.message }; } }
   @Get('plans') plans() { return PLAN_PRESETS; }
+  /** The price list of the three Edge packs. */
+  @Get('packs') packs() { return this.svc.packs(); }
+  /** Owner sets the prices. applyToClients also copies them to clients already on this pack (only numbers that pack uses). */
+  @Put('packs/:key') async setPack(@CurrentUser() u: JwtUser, @Param('key') key: string, @Body() b: { name?: string; tagline?: string; pricePerStudent?: number; minStudents?: number; setupFee?: number; yearlyPrice?: number; customAmount?: number; customCycle?: string; customNote?: string; applyToClients?: boolean }) {
+    await this.ownerOnly(u); const db = this.dbs.db; const cur = (await this.svc.packs()).find((p) => p.key === key); if (!cur) throw new BadRequestException('Unknown pack');
+    const money = (v: any, label: string, max = 100000000) => { const n = Number(v); if (!Number.isFinite(n) || n < 0 || n > max) throw new BadRequestException(`${label} must be a number, 0 or more`); return String(n); };
+    const set: any = {};
+    if (b.name !== undefined) { const n = String(b.name).trim(); if (!n) throw new BadRequestException('Give the pack a name'); set.name = n.slice(0, 40); }
+    if (b.tagline !== undefined) set.tagline = String(b.tagline).trim().slice(0, 120) || null;
+    if (b.customNote !== undefined) set.customNote = String(b.customNote).trim().slice(0, 300) || null;
+    if (b.pricePerStudent !== undefined) set.pricePerStudent = money(b.pricePerStudent, 'Price per student', 100000);
+    if (b.minStudents !== undefined) { const n = Number(b.minStudents); if (!Number.isInteger(n) || n < 0 || n > 100000) throw new BadRequestException('Minimum students must be a whole number'); set.minStudents = n; }
+    if (b.setupFee !== undefined) set.setupFee = money(b.setupFee, 'Setup cost');
+    if (b.yearlyPrice !== undefined) set.yearlyPrice = money(b.yearlyPrice, 'Yearly package');
+    if (b.customAmount !== undefined) set.customAmount = money(b.customAmount, 'Custom package price');
+    if (b.customCycle !== undefined) { if (!['monthly', 'quarterly', 'yearly'].includes(b.customCycle)) throw new BadRequestException('Billing must be monthly, quarterly or yearly'); set.customCycle = b.customCycle; }
+    if (!Object.keys(set).length && !b.applyToClients) return { ok: true, updated: 0 };
+    if (Object.keys(set).length) await db.update(planCatalog).set(set).where(eq(planCatalog.key, key));
+    let updated = 0;
+    if (b.applyToClients) {
+      const ids = (await db.select({ id: centres.id }).from(centres).where(eq(centres.plan, key))).map((c) => c.id); const fresh = await this.svc.packSettings(key); const apply: any = { updatedAt: new Date() };
+      if (key === 'core') { apply.pricePerStudent = fresh.pricePerStudent; apply.minStudents = fresh.minStudents; } else if (key === 'pro') { apply.yearlyPrice = fresh.yearlyPrice; } else { apply.customAmount = fresh.customAmount; apply.customCycle = fresh.customCycle; }
+      for (const id of ids) { const a2: any = { ...apply }; if ((key === 'pro' || key === 'elite') && !(await this.svc.settings(id)).setupPaid) a2.setupFee = fresh.setupFee; await db.update(centreSettings).set(a2).where(eq(centreSettings.centreId, id)); updated++; }
+    }
+    return { ok: true, updated };
+  }
 
   /** All centres with settings, student count, open invoice. */
   @Get('centres') async list() {
@@ -51,15 +77,19 @@ export class PlatformController {
     return out;
   }
 
-  @Put('centres/:id/settings') async update(@Param('id') id: string, @Body() b: Partial<{ features: string[]; pricePerStudent: number; minStudents: number; billingCycle: string; plan: string; status: string; paidUntil: string; trialEndsAt: string; liveProvider: string; zoomAccountId: string; zoomClientId: string; zoomClientSecret: string; defaultMeetingUrl: string }>) {
+  @Put('centres/:id/settings') async update(@Param('id') id: string, @Body() b: Partial<{ features: string[]; pricePerStudent: number; minStudents: number; billingCycle: string; plan: string; setupFee: number; yearlyPrice: number; customAmount: number; customCycle: string; customNote: string; setupPaid: boolean; status: string; paidUntil: string; trialEndsAt: string; liveProvider: string; zoomAccountId: string; zoomClientId: string; zoomClientSecret: string; defaultMeetingUrl: string }>) {
     const db = this.dbs.db; await this.svc.settings(id); const set: any = { updatedAt: new Date() };
     if (b.pricePerStudent !== undefined && (b.pricePerStudent === null || !Number.isFinite(Number(b.pricePerStudent)) || Number(b.pricePerStudent) < 0 || Number(b.pricePerStudent) > 100000)) throw new BadRequestException('Price per student must be a number');
     if (b.minStudents !== undefined && (b.minStudents === null || !Number.isInteger(Number(b.minStudents)) || Number(b.minStudents) < 0 || Number(b.minStudents) > 100000)) throw new BadRequestException('Minimum students must be a whole number');
     if (b.plan && PLAN_PRESETS[b.plan]) {
-      const [cur] = await db.select({ plan: centres.plan }).from(centres).where(eq(centres.id, id)); await db.update(centres).set({ plan: b.plan }).where(eq(centres.id, id)); set.pricePerStudent = String(PLAN_PRESETS[b.plan].price); set.features = JSON.stringify(PLAN_PRESETS[b.plan].features);
+      const [cur] = await db.select({ plan: centres.plan }).from(centres).where(eq(centres.id, id)); await db.update(centres).set({ plan: b.plan }).where(eq(centres.id, id)); if (b.plan !== 'demo') Object.assign(set, await this.svc.packSettings(b.plan)); else set.pricePerStudent = '0'; set.features = JSON.stringify(PLAN_PRESETS[b.plan].features);
       if (b.plan === 'demo') { set.status = 'active'; set.minStudents = 0; set.trialEndsAt = null; set.paidUntil = null; set.features = JSON.stringify([...MODULES]); }
       else if (cur?.plan === 'demo') { set.status = 'trial'; set.trialEndsAt = new Date(Date.now() + 30 * 864e5).toISOString().slice(0, 10); set.paidUntil = null; set.minStudents = set.minStudents ?? 10; } // leaving the demo package starts a normal 30-day trial
     }
+    for (const k of ['setupFee', 'yearlyPrice', 'customAmount'] as const) if ((b as any)[k] !== undefined) { const n = Number((b as any)[k]); if (!Number.isFinite(n) || n < 0 || n > 100000000) throw new BadRequestException(`${k === 'setupFee' ? 'Setup fee' : k === 'yearlyPrice' ? 'Yearly package' : 'Custom amount'} must be a number, 0 or more`); set[k] = String(n); }
+    if (b.customCycle !== undefined) { if (!['monthly', 'quarterly', 'yearly'].includes(b.customCycle)) throw new BadRequestException('Custom cycle must be monthly, quarterly or yearly'); set.customCycle = b.customCycle; }
+    if (b.customNote !== undefined) set.customNote = String(b.customNote || '').slice(0, 300) || null;
+    if (b.setupPaid !== undefined) set.setupPaid = !!b.setupPaid;
     if (b.features) set.features = JSON.stringify(b.features.filter((m) => (MODULES as readonly string[]).includes(m)));
     if (b.pricePerStudent !== undefined) set.pricePerStudent = String(b.pricePerStudent);
     for (const k of ['minStudents', 'billingCycle', 'status', 'paidUntil', 'trialEndsAt', 'liveProvider', 'zoomAccountId', 'zoomClientId', 'zoomClientSecret', 'defaultMeetingUrl', 'appName', 'packageId', 'appColour', 'appLogoUrl', 'appIconUrl', 'playStoreUrl'] as const) if ((b as any)[k] !== undefined) set[k] = (b as any)[k];
@@ -189,7 +219,9 @@ export class SubscriptionController {
     const [inv] = await this.dbs.db.select().from(subscriptionInvoices).where(and(eq(subscriptionInvoices.centreId, u.centreId), eq(subscriptionInvoices.status, 'due')));
     const { zoomClientSecret, zoomClientId, zoomAccountId, smtpPass, payuSalt, ...safe } = s as any;
     const [pc] = await this.dbs.db.select({ plan: centres.plan }).from(centres).where(eq(centres.id, u.centreId));
-    return { ...safe, plan: pc?.plan, activeStudents: n, openInvoice: inv || null, estimateNext: Math.max(s.minStudents, n) * Number(s.pricePerStudent) * (s.billingCycle === 'annual' ? 10 : 1) };
+    const setupDue = !s.setupPaid ? Number(s.setupFee) : 0; const estimateNext = pc?.plan === 'pro' ? Number(s.yearlyPrice) + setupDue : pc?.plan === 'elite' ? Number(s.customAmount) + setupDue : Math.max(s.minStudents, n) * Number(s.pricePerStudent) * (s.billingCycle === 'annual' ? 10 : 1);
+    const packName = (await this.svc.packs()).find((x) => x.key === pc?.plan)?.name || null;
+    return { ...safe, plan: pc?.plan, packName, activeStudents: n, openInvoice: inv || null, estimateNext };
   }
   @Post('invoice') @Roles('ADMIN') async raise(@CurrentUser() u: JwtUser) { return this.svc.raiseInvoice(u.centreId!); }
   /** Owner picks how live classes run: jitsi | zoom (needs Zoom S2S keys) | meet | teams | custom (standing link). */
