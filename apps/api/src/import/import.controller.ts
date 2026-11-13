@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Post, Query } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { batches, enquiries, records, staffPermissions, students, users } from '../db/schema';
@@ -7,7 +7,7 @@ import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { FACULTY_DEFAULT, MODULES } from '../common/permissions';
 import { StudentsService } from '../students/students.service';
-import { KINDS, Grid, classKey, dateOf, genderOf, gridFromDocx, gridFromPdf, gridFromText, gridFromXlsx, guessMapping, mobileOf } from './parse';
+import { KINDS, Grid, canon, classKey, classSpec, dateOf, detectKind, fromGrid, genderOf, gridFromDocx, gridFromLines, gridFromPdf, gridFromText, gridFromXlsx, guessMapping, mobileOf, pdfLines, sheetsFromXlsx } from './parse';
 import { aiReady, extractWithAi } from './ai';
 
 const MAX = 12 * 1024 * 1024; const MAX_ROWS = 1500; const clean = (v: any) => String(v ?? '').replace(/\s+/g, ' ').trim();
@@ -42,22 +42,59 @@ export class ImportController {
     return { source: g.source, columns: g.columns, rows: g.rows.slice(0, MAX_ROWS), mapping: guessMapping(kind, g.columns, g.rows), warnings, total: g.rows.length };
   }
 
-  /** Step 2/3: check (dryRun) or import rows that are already mapped to the fields. */
-  @Post('commit') async commit(@CurrentUser() u: JwtUser, @Body() b: { kind: string; rows: Row[]; batchId?: string; dryRun?: boolean }, @Query('centreId') c?: string) {
-    const centreId = centreOf(u, c); if (!KINDS[b.kind]) throw new BadRequestException('Choose what you are importing'); const rows = Array.isArray(b.rows) ? b.rows.slice(0, MAX_ROWS) : []; if (!rows.length) throw new BadRequestException('Nothing to import');
-    if (b.kind === 'staff' && !['ADMIN', 'SUPER_ADMIN'].includes(u.role)) throw new BadRequestException('Only the owner can import staff');
-    const out: Out[] = b.kind === 'students' ? await this.students(centreId, rows, b.batchId, !!b.dryRun) : b.kind === 'staff' ? await this.staff(centreId, rows, !!b.dryRun) : b.kind === 'enquiries' ? await this.enquiries(centreId, rows, !!b.dryRun) : await this.recordsOf(centreId, b.kind as 'books' | 'items', rows, u.id, !!b.dryRun);
-    const n = (s: string) => out.filter((x) => x.status === s).length; return { dryRun: !!b.dryRun, ok: n('ok'), created: n('created'), skipped: n('skipped'), errors: n('error'), results: out };
+  /** Moving from another software: read ANY export (every sheet of a workbook, CSV, Word, text PDF) and say what each list is. Needs no centre, so it can run before the client exists. */
+  @Post('auto') async auto(@Body() b: { file: { name: string; mime: string; data: string }; kind?: string }) {
+    const only = b.kind && KINDS[b.kind] ? b.kind : undefined;
+    const f = b.file; if (!f?.data) throw new BadRequestException('Choose a file'); const raw = String(f.data).replace(/^data:[^,]+,/, ''); const buf = Buffer.from(raw, 'base64'); if (!buf.length) throw new BadRequestException('The file is empty'); if (buf.length > MAX) throw new BadRequestException('The file is larger than 12 MB');
+    const name = String(f.name || '').toLowerCase(); const ext = name.split('.').pop() || ''; const mime = String(f.mime || '').toLowerCase(); const found: { sheet: string; det: ReturnType<typeof detectKind>; note?: string }[] = [];
+    try {
+      if (ext === 'xlsx' || /spreadsheetml/.test(mime)) { for (const sh of await sheetsFromXlsx(buf)) found.push({ sheet: sh.name, det: detectKind((k) => fromGrid(sh.grid, k, 'xlsx'), sh.name, only) }); }
+      else if (ext === 'xls') throw new Error('Old .xls files are not supported. Open it in Excel and "Save as" .xlsx, then upload again.');
+      else if (['csv', 'tsv', 'txt'].includes(ext) || /^text\//.test(mime)) { const text = buf.toString('utf8'); found.push({ sheet: f.name, det: detectKind((k) => gridFromText(text, k, 'csv'), f.name, only) }); }
+      else if (ext === 'docx' || /wordprocessingml/.test(mime)) { const cache = new Map<string, Grid>(); for (const k of Object.keys(KINDS)) cache.set(k, await gridFromDocx(buf, k)); found.push({ sheet: f.name, det: detectKind((k) => cache.get(k) as Grid, f.name, only) }); }
+      else if (ext === 'pdf' || mime === 'application/pdf') { let lines: string[] = []; try { lines = await pdfLines(buf); } catch { lines = []; } if (lines.join('').replace(/\s/g, '').length < 30) throw new Error('This looks like a scanned PDF. Use Import data inside the client: it can read scans and photos with the AI reader.'); found.push({ sheet: f.name, det: detectKind((k) => gridFromLines(lines, k, 'pdf-text'), f.name, only) }); }
+      else throw new Error('This file type is not supported here. Use Excel (.xlsx), CSV, Word (.docx) or a text PDF. For a photo of a register use Import data inside the client.');
+    } catch (e: any) { throw new BadRequestException(e.message); }
+    const files = found.filter((x) => x.det).map((x) => { const d = x.det!; return { sheet: x.sheet, kind: d.kind, label: d.label, missing: d.missing, columns: d.grid.columns, rows: d.grid.rows.slice(0, MAX_ROWS), total: d.grid.rows.length, mapping: d.mapping, warnings: d.grid.warnings, score: Math.round(d.score) }; });
+    if (!files.length) throw new BadRequestException('No list of students, staff, enquiries, books or stock could be found in this file');
+    return { files, sheetsSkipped: found.length - files.length };
   }
 
-  private async students(centreId: string, rows: Row[], defaultBatch: string | undefined, dry: boolean): Promise<Out[]> {
+  /** A ready-to-fill template (CSV) for one kind of list. */
+  @Get('template/:kind') template(@Param('kind') kind: string, @Res({ passthrough: true }) res: any) {
+    const k = KINDS[kind]; if (!k) throw new BadRequestException('Unknown list'); const sample: Record<string, string[][]> = {
+      students: [['Aarav Kumar', 'Class 6 A', '1', '9876543210', 'Rajesh Kumar', 'Sunita Kumar', 'rajesh@example.com', '2014-05-12', 'Male', 'ADM-1001', 'Kanke Road, Ranchi'], ['Diya Sharma', 'Class 6 B', '2', '9876543211', 'Anil Sharma', 'Meena Sharma', '', '2014-08-03', 'Female', 'ADM-1002', 'Lalpur, Ranchi']],
+      staff: [['Neha Singh', '9876500001', 'neha@example.com', 'Teacher', 'Maths'], ['Ravi Verma', '9876500002', '', 'Staff', 'Accountant']],
+      enquiries: [['Kabir Das', '9876500101', 'Class 5', 'Walk-in', 'Wants a bus facility']],
+      books: [['Wings of Fire', 'A. P. J. Abdul Kalam', '9788173711466', 'Biography', '2', 'A1', '250']],
+      items: [['Whiteboard marker', 'Stationery', '40', 'pcs', '10', 'Store room']] };
+    const fields = k.fields.map((f) => f.label); const keys = k.fields.map((f) => f.key);
+    // the sample rows follow the order of the field list for that kind
+    const order: Record<string, string[]> = { students: ['name', 'class', 'rollNo', 'parentMobile', 'fatherName', 'motherName', 'parentEmail', 'dob', 'gender', 'admissionNo', 'address'], staff: ['name', 'mobile', 'email', 'role', 'title'], enquiries: ['name', 'mobile', 'class', 'source', 'notes'], books: ['title', 'author', 'isbn', 'subject', 'copies', 'shelf', 'price'], items: ['title', 'category', 'qty', 'unit', 'minQty', 'location'] };
+    const cols = order[kind].filter((c) => keys.includes(c)); const head = cols.map((c) => k.fields.find((f) => f.key === c)!.label);
+    const csv = [head, ...sample[kind]].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\r\n'); void fields;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8'); res.setHeader('Content-Disposition', `attachment; filename="nextedge-${kind}-template.csv"`); return '\uFEFF' + csv;
+  }
+
+  /** Step 2/3: check (dryRun) or import rows that are already mapped to the fields. */
+  @Post('commit') async commit(@CurrentUser() u: JwtUser, @Body() b: { kind: string; rows: Row[]; batchId?: string; dryRun?: boolean; createClasses?: boolean }, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); if (!KINDS[b.kind]) throw new BadRequestException('Choose what you are importing'); const rows = Array.isArray(b.rows) ? b.rows.slice(0, MAX_ROWS) : []; if (!rows.length) throw new BadRequestException('Nothing to import');
+    if (b.kind === 'staff' && !['ADMIN', 'SUPER_ADMIN'].includes(u.role)) throw new BadRequestException('Only the owner can import staff');
+    const made: string[] = []; const out: Out[] = b.kind === 'students' ? await this.students(centreId, rows, b.batchId, !!b.dryRun, !!b.createClasses, made) : b.kind === 'staff' ? await this.staff(centreId, rows, !!b.dryRun) : b.kind === 'enquiries' ? await this.enquiries(centreId, rows, !!b.dryRun) : await this.recordsOf(centreId, b.kind as 'books' | 'items', rows, u.id, !!b.dryRun);
+    const n = (s: string) => out.filter((x) => x.status === s).length; return { dryRun: !!b.dryRun, ok: n('ok'), created: n('created'), skipped: n('skipped'), errors: n('error'), newClasses: made, results: out };
+  }
+
+  private async students(centreId: string, rows: Row[], defaultBatch: string | undefined, dry: boolean, createClasses = false, made: string[] = []): Promise<Out[]> {
     const db = this.dbs.db; const bs = await db.select().from(batches).where(eq(batches.centreId, centreId)); if (defaultBatch && !bs.some((x) => x.id === defaultBatch)) throw new BadRequestException('Unknown class');
     const have = await db.select({ name: students.name, mobile: students.parentMobile }).from(students).where(eq(students.centreId, centreId)); const seen = new Set(have.map((h) => `${clean(h.name).toLowerCase()}|${h.mobile}`)); const out: Out[] = [];
-    const find = (s: string) => { const k = classKey(s); if (!k) return null; const hit = bs.filter((x) => classKey(x.name) === k || classKey(`${x.className || ''}${x.section || ''}`) === k); if (hit.length === 1) return hit[0]; const byClass = bs.filter((x) => classKey(x.className || '') === k); return byClass.length === 1 ? byClass[0] : null; };
+    const find = (s: string) => { const k = canon(s); if (!k) return null; const hit = bs.filter((x) => canon(x.name) === k || canon(`${x.className || ''}${x.section || ''}`) === k); if (hit.length === 1) return hit[0]; const byClass = bs.filter((x) => canon(x.className || '') === k); return byClass.length === 1 ? byClass[0] : null; };
+    /** Classes found in the file that do not exist yet: made on the spot (counted only, in a dry run). */
+    const ensure = async (text: string) => { const hit = find(text); if (hit || !createClasses) return hit; const sp = classSpec(text); if (!sp.name) return null; const row: any = { id: `new:${canon(text)}`, centreId, name: sp.name, className: sp.className, section: sp.section };
+      if (!dry) { const [c] = await db.insert(batches).values({ centreId, name: sp.name, course: sp.className ? `Class ${sp.className}` : sp.name, className: sp.className, section: sp.section, capacity: 60 } as any).returning(); row.id = c.id; } bs.push(row); made.push(sp.name); return row; };
     for (let i = 0; i < rows.length; i++) {
-      const r = rows[i]; const name = clean(r.name); const mob = mobileOf(r.parentMobile); const email = clean(r.parentEmail).toLowerCase();
+      const r = { ...rows[i] }; if (clean(r.section) && clean(r.class) && !new RegExp('(^|[^a-z0-9])' + clean(r.section).replace(/[^a-z0-9]/gi, '') + '$', 'i').test(clean(r.class))) r.class = `${clean(r.class)} ${clean(r.section)}`; else if (clean(r.section) && !clean(r.class)) r.class = clean(r.section); const name = clean(r.name); const mob = mobileOf(r.parentMobile); const email = clean(r.parentEmail).toLowerCase();
       if (!name) { out.push({ index: i, status: 'error', reason: 'Name is missing' }); continue; } if (mob.length !== 10) { out.push({ index: i, status: 'error', reason: 'Parent mobile must be a 10-digit number' }); continue; } if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { out.push({ index: i, status: 'error', reason: 'Parent email is not valid' }); continue; }
-      const batch = (clean(r.class) ? find(String(r.class)) : null) || bs.find((x) => x.id === defaultBatch); if (clean(r.class) && !find(String(r.class)) && !defaultBatch) { out.push({ index: i, status: 'error', reason: `Class "${clean(r.class)}" does not match any class. Fix it or choose a default class.` }); continue; } if (!batch) { out.push({ index: i, status: 'error', reason: 'No class: choose a default class or fill the class column' }); continue; }
+      const batch = (clean(r.class) ? await ensure(String(r.class)) : null) || bs.find((x) => x.id === defaultBatch); if (clean(r.class) && !batch && !defaultBatch) { out.push({ index: i, status: 'error', reason: `Class "${clean(r.class)}" does not match any class. Fix it or choose a default class.` }); continue; } if (!batch) { out.push({ index: i, status: 'error', reason: 'No class: choose a default class or fill the class column' }); continue; }
       const key = `${name.toLowerCase()}|${mob}`; if (seen.has(key)) { out.push({ index: i, status: 'skipped', reason: 'Already exists (same name and parent mobile)' }); continue; }
       seen.add(key); if (dry) { out.push({ index: i, status: 'ok' }); continue; }
       try { const st = await this.studentsSvc.create(centreId, { name, parentMobile: mob, parentName: clean(r.fatherName) || undefined, parentEmail: email || undefined, batchId: batch.id, rollNo: clean(r.rollNo) || undefined, dob: dateOf(r.dob), gender: genderOf(r.gender), fatherName: clean(r.fatherName) || undefined, motherName: clean(r.motherName) || undefined, admissionNo: clean(r.admissionNo) || undefined, address: clean(r.address) || undefined, category: clean(r.category) || undefined, bloodGroup: clean(r.bloodGroup) || undefined } as any); out.push({ index: i, status: 'created', id: st.id }); }

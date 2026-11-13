@@ -136,7 +136,7 @@ export class RecordsController {
   @Delete(':kind/:id') @Roles('SUPER_ADMIN', 'ADMIN') async remove(@CurrentUser() u: JwtUser, @Param('kind') k: string, @Param('id') id: string, @Query('centreId') c?: string) { await this.allowed(u, k); await this.dbs.db.delete(records).where(and(eq(records.id, id), eq(records.centreId, centreOf(u, c)))); return { ok: true }; }
 
   /** CSV export of a kind. */
-  @Get(':kind/export.csv') @Roles(...STAFFY) async csv(@CurrentUser() u: JwtUser, @Param('kind') k: string, @Res() res: any, @Query('centreId') c?: string) {
+  @Get(':kind/export.csv') @Roles('SUPER_ADMIN', 'ADMIN') /* data export: owner only, never staff */ async csv(@CurrentUser() u: JwtUser, @Param('kind') k: string, @Res() res: any, @Query('centreId') c?: string) {
     const kd = await this.allowed(u, k); const rows = await this.list(u, k, undefined, undefined, undefined, undefined, c);
     const head = ['Date', kd.titleLabel, 'Status', kd.about === 'student' ? 'Student' : kd.about === 'staff' ? 'Staff' : '', kd.ref ? kd.ref.label : '', ...kd.fields.map((f) => f.label)].filter(Boolean);
     const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;

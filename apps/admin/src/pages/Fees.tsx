@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { api, session, openPdf } from '../api';
+import { api, session, openPdf, canDownload } from '../api';
 const API = (import.meta.env.VITE_API_URL ?? '') + '/api';
 const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 const today = new Date().toISOString().slice(0, 10); const monthStart = today.slice(0, 7) + '-01';
@@ -65,7 +65,7 @@ export default function Fees() {
       </>}
 
       {tab === 'payments' && <>
-        <div className="flex gap-3 mt-4 items-end flex-wrap"><div><label className="text-sm font-medium">From</label><input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div><div><label className="text-sm font-medium">To</label><input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div><button className="btn-quiet" onClick={csv}>Download Excel (CSV)</button><span className="ml-auto text-sm text-slate-600">Total {inr(payments.filter((p) => p.paidOn >= from && p.paidOn <= to).reduce((a, p) => a + Number(p.amount), 0))}</span></div>
+        <div className="flex gap-3 mt-4 items-end flex-wrap"><div><label className="text-sm font-medium">From</label><input className="input" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div><div><label className="text-sm font-medium">To</label><input className="input" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>{canDownload() && <button className="btn-quiet" onClick={csv}>Download Excel (CSV)</button>}<span className="ml-auto text-sm text-slate-600">Total {inr(payments.filter((p) => p.paidOn >= from && p.paidOn <= to).reduce((a, p) => a + Number(p.amount), 0))}</span></div>
         <table className="card w-full mt-4"><thead><tr><th className="th">Receipt</th><th className="th">Date</th><th className="th">Student</th><th className="th text-right">Amount</th><th className="th">Mode</th><th className="th">Reference</th><th className="th"></th></tr></thead>
           <tbody>{payments.filter((p) => p.paidOn >= from && p.paidOn <= to).map((p) => <tr key={p.id}><td className="td font-mono text-sm">{p.receiptNo}</td><td className="td">{new Date(p.paidOn).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: '2-digit' })}</td><td className="td">{p.studentName}</td><td className="td text-right font-medium">{inr(p.amount)}</td><td className="td">{p.mode}</td><td className="td text-xs text-slate-500">{p.reference}</td><td className="td whitespace-nowrap"><button className="btn-quiet" onClick={() => openReceipt(p.id)}>Receipt PDF</button> {owner && <button className="text-brick text-sm underline" onClick={() => voidPayment(p)}>Void</button>}</td></tr>)}</tbody></table>
       </>}

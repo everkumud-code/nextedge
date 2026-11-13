@@ -21,5 +21,4 @@ Runs next to the other sites without touching them: containers listen on 127.0.0
 
 ## Warnings
 - OTP_MODE=none: anyone who knows a centre name and email can log in. Demo only. Switch to a real OTP mode before real customers.
-- The Flutter app and its web build still point at Render. Later use https://nextedge.nextresource.in.
-- Keep Render until step 5 passes.
+- The Flutter app and its web build use https://nextedge.nextresource.in (set in `apps/mobile/lib/config.dart`).

@@ -41,3 +41,5 @@ export async function downloadFile(path: string, filename: string, err = 'Could 
   const r = await fetch(BASE + path, { headers: { Authorization: `Bearer ${session.token}` } }); if (!r.ok) { const j = await r.json().catch(() => ({})); alert(j.message || err); return false; }
   const cd = r.headers.get('Content-Disposition') || ''; const name = /filename="([^"]+)"/.exec(cd)?.[1] || filename; const a = document.createElement('a'); a.href = URL.createObjectURL(await r.blob()); a.download = name; document.body.appendChild(a); a.click(); a.remove(); return true;
 }
+/** Downloading data (backups, CSV/Excel lists) is for the owner/principal and the platform team. Staff and teachers never see these buttons, and the server refuses them too. */
+export const canDownload = () => ['ADMIN', 'SUPER_ADMIN'].includes(session.user?.role || '');

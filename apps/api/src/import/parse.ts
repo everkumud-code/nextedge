@@ -9,7 +9,8 @@ export type FieldDef = { key: string; label: string; required?: boolean; synonym
 export const KINDS: Record<string, { label: string; fields: FieldDef[] }> = {
   students: { label: 'Students', fields: [
     { key: 'name', label: 'Student name', required: true, synonyms: ['name', 'student', 'student name', 'child', 'child name', 'full name', 'pupil', 'name of student'] },
-    { key: 'class', label: 'Class / section', synonyms: ['class', 'section', 'class section', 'class sec', 'grade', 'std', 'standard', 'class & section', 'class and section'] },
+    { key: 'class', label: 'Class / section', synonyms: ['class', 'class section', 'class sec', 'grade', 'std', 'standard', 'class & section', 'class and section', 'class/section', 'class name', 'current class', 'class studying'] },
+    { key: 'section', label: 'Section (if in its own column)', synonyms: ['section', 'sec', 'div', 'division', 'sec name', 'section name'] },
     { key: 'rollNo', label: 'Roll no', synonyms: ['roll', 'roll no', 'roll number', 'rollno', 'r no', 'rno'] },
     { key: 'parentMobile', label: 'Parent mobile', required: true, synonyms: ['mobile', 'parent mobile', 'father mobile', 'contact', 'contact no', 'phone', 'phone no', 'mobile no', 'mob', 'parent contact', 'guardian mobile', 'whatsapp'] },
     { key: 'fatherName', label: "Father's name", synonyms: ['father', 'father name', 'fathers name', "father's name", 's/o', 'd/o', 'parent', 'parent name', 'guardian', 'guardian name'] },
@@ -136,3 +137,47 @@ export function dateOf(v: any): string | undefined {
 }
 export const genderOf = (v: any) => { const s = clean(v).toLowerCase(); return /^(m|male|boy|b)$/.test(s) ? 'Male' : /^(f|female|girl|g)$/.test(s) ? 'Female' : s ? 'Other' : undefined; };
 export const classKey = (s: any) => clean(s).toLowerCase().replace(/\b(class|std|standard|grade)\b/g, '').replace(/[^a-z0-9]/g, '');
+
+// ---------- moving from another software: every sheet of a workbook, and a guess of what each one is ----------
+/** All sheets of a workbook as plain cell grids (header row not yet found). */
+export async function sheetsFromXlsx(buf: Buffer): Promise<{ name: string; grid: string[][] }[]> {
+  const wb = new ExcelJS.Workbook(); try { await wb.xlsx.load(buf as any); } catch { throw new Error('This Excel file could not be read. Save it as .xlsx (not .xls) and try again.'); }
+  const cell = (v: any): string => (v == null ? '' : v instanceof Date ? v.toISOString().slice(0, 10) : typeof v === 'object' ? (v.text ?? v.result ?? (v.richText ? v.richText.map((t: any) => t.text).join('') : '')) : String(v));
+  const out: { name: string; grid: string[][] }[] = [];
+  for (const ws of wb.worksheets) { if (ws.rowCount < 2) continue; const grid: string[][] = []; ws.eachRow({ includeEmpty: false }, (row) => { const r: string[] = []; row.eachCell({ includeEmpty: true }, (c, n) => { r[n - 1] = cell(c.value); }); grid.push(Array.from(r, (x) => x ?? '')); }); if (grid.length > 1) out.push({ name: ws.name, grid }); }
+  if (!out.length) throw new Error('The workbook is empty');
+  return out;
+}
+
+const ROMAN: Record<string, string> = { i: '1', ii: '2', iii: '3', iv: '4', v: '5', vi: '6', vii: '7', viii: '8', ix: '9', x: '10', xi: '11', xii: '12' };
+/** "Class 6 A", "6-A", "VI B", "10th Science", "Nursery" -> a class name for NextEdge (6-A, Class 10, ...) plus its parts. */
+export function classSpec(raw: any): { name: string; className: string | null; section: string | null } {
+  const s = clean(raw); let t = s.replace(/[()]/g, ' ').replace(/\b(class|std|standard|grade)\b\.?/gi, ' ').replace(/\s+/g, ' ').trim().replace(/^[\s\-_:.]+/, '').replace(/\b(\d{1,2})(st|nd|rd|th)\b/gi, '$1');
+  const m = t.match(/^(\d{1,2}|[ivx]{1,4})(?![a-z])\s*[-_/.,]?\s*(.*)$/i);
+  if (m) { const num = /^\d+$/.test(m[1]) ? String(Number(m[1])) : ROMAN[m[1].toLowerCase()]; if (num) { let sec = m[2].replace(/^(sec(tion)?|div(ision)?)\.?\s*/i, '').trim().slice(0, 20); if (sec.length <= 2) sec = sec.toUpperCase(); return { name: sec ? `${num}-${sec}` : `Class ${num}`, className: num, section: sec || null }; } }
+  return { name: s.slice(0, 60), className: null, section: null };
+}
+/** One comparable key per class, so "VI-A", "6 A" and "Class 6 / A" are the same class. */
+export const canon = (raw: any) => { const sp = classSpec(raw); return sp.className ? (sp.className + (sp.section || '')).toLowerCase().replace(/[^a-z0-9]/g, '') : classKey(raw); };
+
+const HINTS: Record<string, { fields: string[]; sheet: RegExp }> = {
+  students: { fields: ['class', 'rollNo', 'fatherName', 'motherName', 'admissionNo', 'dob', 'parentMobile'], sheet: /student|pupil|admission|scholar|child|learner/i },
+  staff: { fields: ['role', 'title'], sheet: /teacher|staff|faculty|employee|emp\b|hr/i },
+  enquiries: { fields: ['source', 'notes'], sheet: /enquir|inquir|lead|prospect/i },
+  books: { fields: ['author', 'isbn', 'copies', 'shelf'], sheet: /book|library|lib\b/i },
+  items: { fields: ['qty', 'unit', 'minQty', 'location'], sheet: /stock|inventory|item|store|asset/i },
+};
+export type Detected = { kind: string; label: string; grid: Grid; mapping: Record<number, string>; missing: string[]; score: number };
+/** Which kind of list is this? Scores every kind by the columns it can map and by the sheet name; the best one wins. */
+export function detectKind(gridFor: (kind: string) => Grid, sheetName = '', only?: string): Detected | null {
+  let best: Detected | null = null;
+  for (const kind of Object.keys(KINDS)) {
+    if (only && kind !== only) continue;
+    const g = gridFor(kind); if (!g.rows.length || !g.columns.length) continue; const mapping = guessMapping(kind, g.columns, g.rows); const mapped = Object.values(mapping);
+    const missing = KINDS[kind].fields.filter((f) => f.required && !mapped.includes(f.key)).map((f) => f.label);
+    const hint = HINTS[kind]; const distinct = hint.fields.filter((f) => mapped.includes(f)).length;
+    const score = mapped.length * 2 + distinct * 3 - missing.length * 6 + (hint.sheet.test(sheetName) ? 5 : 0) + Math.min(2, g.rows.length / 50);
+    if (!best || score > best.score) best = { kind, label: KINDS[kind].label, grid: g, mapping, missing, score };
+  }
+  return best;
+}

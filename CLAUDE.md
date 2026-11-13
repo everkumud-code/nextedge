@@ -7,7 +7,7 @@ Full spec: docs/SOW.md (sections 1–15). This file is the short version you mus
 - `apps/api` — NestJS 10 + Drizzle ORM + Postgres. Modules: auth (OTP → JWT), students, batches, attendance, fees, notices. `GET /api/health`.
 - `apps/admin` — React 18 + Vite + Tailwind. Pages: Login, Today (dashboard), Students, Batches, Attendance, Fees, Notices.
 - `apps/mobile` — Flutter skeleton: OTP login + notices list. Needs `flutter create .` once to generate platform folders.
-- `render.yaml` — Blueprint: API + static admin + Postgres + Redis (Singapore region).
+- `docker-compose.yml` + `deploy/vps/` — API + admin + Postgres + Redis on your own server.
 
 ## Owner
 Super-admin for this (and every) project: ever.kumud@gmail.com — seeded as SUPER_ADMIN (mobile 9090770070). Project notifications: boombitesindia@gmail.com.
@@ -87,7 +87,7 @@ White-label build pipeline (config → app name/icon/package id), OMR scan worke
 
 ## Local dev
 ```
-cp apps/api/.env.example apps/api/.env   # set DATABASE_URL (local Postgres or Render external URL)
+cp apps/api/.env.example apps/api/.env   # set DATABASE_URL (your local Postgres)
 npm install
 npm run db:push && npm run db:seed        # demo centre; admin login 9999900001 / OTP 123456
 npm run dev:api                           # http://localhost:3000/api/health
@@ -99,12 +99,10 @@ npm run dev:admin                         # http://localhost:5173
 - **Biometric machines** (`biometric/iclock.controller.ts`): ZKTeco ADMS push at `/iclock/*` (NOT under /api; excluded from the global prefix in main.ts, plain-text body parser). Machines are registered by serial (`biometric_devices`); IDs on the machine live in `biometric_pins` and win over admission no / roll no / staff mobile.
 - **Live bus** (`transport/transport.controller.ts`): `bus_locations` keeps the latest fix per route. GPS trackers POST with `centre_settings.tracker_key`; a driver's phone posts via `/transport/location/mine`; parents read `/transport/live/mine`. Buses are matched by the `vehicle` field of the `transport-route` record.
 - **Firebase key** can be pasted on Messaging (platform scope) → `platform_settings.firebase_json`, verified with Google before saving; env `FIREBASE_SERVICE_ACCOUNT_JSON` still works. Test overrides: `GOOGLE_TOKEN_URL`, `FCM_BASE_URL`.
-- **Backup** (`backup/backup.controller.ts`): `/backup/centre` (secrets in settings rows masked, login log and device tokens skipped) and `/backup/platform` (super admin). JSON, streamed table by table. Restore is by pg_dump/pg_restore, see `deploy/MIGRATE-FROM-RENDER.md`.
+- **Backup** (`backup/backup.controller.ts`): `/backup/centre` (secrets in settings rows masked, login log and device tokens skipped) and `/backup/platform` (super admin). JSON, streamed table by table. Restore is by pg_dump/pg_restore, see `deploy/vps/README.md`.
 - Mobile: `screens/bus.dart` (parent "Where is the bus?", staff "Share bus location") is NOT compiled yet: check the next Codemagic log.
 
 ## Lessons (do not repeat)
-- **Seed/demo blocks must not sit inside a first-time `if`.** The demo bus driver (`driver@demo.school`) was inserted inside the `transport-route` block, so it only existed on empty databases; Render's already-filled database never got it. Test demo-fill on a database that is already filled, not only a fresh one.
+- **Seed/demo blocks must not sit inside a first-time `if`.** The demo bus driver (`driver@demo.school`) was inserted inside the `transport-route` block, so it only existed on empty databases; an already-filled database never got it. Test demo-fill on a database that is already filled, not only a fresh one.
 - **Every role needs a home screen in `apps/mobile/lib/screens/home.dart`.** A role with no case falls back to the login screen and looks like "login does not work". STAFF → `staff_home.dart`.
-- Web app of the whole Flutter app: Render static site `coaching-connect-app` (`apps/mobile/render_build.sh`). Its build log is the quickest Dart compile check (read it with the Render MCP `list_logs`, type `build`). Web has no push (`push.dart` returns early on web).
-- API CORS always allows `https://coaching-connect-*.onrender.com` even when `CORS_ORIGIN` lists specific origins.
-- Render's free Postgres expires 2026-11-18 (see `deploy/MIGRATE-FROM-RENDER.md`).
+- Web app of the whole Flutter app: build it with `apps/mobile/build_web.sh` and serve `apps/mobile/build/web` from any web server. Web has no push (`push.dart` returns early on web).

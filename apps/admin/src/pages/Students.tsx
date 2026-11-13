@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
-import { api, session } from '../api';
+import { canDownload, api, session } from '../api';
 
 const blank = () => ({ name: '', batchId: '', rollNo: '', dob: '', gender: '', parentName: '', fatherName: '', motherName: '', parentMobile: '', parentEmail: '', mobile: '', email: '', address: '', category: '', religion: '', bloodGroup: '', previousSchool: '', admissionNo: '', className: '' });
 const PAGE = 50;
@@ -52,7 +52,7 @@ export default function Students() {
   return (
     <div>
       <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl font-bold">Students</h1><p className="text-sm text-slate-600">{activeCount} active{rows.length - activeCount > 0 ? ` · ${rows.length - activeCount} left/inactive` : ''}</p></div>
-        <div className="flex gap-2"><button className="btn" onClick={() => setForm(blank())}>+ Add student</button><button className="btn-quiet" onClick={() => setShowImport(!showImport)}>Import from Excel</button><button className="btn-quiet" onClick={exportCsv}>Export</button></div></div>
+        <div className="flex gap-2"><button className="btn" onClick={() => setForm(blank())}>+ Add student</button><button className="btn-quiet" onClick={() => setShowImport(!showImport)}>Import from Excel</button>{canDownload() && <button className="btn-quiet" onClick={exportCsv}>Export</button>}</div></div>
       <div className="flex gap-3 mt-4 flex-wrap items-center">
         <input className="input w-72" placeholder="Search name, roll, admission no, parent, mobile" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className="input w-52" value={batchF} onChange={(e) => setBatchF(e.target.value)}><option value="">{school ? 'All classes' : 'All batches'}</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>

@@ -37,14 +37,14 @@ describe('NextEdge icon: phone app', () => {
 });
 
 describe('NextEdge icon: web app (Flutter web)', () => {
-  const dir = path.join(apps, 'mobile/web_icons'); const script = read('mobile/render_build.sh').toString();
+  const dir = path.join(apps, 'mobile/web_icons'); const script = read('mobile/build_web.sh').toString();
   it('web icons have the sizes the Flutter manifest expects', () => {
     expect(png('mobile/web_icons/Icon-192.png')).toMatchObject({ w: 192, h: 192 }); expect(png('mobile/web_icons/Icon-512.png')).toMatchObject({ w: 512, h: 512 });
     expect(png('mobile/web_icons/Icon-maskable-192.png')).toMatchObject({ w: 192, h: 192, type: 2 }); expect(png('mobile/web_icons/Icon-maskable-512.png')).toMatchObject({ w: 512, h: 512, type: 2 });
     expect(png('mobile/web_icons/favicon.png')).toMatchObject({ w: 64, h: 64 });
   });
   it('the build script copies every one of them over the generated web folder', () => {
-    for (const f of fs.readdirSync(dir)) expect(script, `${f} is not copied by render_build.sh`).toContain(f);
+    for (const f of fs.readdirSync(dir)) expect(script, `${f} is not copied by build_web.sh`).toContain(f);
     expect(script).toContain('web/favicon.png'); expect(script).toMatch(/web\/icons\/?/);
   });
 });

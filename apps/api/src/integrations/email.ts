@@ -1,5 +1,5 @@
 // Own-mail-server email: every centre sends from its own mailbox; the platform sends from the BoomBites mailbox (PLATFORM_SMTP_*).
-// No third-party email API. SMTP needs outbound ports 465/587 (open on Hostinger VPS / Render paid; blocked on Render free).
+// No third-party email API. SMTP needs outbound ports 465/587 (open on a normal VPS).
 import nodemailer from 'nodemailer';
 export type Smtp = { host: string; port: number; user: string; pass: string; from?: string | null };
 

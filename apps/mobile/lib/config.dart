@@ -5,6 +5,6 @@ class AppConfig {
   static const centreId = String.fromEnvironment('CENTRE_ID', defaultValue: '');
   static const centreName = String.fromEnvironment('CENTRE_NAME', defaultValue: '');
   static bool get whiteLabel => centreId.isNotEmpty;
-  static const apiBase = 'https://coaching-connect-api.onrender.com/api';
+  static const apiBase = 'https://nextedge.nextresource.in/api';
   static const primaryColour = int.fromEnvironment('APP_COLOUR_INT', defaultValue: 0xFF1673D9); // NextEdge blue, overridden per white-label build
 }

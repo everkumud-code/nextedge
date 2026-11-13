@@ -19,7 +19,7 @@ export class BiometricController {
   constructor(private dbs: DbService, private platform: PlatformService, private notify: NotificationsService) {}
 
   @Get('info') @Mod('biometric') @Roles('SUPER_ADMIN', 'ADMIN') async info(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
-    const s = await this.platform.settings(centreOf(u, c)); return { key: s.biometricKey || null, endpoint: (process.env.PUBLIC_API_URL || 'https://coaching-connect-api.onrender.com') + '/api/biometric/punch', sample: { punches: [{ id: 'ADM/2024/0001 or roll no or staff mobile', time: '2026-10-29T07:52:10+05:30' }] } };
+    const s = await this.platform.settings(centreOf(u, c)); return { key: s.biometricKey || null, endpoint: (process.env.PUBLIC_API_URL || 'https://nextedge.nextresource.in') + '/api/biometric/punch', sample: { punches: [{ id: 'ADM/2024/0001 or roll no or staff mobile', time: '2026-10-29T07:52:10+05:30' }] } };
   }
   @Post('key') @Mod('biometric') @Roles('SUPER_ADMIN', 'ADMIN') async newKey(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) { const centreId = centreOf(u, c); await this.platform.settings(centreId); const key = 'bio_' + randomBytes(18).toString('hex'); await this.dbs.db.update(centreSettings).set({ biometricKey: key }).where(eq(centreSettings.centreId, centreId)); return { key }; }
 
