@@ -14,6 +14,7 @@ export const centres = pgTable('centres', {
   primaryColour: text('primary_colour').default('#F2A93B'),
   birthdayWish: text('birthday_wish'),
   institutionType: text('institution_type').default('coaching').notNull(), // coaching | school
+  slug: text('slug').unique(), // the client's web address: <slug>.nextsoftwares.in
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

@@ -13,6 +13,7 @@ services:
   api:
     mem_limit: 768m
     ports: ["127.0.0.1:${API_PORT:-3010}:3000"]
+    extra_hosts: ["host.docker.internal:host-gateway"]   # lets the API ask the NextFit/NextGlow/NextCare app whether an address is taken
     environment:
       SEED_ON_BOOT: ${SEED_ON_BOOT:-false}
   admin:

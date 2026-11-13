@@ -21,7 +21,7 @@ export class AuthService {
 
   /** Public list for the login screen. */
   async centres(q?: string) {
-    const rows = await this.dbs.db.select({ id: centres.id, name: centres.name, city: centres.city }).from(centres).where(q ? ilike(centres.name, `%${q}%`) : undefined).orderBy(centres.name).limit(50);
+    const rows = await this.dbs.db.select({ id: centres.id, name: centres.name, city: centres.city, slug: centres.slug }).from(centres).where(q ? ilike(centres.name, `%${q}%`) : undefined).orderBy(centres.name).limit(50);
     return rows;
   }
 
