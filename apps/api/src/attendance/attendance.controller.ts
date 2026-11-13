@@ -9,6 +9,7 @@ import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { NotificationsService } from '../notifications/notifications.service';
+import { LiveService } from '../live/live.service';
 
 class MarkDto { @IsString() batchId: string; @IsString() date: string; @IsArray() marks: { studentId: string; status: 'PRESENT' | 'ABSENT' | 'LATE' | 'LEAVE' }[]; }
 class ScanDto { @IsString() studentId: string; @IsOptional() @IsString() date?: string; }
@@ -18,7 +19,7 @@ const today = () => new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 1
 @Controller('attendance')
 @Mod('attendance')
 export class AttendanceController {
-  constructor(private dbs: DbService, private notify: NotificationsService) {}
+  constructor(private dbs: DbService, private notify: NotificationsService, private live: LiveService) {}
 
   /** Roll call: replaces the day's rows for the batch. Parents of absentees get a notification. */
   @Post() @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF')
@@ -36,6 +37,7 @@ export class AttendanceController {
         if (p) this.notify.notifyUsers(centreId, [p.id], `${k.name} was absent today`, `Marked absent for ${dto.date}. Contact the centre if this is a mistake.`, { data: { type: 'attendance', studentId: k.id } });
       }
     }
+    this.live.onAttendanceSaved(centreId, dto.batchId, dto.date).catch(() => {}); // a hybrid class already running sends its link to anyone just marked absent
     return { ok: true, count: dto.marks.length };
   }
 
