@@ -260,6 +260,8 @@ export const liveClasses = pgTable('live_classes', {
   recordingUrl: text('recording_url'),
   status: text('status').default('scheduled').notNull(), // scheduled | live | ended | cancelled
   createdBy: uuid('created_by').references(() => users.id),
+  hybrid: boolean('hybrid').default(false).notNull(), // held in the classroom and shown live to absent children (attendance is left as the teacher marked it)
+  linkSentTo: text('link_sent_to').default('[]').notNull(), // JSON array of student ids who already got the join link
 });
 
 export const liveAttendance = pgTable('live_attendance', {
