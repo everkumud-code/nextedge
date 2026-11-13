@@ -1,6 +1,6 @@
 # Demo logins (no password, no OTP while OTP_MODE=none)
 
-Admin panel: https://admin.nextsoftwares.in — type the **coaching/school name** exactly, then the email, then Login.
+Admin panel: https://nextedge.nextsoftwares.in — type the **coaching/school name** exactly, then the email, then Login.
 
 ## Demo Coaching Centre (coaching)
 | Role | Email |

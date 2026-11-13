@@ -82,7 +82,7 @@
   };
   function edgeDone(r) {
     if (!r.user || r.user.role !== 'SUPER_ADMIN') { setMsg('This is not a NextEdge platform account.', 'err'); return; }
-    go('https://admin.' + BASE + '/#nsw=' + btoa(unescape(encodeURIComponent(JSON.stringify({ token: r.token, user: r.user })))));
+    go('https://nextedge.' + BASE + '/#nsw=' + btoa(unescape(encodeURIComponent(JSON.stringify({ token: r.token, user: r.user })))));
   }
   $('#verify').onclick = function () {
     var id = ident(), code = $('#code').value.trim(); if (!/^\d{6}$/.test(code)) { setMsg('Enter the 6-digit code.', 'err'); return; }

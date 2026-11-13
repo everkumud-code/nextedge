@@ -13,8 +13,8 @@ import fcntl, json, os, re, socket, subprocess, sys, time, urllib.request
 
 ENV_FILE = os.environ.get("NSW_ENV", "/etc/nextsoftwares.env")
 STATE_DIR = "/var/lib/nextsoftwares"; HOSTS_FILE = "/etc/nginx/nextsoftwares-hosts.conf"; LIVE_DIR = "/etc/letsencrypt/live"; WEBROOT = "/var/www/letsencrypt-nextsoftwares"
-FIXED = {"admin": "edge", "nextfit": "brands", "nextglow": "brands", "nextcare": "brands"}        # admin = the NextEdge platform team's login; the three separate brand logins
-ALIASES = {"fit": "nextfit", "glow": "nextglow", "care": "nextcare"}                                 # the first short addresses: they now only redirect to the full product name
+FIXED = {"nextedge": "edge", "nextfit": "brands", "nextglow": "brands", "nextcare": "brands"}        # nextedge = the NextEdge login (platform team and schools); the three separate brand logins
+ALIASES = {"fit": "nextfit", "glow": "nextglow", "care": "nextcare", "admin": "nextedge"}                                 # the first short addresses: they now only redirect to the full product name
 UPSTREAM = {"edge": ("http://127.0.0.1:3013", "http://127.0.0.1:3012"), "brands": ("http://127.0.0.1:4000", "http://127.0.0.1:4000")}   # (web app, api)
 PRODUCTS = [("edge", "http://127.0.0.1:3012/api/workspace/internal/list"), ("brands", "http://127.0.0.1:4000/internal/workspaces")]
 SLUG = re.compile(r"^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$")

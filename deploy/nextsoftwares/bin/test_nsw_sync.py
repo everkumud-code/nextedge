@@ -36,7 +36,8 @@ class Sync(unittest.TestCase):
         self.assertIn("server_name irongym.nextsoftwares.in;", h); self.assertIn("set $nsw_root http://127.0.0.1:4000; set $nsw_api http://127.0.0.1:4000;", h)   # brands app
         for brand in ("nextfit", "nextglow", "nextcare"): self.assertIn(f"server_name {brand}.nextsoftwares.in;", h)
         fitold = [l for l in h.splitlines() if "server_name fit.nextsoftwares.in;" in l][0]; self.assertIn("return 301 https://nextfit.nextsoftwares.in$request_uri;", fitold)   # the old short address only forwards
-        admin = [l for l in h.splitlines() if "server_name admin.nextsoftwares.in;" in l][0]; self.assertIn("set $nsw_root http://127.0.0.1:3013;", admin)   # the platform team's login is NextEdge
+        admin = [l for l in h.splitlines() if "server_name nextedge.nextsoftwares.in;" in l][0]; self.assertIn("set $nsw_root http://127.0.0.1:3013;", admin)   # NextEdge has its own name
+        old = [l for l in h.splitlines() if "server_name admin.nextsoftwares.in;" in l][0]; self.assertIn("return 301 https://nextedge.nextsoftwares.in$request_uri;", old)   # the first address only forwards
         self.assertEqual(len(self.reloads()), 1)
     def test_no_block_without_a_certificate(self):
         self.certbot_ok = False; self.answers = {self.E: ["sharma"], self.B: []}; nsw.main()
