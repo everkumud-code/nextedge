@@ -51,7 +51,7 @@ export const students = pgTable('students', {
   parentName: text('parent_name'),
   parentMobile: text('parent_mobile').notNull(),
   dob: date('dob'),
-  gender: text('gender'), admissionNo: text('admission_no'), admissionDate: date('admission_date'), fatherName: text('father_name'), motherName: text('mother_name'), address: text('address'), category: text('category'), religion: text('religion'), bloodGroup: text('blood_group'), previousSchool: text('previous_school'), photoUrl: text('photo_url'), apaarId: text('apaar_id'), pen: text('pen'), photoConsent: boolean('photo_consent'),
+  gender: text('gender'), admissionNo: text('admission_no'), admissionDate: date('admission_date'), fatherName: text('father_name'), motherName: text('mother_name'), address: text('address'), category: text('category'), religion: text('religion'), bloodGroup: text('blood_group'), previousSchool: text('previous_school'), photoUrl: text('photo_url'), apaarId: text('apaar_id'), pen: text('pen'), photoConsent: boolean('photo_consent'), houseId: uuid('house_id'),
   leftOn: date('left_on'), leftReason: text('left_reason'),
   active: boolean('active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -636,5 +636,33 @@ export const couponRedemptions = pgTable('coupon_redemptions', {
   centreId: uuid('centre_id').notNull().references(() => centres.id),
   invoiceId: uuid('invoice_id').references(() => subscriptionInvoices.id),
   discount: numeric('discount', { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+// ---------- Houses (school): Red / Blue / ... houses with a captain, other roles and inter-house points ----------
+export const houses = pgTable('houses', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  name: text('name').notNull(), colour: text('colour').default('#C62828').notNull(), motto: text('motto'),
+  masterId: uuid('master_id').references(() => users.id), // the teacher in charge (house master / mistress)
+  sortOrder: integer('sort_order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+export const houseRoles = pgTable('house_roles', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  houseId: uuid('house_id').notNull().references(() => houses.id),
+  studentId: uuid('student_id').notNull().references(() => students.id),
+  title: text('title').notNull(), // free text: House Captain, Vice Captain, Sports Captain ...
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+export const housePoints = pgTable('house_points', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  centreId: uuid('centre_id').notNull().references(() => centres.id),
+  houseId: uuid('house_id').notNull().references(() => houses.id),
+  studentId: uuid('student_id').references(() => students.id), // who earned it (optional)
+  points: integer('points').notNull(), // can be negative
+  reason: text('reason').notNull(), date: date('date').notNull(),
+  createdBy: uuid('created_by').references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });

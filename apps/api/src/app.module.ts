@@ -24,6 +24,8 @@ import { CentresController } from './centres/centres.controller';
 import { TestsController } from './tests/tests.controller';
 import { HomeworkController } from './homework/homework.controller';
 import { LiveController } from './live/live.controller';
+import { HousesController } from './houses/houses.controller';
+import { DashboardController } from './dashboard/dashboard.controller';
 import { LiveService } from './live/live.service';
 import { ReportsController } from './reports/reports.controller';
 import { ReportsService } from './reports/reports.service';
@@ -64,7 +66,7 @@ class HealthController { @Public() @Get('health') health() { return { ok: true, 
 
 @Module({
   imports: [DbModule, PlatformModule, AuthModule],
-  controllers: [BackupController, IclockController, TransportController, AssistantController, ImportController, SiteController, MessagingController, AlertsController, AccessController, FilesController, IdCardsController, HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController, NotificationsController, ChatController, ContentController, TimetableController, AutoTimetableController, CentresController, PlatformTeamController, CouponsController, LibraryController, TestsController, HomeworkController, LiveController, ReportsController, StaffController, DoubtsController, LeavesController, FeedbackController, EnquiriesController, WishesController, PlatformController, SubscriptionController, StaffAttendanceController, WellbeingController, NewsController, PaymentsController, RecordsController, ExamsController, CertificatesController, AdmissionsController, PayrollController, BiometricController, InsightsController, DossierController],
+  controllers: [BackupController, IclockController, TransportController, AssistantController, ImportController, SiteController, MessagingController, AlertsController, AccessController, FilesController, IdCardsController, HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController, NotificationsController, ChatController, ContentController, TimetableController, AutoTimetableController, CentresController, PlatformTeamController, CouponsController, LibraryController, TestsController, HomeworkController, DashboardController, HousesController, LiveController, ReportsController, StaffController, DoubtsController, LeavesController, FeedbackController, EnquiriesController, WishesController, PlatformController, SubscriptionController, StaffAttendanceController, WellbeingController, NewsController, PaymentsController, RecordsController, ExamsController, CertificatesController, AdmissionsController, PayrollController, BiometricController, InsightsController, DossierController],
   providers: [LiveService, BiometricController, AlertsController, StudentsService, RedisService, ChatGateway, ReportsService, SchedulerService, FeesController, ExamsController, WishesController, { provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AppModule {}

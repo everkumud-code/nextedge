@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import LangSwitch from './LangSwitch';
 import LangPrompt from './LangPrompt';
+import DemoSwitch from './DemoSwitch';
 import { api, session } from '../api';
 
 const ROLE: Record<string, string> = { SUPER_ADMIN: 'Platform admin', ADMIN: 'Owner', FACULTY: 'Teacher', STAFF: 'Staff', STUDENT: 'Student', PARENT: 'Parent', EXPERT: 'Counsellor' };
@@ -14,7 +15,7 @@ const groups: { name: string; items: Item[] }[] = [
   // Ordered by how often a small school or coaching uses them: the top is the daily work, the bottom is rarely-opened settings.
   { name: '', items: [['/', 'Today', ''], ['/alerts', 'Alerts', ''], ['/inbox', 'Inbox', 'doubts']] },
   { name: 'Daily work', items: [['/attendance', 'Attendance', 'attendance'], ['/fees', 'Fees', 'fees'], ['/notices', 'Notices', 'notices'], ['/homework', 'Homework', 'homework'], ['/records/visitor', 'Front desk', 'visitors']] },
-  { name: 'Students & admission', items: [['/students', 'Students', 'students'], ['/batches', 'Batches', 'students', 'Classes & sections'], ['/records/admission', 'Admissions', 'admissions'], ['/enquiries', 'Enquiries', 'enquiries', 'Admission enquiries'], ['/id-cards', 'ID cards', 'students'], ['/certificates', 'Certificates', 'certificates'], ['/import', 'Import data', 'students']] },
+  { name: 'Students & admission', items: [['/students', 'Students', 'students'], ['/batches', 'Batches', 'students', 'Classes & sections'], ['/records/admission', 'Admissions', 'admissions'], ['/enquiries', 'Enquiries', 'enquiries', 'Admission enquiries'], ['/id-cards', 'ID cards', 'students'], ['/certificates', 'Certificates', 'certificates'], ['/houses', 'Houses', 'students'], ['/import', 'Import data', 'students']] },
   { name: 'Teaching & exams', items: [['/timetable', 'Timetable', 'timetable', 'Period timetable'], ['/exams', 'Exams & report cards', 'exams'], ['/tests', 'Online tests', 'tests'], ['/study', 'Study material', 'study'], ['/live', 'Live classes', 'live'], ['/records/lesson', 'Lesson diary & planner', 'planner'], ['/records/subject', 'Subjects & syllabus', 'academics']] },
   { name: 'Student care', items: [['/records/discipline', 'Discipline', 'discipline'], ['/records/behaviour', 'Behaviour', 'discipline'], ['/records/health', 'Health & medical', 'health'], ['/records/achievement', 'Activities & awards', 'activities'], ['/records/ptm-slot', 'PTM slots', 'events'], ['/records/teacher-feedback', 'Teacher feedback', 'feedback']] },
   { name: 'School life', items: [['/records/event', 'Events & gallery', 'events'], ['/wishes', 'Wishes', 'notices'], ['/records/transport-route', 'Transport', 'transport'], ['/library', 'Library', 'library'], ['/records/item', 'Inventory', 'inventory']] },
@@ -61,7 +62,7 @@ export default function Layout() {
             </div>;
           })}
         </nav>
-        <div className="px-5 py-2 border-t border-teal-800 text-teal-100"><LangSwitch dark /></div><LangPrompt />
+        <DemoSwitch /><div className="px-5 py-2 border-t border-teal-800 text-teal-100"><LangSwitch dark /></div><LangPrompt />
         <ThemePicker />
         <button onClick={() => { session.clear(); go('/login'); }} className="px-5 py-3 text-left text-sm text-teal-100/80 hover:text-white border-t border-teal-800">Log out</button>
       </aside>

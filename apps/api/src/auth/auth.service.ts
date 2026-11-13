@@ -8,6 +8,8 @@ import { PlatformService } from '../platform/platform.service';
 import { RedisService } from '../common/redis.service';
 import { MailService } from '../notifications/mail.service';
 import { MessagingService } from '../messaging/messaging.service';
+import { dashKind, type DashKind } from '../dashboard/dash-kind';
+import type { JwtUser } from '../common/current-user.decorator';
 
 const OTP_TTL = 5 * 60, SEND_LIMIT = 5, VERIFY_LIMIT = 5;
 type Account = { id: string; name: string; role: any; centreId: string | null; email: string | null; mobile: string };
@@ -87,7 +89,7 @@ export class AuthService {
     if (!u) throw new UnauthorizedException('Account not found'); return this.issue(u);
   }
 
-  private async issue(user: { id: string; name: string; role: any; centreId: string | null }) {
+  private async issue(user: { id: string; name: string; role: any; centreId: string | null }, demoFrom?: string) {
     let modules: string[] = [];
     if (user.role === 'SUPER_ADMIN') { const [t] = await this.dbs.db.select().from(platformTeam).where(eq(platformTeam.userId, user.id)); if (t && !t.active) throw new UnauthorizedException('Your account is deactivated. Contact the platform owner.'); }
     if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') modules = [...MODULES];
@@ -98,7 +100,37 @@ export class AuthService {
     }
     let features: string[] = [...MODULES], status = 'active', institutionType = 'coaching', centreName = '';
     if (user.centreId) { const [ce] = await this.dbs.db.select({ t: centres.institutionType, n: centres.name }).from(centres).where(eq(centres.id, user.centreId)); institutionType = ce?.t || 'coaching'; centreName = ce?.n || ''; const s = await this.platform.settings(user.centreId); features = s.features.length ? s.features : [...MODULES]; status = s.status; modules = modules.filter((m) => features.includes(m)); }
-    const token = await this.jwt.signAsync({ id: user.id, role: user.role, centreId: user.centreId, name: user.name, modules });
-    return { token, user: { id: user.id, name: user.name, role: user.role, centreId: user.centreId, modules, features, subscriptionStatus: status, institutionType, centreName } };
+    const token = await this.jwt.signAsync({ id: user.id, role: user.role, centreId: user.centreId, name: user.name, modules, ...(demoFrom ? { demoFrom } : {}) }, demoFrom ? { expiresIn: '12h' } : undefined); // a demo view never lasts longer than half a day
+    return { token, user: { id: user.id, name: user.name, role: user.role, centreId: user.centreId, modules, features, subscriptionStatus: status, institutionType, centreName, ...(demoFrom ? { demoFrom } : {}) } };
+  }
+
+  // ---------- DEMO ONLY: look at the demo through each person's login (no OTP) ----------
+  /** The demo centre this person may look around in, or null. Allowed: the platform team (inside a demo centre), a sales-demo staff member of that centre, and anyone who got here through this switch. Real centres can never be entered this way. */
+  async demoCentre(u: JwtUser): Promise<string | null> {
+    if (!u.centreId) return null; const [ce] = await this.dbs.db.select({ plan: centres.plan }).from(centres).where(eq(centres.id, u.centreId)); if (ce?.plan !== 'demo') return null;
+    if (u.role === 'SUPER_ADMIN' || u.demoFrom) return u.centreId;
+    if (u.role === 'STAFF') { const [p] = await this.dbs.db.select({ t: staffPermissions.title }).from(staffPermissions).where(eq(staffPermissions.userId, u.id)); if (String(p?.t || '').toLowerCase() === 'sales demo') return u.centreId; }
+    return null;
+  }
+  private static LABEL: Record<DashKind, string> = { admin: 'Owner / Principal', teacher: 'Teacher', student: 'Student', parent: 'Parent', driver: 'Bus driver', frontoffice: 'Front office', hr: 'HR', accounts: 'Accounts', staff: 'Non-teaching staff' };
+  /** One example login for each kind of person in this demo centre. */
+  async demoRoles(u: JwtUser) {
+    const centreId = await this.demoCentre(u); if (!centreId) return { available: false, roles: [] };
+    const rows = await this.dbs.db.select({ id: users.id, name: users.name, role: users.role, title: staffPermissions.title }).from(users).leftJoin(staffPermissions, eq(staffPermissions.userId, users.id)).where(eq(users.centreId, centreId)).orderBy(users.createdAt);
+    const out: { kind: DashKind; label: string; userId: string; name: string; title: string; current: boolean }[] = [];
+    for (const k of ['admin', 'teacher', 'student', 'parent', 'driver', 'frontoffice', 'hr', 'accounts', 'staff'] as DashKind[]) {
+      const r = rows.find((x) => ['ADMIN', 'FACULTY', 'STAFF', 'STUDENT', 'PARENT'].includes(x.role) && !(x.role === 'STAFF' && String(x.title || '').toLowerCase() === 'sales demo') && dashKind(x.role, x.title) === k); if (r) out.push({ kind: k, label: AuthService.LABEL[k], userId: r.id, name: r.name, title: r.title || '', current: r.id === u.id });
+    }
+    return { available: true, roles: out, switched: !!u.demoFrom };
+  }
+  async demoSwitch(u: JwtUser, userId: string) {
+    const centreId = await this.demoCentre(u); if (!centreId) throw new UnauthorizedException('Not available.');
+    const [t] = await this.dbs.db.select().from(users).where(and(eq(users.id, userId), eq(users.centreId, centreId))); if (!t || !['ADMIN', 'FACULTY', 'STAFF', 'STUDENT', 'PARENT'].includes(t.role)) throw new UnauthorizedException('That login is not part of this demo.');
+    return { ...(await this.issue(t, u.demoFrom || u.id)), demoCentreId: centreId };
+  }
+  /** Back to the person who started the demo view. */
+  async demoBack(u: JwtUser) {
+    if (!u.demoFrom) throw new UnauthorizedException('Not in a demo view.'); const [o] = await this.dbs.db.select().from(users).where(eq(users.id, u.demoFrom)); if (!o) throw new UnauthorizedException('Original login not found.');
+    return { ...(await this.issue(o)), demoCentreId: u.centreId };
   }
 }

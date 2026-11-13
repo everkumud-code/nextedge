@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, session } from '../api';
+import RoleHome from './RoleHome';
 const inr = (n: number) => '₹' + Number(n || 0).toLocaleString('en-IN');
 
 /** Owner / staff home: numbers that matter today, what needs action, latest notices. */
-export default function Dashboard() {
+function AdminDashboard() {
   const [students, setStudents] = useState<any[]>([]); const [batches, setBatches] = useState<any[]>([]);
   const [fees, setFees] = useState<any>(null); const [notices, setNotices] = useState<any[]>([]); const [wb, setWb] = useState<any>(null); const [sub, setSub] = useState<any>(null);
   const [att, setAtt] = useState<any[]>([]); const [doubts, setDoubts] = useState<any[]>([]); const [leaves, setLeaves] = useState<any[]>([]); const [enq, setEnq] = useState<any[]>([]); const [hw, setHw] = useState<any[]>([]);
@@ -105,4 +106,12 @@ function AlertsWidget() {
     <div className="card mt-4 p-4" data-testid="alerts-widget"><div className="flex items-center justify-between mb-2"><b>Needs your attention</b><Link to="/alerts" className="text-sm text-edge-600 underline">All alerts ({d.alerts.length})</Link></div>
       <div className="grid grid-cols-4 gap-3">{top.map((a: any) => <Link key={a.key} to={a.path} className={`rounded border-l-4 p-3 bg-slate-50 hover:bg-slate-100 ${a.severity === 'high' ? 'border-brick' : 'border-marigold-500'}`}><div className="text-2xl font-bold leading-none">{a.count}</div><div className="text-sm mt-1">{a.label}</div></Link>)}</div></div>
   );
+}
+
+/** Everyone except the owner gets a home screen made for their job (student, parent, teacher, driver, front office, HR, accounts, other staff). */
+export default function Dashboard() {
+  const [home, setHome] = useState<any>(undefined);
+  useEffect(() => { if (session.user?.role === 'SUPER_ADMIN' && !session.viewCentre) { setHome({ kind: 'admin' }); return; } api('/dashboard/home').then(setHome).catch(() => setHome({ kind: 'admin' })); }, []);
+  if (home === undefined) return <p className="text-slate-500">Loading…</p>;
+  return home.kind === 'admin' ? <AdminDashboard /> : <RoleHome data={home} />;
 }

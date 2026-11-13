@@ -5,6 +5,7 @@ import postgres from 'postgres';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import * as s from './schema';
 import { FACULTY_DEFAULT } from '../common/permissions';
+import { distribute } from '../houses/houses';
 
 export const iso = (d: Date) => d.toISOString().slice(0, 10);
 export const todayIST = () => iso(new Date(Date.now() + 5.5 * 3600e3));
@@ -299,6 +300,79 @@ export async function showcase(c: Ctx) {
 }
 
 let running = false;
+/** One example login for every job shown in the role dashboards (HR, accounts, front office, non-teaching), plus a few weeks of their own attendance and some duties. Safe to run again. */
+async function demoRoles(c: Ctx) {
+  const { db } = c; const school = c.type === 'school'; const adminId = c.admin?.id;
+  const specs = school
+    ? [{ email: 'hr@demo.school', name: 'Neha Singh', mobile: '9999800011', title: 'HR Manager', modules: ['hr', 'staff', 'leaves', 'notices', 'reports'] },
+       { email: 'accounts@demo.school', name: 'Rakesh Gupta', mobile: '9999800012', title: 'Accountant', modules: ['fees', 'reports', 'notices', 'hr'] },
+       { email: 'frontdesk@demo.school', name: 'Pooja Kumari', mobile: '9999800013', title: 'Front office', modules: ['visitors', 'enquiries', 'admissions', 'notices', 'certificates'] },
+       { email: 'lab@demo.school', name: 'Dinesh Munda', mobile: '9999800014', title: 'Lab assistant', modules: ['notices', 'duties'] }]
+    : [{ email: 'accounts@demo.coaching', name: 'Anil Prasad', mobile: '9999900011', title: 'Accountant', modules: ['fees', 'reports', 'notices'] }];
+  for (const sp of specs) {
+    let [u] = await db.select().from(s.users).where(and(eq(s.users.centreId, c.centre.id), eq(s.users.email, sp.email)));
+    if (!u) { [u] = await db.insert(s.users).values({ centreId: c.centre.id, mobile: sp.mobile, email: sp.email, name: sp.name, role: 'STAFF' }).returning(); await db.insert(s.staffPermissions).values({ userId: u.id, centreId: c.centre.id, modules: JSON.stringify(sp.modules), title: sp.title }); }
+    if (u.name === 'Suresh Oraon' && sp.email === 'lab@demo.school') { await db.update(s.users).set({ name: sp.name }).where(eq(s.users.id, u.id)); } // an earlier fill reused a teacher's name
+    const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(s.staffAttendance).where(eq(s.staffAttendance.userId, u.id));
+    if (Number(n) === 0) { const rows = []; for (let i = 1; i <= 24; i++) { const date = addDays(c.today, -i); const wd = new Date(date + 'T00:00:00Z').getUTCDay(); if (wd === 0) continue; const status = i % 11 === 0 ? 'late' : 'present'; rows.push({ centreId: c.centre.id, userId: u.id, date, status, checkIn: new Date(`${date}T0${status === 'late' ? '3:50' : '3:20'}:00Z`), checkOut: new Date(`${date}T10:30:00Z`), minutes: 450 }); } if (rows.length) await db.insert(s.staffAttendance).values(rows); }
+    if (sp.title === 'Lab assistant') { const [{ d }] = await db.select({ d: sql<number>`count(*)` }).from(s.records).where(and(eq(s.records.centreId, c.centre.id), eq(s.records.kind, 'duty'), eq(s.records.staffId, u.id))); if (Number(d) === 0) await db.insert(s.records).values([
+      { centreId: c.centre.id, kind: 'duty', staffId: u.id, title: 'Set up the Class 8 chemistry practical', date: c.today, status: 'assigned', data: JSON.stringify({ dueDate: addDays(c.today, 1), priority: 'High', details: 'Beakers, burners and salt samples for 4 groups' }), createdBy: adminId },
+      { centreId: c.centre.id, kind: 'duty', staffId: u.id, title: 'Count and list the microscope slides', date: c.today, status: 'in-progress', data: JSON.stringify({ dueDate: addDays(c.today, 4), priority: 'Normal', details: '' }), createdBy: adminId }]); }
+  }
+}
+
+/**
+ * School demo only: the first demo timetable put each class teacher in every period of their class, so a teacher who was class teacher of
+ * several sections was in several rooms at once (the Timetable audit showed thousands of clashes). This rebuilds it with a rotation in which,
+ * in any period, every teacher is in exactly one class (16 classes rotate over 10 teachers; the classes without a teacher that period have
+ * Library / Games / Activity). Runs only when a clash is found or the demo has no timetable, so a clash-free timetable made in the demo is left alone.
+ */
+async function demoTimetableFix(c: Ctx) {
+  if (c.type !== 'school') return; const { db } = c;
+  const clash: any = await db.execute(sql`select 1 from timetable_slots where centre_id = ${c.centre.id} and faculty_id is not null group by faculty_id, weekday, start_time having count(*) > 1 limit 1`);
+  const [{ cnt }] = await db.select({ cnt: sql<number>`count(*)` }).from(s.timetableSlots).where(eq(s.timetableSlots.centreId, c.centre.id));
+  if (!(clash.rows ? clash.rows.length : clash.length) && Number(cnt) > 0) return; // build it when there is a clash, or when the demo has no timetable at all
+  const grid: any[] = await db.select().from(s.bellPeriods).where(and(eq(s.bellPeriods.centreId, c.centre.id), eq(s.bellPeriods.isBreak, false))).orderBy(s.bellPeriods.no); if (!grid.length) return;
+  const bs: any[] = await db.select().from(s.batches).where(eq(s.batches.centreId, c.centre.id)).orderBy(s.batches.sortOrder, s.batches.name);
+  const ts: any[] = await db.select({ id: s.users.id, title: s.staffPermissions.title }).from(s.users).leftJoin(s.staffPermissions, eq(s.staffPermissions.userId, s.users.id)).where(and(eq(s.users.centreId, c.centre.id), eq(s.users.role, 'FACULTY'))).orderBy(s.users.createdAt);
+  if (!ts.length || !bs.length) return;
+  const known: [RegExp, string][] = [[/math/i, 'Mathematics'], [/english/i, 'English'], [/hindi/i, 'Hindi'], [/social|history|geo|civics/i, 'Social Science'], [/sci|physics|chem|bio/i, 'Science'], [/comp/i, 'Computer'], [/art|craft|drawing/i, 'Art & craft'], [/sport|pt\b|games/i, 'Games']];
+  const fallback = ['Mathematics', 'English', 'Hindi', 'Science', 'Social Science', 'Computer', 'EVS', 'Moral science', 'GK', 'Music']; // teachers without a job title: the first is the Maths teacher
+  const subjectOf = (t: any, i: number) => known.find(([re]) => re.test(String(t.title || '')))?.[1] || fallback[i % fallback.length];
+  const free = ['Library', 'Games', 'Activity period']; const slots: any[] = []; const N = Math.max(bs.length, ts.length);
+  bs.forEach((b, bi) => { for (let wd = 1; wd <= 6; wd++) grid.forEach((p, pi) => { const k = (bi + pi + wd * 5) % N; const t = ts[k]; slots.push({ centreId: c.centre.id, batchId: b.id, weekday: wd, startTime: p.startTime, endTime: p.endTime, subject: t ? subjectOf(t, k) : free[(bi + pi + wd) % free.length], facultyId: t ? t.id : null, period: p.no }); }); });
+  await db.delete(s.timetableSlots).where(eq(s.timetableSlots.centreId, c.centre.id));
+  for (let i = 0; i < slots.length; i += 500) await db.insert(s.timetableSlots).values(slots.slice(i, i + 500));
+}
+
+/** School demo only: four houses with captains, the students shared between them, and a month of house points, so the student dashboard and the Houses page are alive. */
+async function demoHouses(c: Ctx) {
+  if (c.type !== 'school') return; const { db } = c;
+  const [{ n }] = await db.select({ n: sql<number>`count(*)` }).from(s.houses).where(eq(s.houses.centreId, c.centre.id)); if (Number(n) > 0) return;
+  const defs = [['Ashoka', '#C62828', 'Courage in every step'], ['Tagore', '#1565C0', 'Create, imagine, inspire'], ['Raman', '#2E7D32', 'Curiosity leads the way'], ['Kalam', '#F9A825', 'Dream, believe, achieve']];
+  const hs: any[] = await db.insert(s.houses).values(defs.map(([name, colour, motto], i) => ({ centreId: c.centre.id, name, colour, motto, sortOrder: i }))).returning();
+  const sts: any[] = await db.select({ id: s.students.id, name: s.students.name, gender: s.students.gender, className: s.students.className }).from(s.students).where(and(eq(s.students.centreId, c.centre.id), eq(s.students.active, true)));
+  const plan = distribute(sts.map((x) => ({ ...x, houseId: null })), hs.map((h) => h.id));
+  for (const h of hs) { const ids = plan.filter((p) => p.houseId === h.id).map((p) => p.studentId); if (ids.length) await db.update(s.students).set({ houseId: h.id }).where(inArray(s.students.id, ids)); }
+  const senior = (hid: string) => sts.filter((x) => plan.find((p) => p.studentId === x.id)?.houseId === hid && /8/.test(String(x.className))).sort((a, b) => a.name.localeCompare(b.name));
+  for (const h of hs) { const m = senior(h.id); if (m[0]) await db.insert(s.houseRoles).values({ centreId: c.centre.id, houseId: h.id, studentId: m[0].id, title: 'House Captain' }); if (m[1]) await db.insert(s.houseRoles).values({ centreId: c.centre.id, houseId: h.id, studentId: m[1].id, title: 'Vice Captain' }); }
+  const reasons: [string, number][] = [['Won the relay race', 20], ['Best turned-out class', 10], ['Quiz competition winners', 15], ['Clean-class week', 10], ['Late for assembly', -5], ['Won the drawing contest', 15], ['Sportsmanship award', 10], ['Science exhibition', 20]];
+  const rows = []; for (let i = 0; i < 28; i++) { const [reason, points] = reasons[(i * 3) % reasons.length]; rows.push({ centreId: c.centre.id, houseId: hs[(i + (i >> 2)) % hs.length].id, points, reason, date: addDays(c.today, -((i * 2) % 40)), createdBy: c.admin?.id }); }
+  await db.insert(s.housePoints).values(rows);
+}
+
+/** Today's front-desk register and today's staff attendance, so the front-office and HR dashboards are not empty on a demo morning. Demo centres only; each part runs only when there is nothing for today yet. */
+async function demoToday(c: Ctx) {
+  const { db } = c; const [{ v }] = await db.select({ v: sql<number>`count(*)` }).from(s.records).where(and(eq(s.records.centreId, c.centre.id), eq(s.records.kind, 'visitor'), eq(s.records.date, c.today)));
+  if (c.type === 'school' && Number(v) === 0) await db.insert(s.records).values([
+    ['Mr. Rakesh Jha', 'Parent meeting', 'Principal', '09:10', '09:40', 'out'], ['Anita Devi', 'Admission enquiry', 'Front office', '09:30', '', 'in'], ['Ranchi Book Depot', 'Vendor', 'Accounts', '10:05', '10:25', 'out'], ['Mrs. Priya Sharma', 'Parent meeting', 'Class teacher 4-A', '10:40', '', 'in']
+  ].map(([name, purpose, toMeet, inTime, outTime, status]) => ({ centreId: c.centre.id, kind: 'visitor', title: name, date: c.today, status, data: JSON.stringify({ purpose, toMeet, inTime, outTime, mobile: '98765' + String(10000 + name.length * 37).slice(0, 5) }), createdBy: c.admin?.id })));
+  const staff: any[] = await db.select({ id: s.users.id }).from(s.users).where(and(eq(s.users.centreId, c.centre.id), inArray(s.users.role, ['FACULTY', 'STAFF'])));
+  const have: any[] = await db.select({ id: s.staffAttendance.userId }).from(s.staffAttendance).where(and(eq(s.staffAttendance.centreId, c.centre.id), eq(s.staffAttendance.date, c.today)));
+  const got = new Set(have.map((h) => h.id)); const todo = staff.filter((x) => !got.has(x.id)); const wd = new Date(c.today + 'T00:00:00Z').getUTCDay();
+  if (todo.length && wd !== 0) await db.insert(s.staffAttendance).values(todo.map((x, i) => ({ centreId: c.centre.id, userId: x.id, date: c.today, status: i % 9 === 4 ? 'late' : 'present', checkIn: new Date(`${c.today}T0${i % 9 === 4 ? '3:55' : '3:25'}:00Z`), minutes: 0 })));
+}
+
 /** Entry point: fills both demo clients. Safe to call repeatedly (each block is idempotent); also tops up attendance to yesterday. */
 export async function fillDemoData() {
   if (running) return; running = true; const t0 = Date.now(); const client = postgres(process.env.DATABASE_URL!, { max: 4 }); const db = drizzle(client, { schema: s });
@@ -310,7 +384,7 @@ export async function fillDemoData() {
       const step = async (label: string, fn: () => Promise<any>) => { try { await fn(); } catch (e: any) { console.error(`[demo-fill] ${name} · ${label} failed:`, e?.message || e); } };
       await step('people', () => (type === 'school' ? schoolPeople(c) : coachingPeople(c))); if (!c.students.length) continue;
       await step('parents', () => ensureParents(c)); await step('payments', () => payments(c)); await step('attendance', () => attendance(c)); await step('homework', () => homework(c)); await step('tests', () => tests(c, type === 'school' ? (b: any) => /Class [678] - [AB]/.test(b.name) : () => true)); await step('study+live', () => studyAndLive(c)); await step('communication', () => communication(c));
-      if (type === 'school') await step('exams', () => schoolExams(c)); if (type === 'school') await step('timetable', () => schoolTimetable(c)); await step('records', () => schoolRecords(c)); await step('office+HR', () => schoolOffice(c)); await step('showcase', () => showcase(c));
+      if (type === 'school') await step('exams', () => schoolExams(c)); if (type === 'school') await step('timetable', () => schoolTimetable(c)); await step('records', () => schoolRecords(c)); await step('office+HR', () => schoolOffice(c)); await step('role logins', () => demoRoles(c)); await step('timetable fix', () => demoTimetableFix(c)); await step('houses', () => demoHouses(c)); await step('today', () => demoToday(c)); await step('showcase', () => showcase(c));
       console.log(`[demo-fill] ${name}: ${c.students.length} students, ${c.batches.length} batches, ${c.teachers.length} teachers ready`);
     }
     console.log(`[demo-fill] done in ${Math.round((Date.now() - t0) / 1000)}s`);
