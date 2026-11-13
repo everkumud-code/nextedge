@@ -51,7 +51,7 @@ export const students = pgTable('students', {
   parentName: text('parent_name'),
   parentMobile: text('parent_mobile').notNull(),
   dob: date('dob'),
-  gender: text('gender'), admissionNo: text('admission_no'), admissionDate: date('admission_date'), fatherName: text('father_name'), motherName: text('mother_name'), address: text('address'), category: text('category'), religion: text('religion'), bloodGroup: text('blood_group'), previousSchool: text('previous_school'), photoUrl: text('photo_url'),
+  gender: text('gender'), admissionNo: text('admission_no'), admissionDate: date('admission_date'), fatherName: text('father_name'), motherName: text('mother_name'), address: text('address'), category: text('category'), religion: text('religion'), bloodGroup: text('blood_group'), previousSchool: text('previous_school'), photoUrl: text('photo_url'), apaarId: text('apaar_id'), pen: text('pen'),
   leftOn: date('left_on'), leftReason: text('left_reason'),
   active: boolean('active').default(true).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),

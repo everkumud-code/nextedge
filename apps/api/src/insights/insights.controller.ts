@@ -7,6 +7,7 @@ import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
 import { PlatformService } from '../platform/platform.service';
+import { audit, normBoard } from './compliance';
 
 const esc = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
 /** Charts for the owner and government-style exports (UDISE+ style enrolment, student and staff sheets). */
@@ -32,6 +33,21 @@ export class InsightsController {
     const gender = { Male: sts.filter((s) => s.gender === 'Male').length, Female: sts.filter((s) => s.gender === 'Female').length, Other: sts.filter((s) => s.gender && !['Male', 'Female'].includes(s.gender)).length, Unknown: sts.filter((s) => !s.gender).length };
     const category: Record<string, number> = {}; sts.forEach((s) => { const k = s.category || 'Not set'; category[k] = (category[k] || 0) + 1; });
     return { totals: { students: sts.length, batches: bs.length, collectedThisMonth: collection[5].value, loansOut: recs.filter((r) => r.kind === 'loan' && r.status === 'issued').length, visitorsToday: recs.filter((r) => r.kind === 'visitor' && r.date === now.toISOString().slice(0, 10)).length }, collection, strength, attendancePct, examAvg, enquiries: enq.map((e) => ({ label: e.status, value: Number(e.n) })), discipline: disc, gender, category };
+  }
+
+  /** Board-compliance checks (CBSE norms are built in; other boards get the checks that are board-neutral). Advisory, never blocks anything. */
+  @Get('compliance') async compliance(@CurrentUser() u: JwtUser, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); const db = this.dbs.db; const s = await this.platform.settings(centreId);
+    const bs = await db.select().from(batches).where(eq(batches.centreId, centreId)); const sts = await db.select().from(students).where(and(eq(students.centreId, centreId), eq(students.active, true)));
+    const [{ t }] = await db.select({ t: sql<number>`count(*)` }).from(users).where(and(eq(users.centreId, centreId), eq(users.role, 'FACULTY')));
+    const now = new Date(Date.now() + 5.5 * 3600e3); const y = now.getUTCMonth() >= 3 ? now.getUTCFullYear() : now.getUTCFullYear() - 1; // Indian school year starts in April
+    const rows = await db.select({ studentId: attendance.studentId, status: attendance.status, n: sql<number>`count(*)` }).from(attendance).where(and(eq(attendance.centreId, centreId), gte(attendance.date, `${y}-04-01`))).groupBy(attendance.studentId, attendance.status);
+    const att: Record<string, { present: number; total: number }> = {}; for (const r of rows) { const a = (att[r.studentId] ||= { present: 0, total: 0 }); a.total += Number(r.n); if (r.status === 'PRESENT' || r.status === 'LATE') a.present += Number(r.n); }
+    const bm = new Map(bs.map((b) => [b.id, b])); const strength = new Map<string, number>(); for (const x of sts) if (x.batchId) strength.set(x.batchId, (strength.get(x.batchId) || 0) + 1);
+    const result = audit({ board: normBoard(s.board), profile: { academicSession: s.academicSession, affiliationNo: s.affiliationNo, udiseCode: s.udiseCode, principalName: s.principalName, board: s.board },
+      sections: bs.map((b) => ({ id: b.id, label: b.name, className: b.className, strength: strength.get(b.id) || 0 })), teachers: Number(t),
+      students: sts.map((x) => ({ id: x.id, name: x.name, className: bm.get(x.batchId || '')?.className || x.className, section: bm.get(x.batchId || '')?.section, dob: x.dob, gender: x.gender, fatherName: x.fatherName, motherName: x.motherName, category: x.category, apaarId: x.apaarId, pen: x.pen, admissionNo: x.admissionNo })), attendance: att });
+    return { ...result, boardText: s.board || '', students: sts.length, sections: bs.length, since: `${y}-04-01` };
   }
 
   /** UDISE+ style exports. type = students | staff | enrolment */

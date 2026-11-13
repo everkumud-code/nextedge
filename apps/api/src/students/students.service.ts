@@ -3,7 +3,10 @@ import { and, eq, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
 import { batches, centres, students, users } from '../db/schema';
 
-export type StudentInput = { name: string; parentMobile: string; parentName?: string; parentEmail?: string; mobile?: string; email?: string; className?: string; rollNo?: string; batchId?: string | null; dob?: string; gender?: string; admissionNo?: string; admissionDate?: string; fatherName?: string; motherName?: string; address?: string; category?: string; religion?: string; bloodGroup?: string; previousSchool?: string };
+import { cleanId } from '../insights/compliance';
+/** Bulk import must not fail a whole file because one APAAR / PEN is mistyped: a bad value is dropped (the compliance page lists missing ones). */
+const safeId = (k: 'APAAR' | 'PEN', v?: string) => { try { return cleanId(k, v); } catch { return null; } };
+export type StudentInput = { name: string; parentMobile: string; parentName?: string; parentEmail?: string; mobile?: string; email?: string; className?: string; rollNo?: string; batchId?: string | null; dob?: string; gender?: string; admissionNo?: string; admissionDate?: string; fatherName?: string; motherName?: string; address?: string; category?: string; religion?: string; bloodGroup?: string; previousSchool?: string; apaarId?: string; pen?: string };
 
 @Injectable()
 export class StudentsService {
@@ -23,7 +26,7 @@ export class StudentsService {
     const [row] = await db.insert(students).values({
       centreId, name: dto.name, parentMobile: dto.parentMobile, parentName: dto.parentName || dto.fatherName || dto.motherName, mobile: dto.mobile,
       className, rollNo, batchId: dto.batchId || null, userId: studentUser?.id ?? null, dob: dto.dob || null,
-      gender: dto.gender, admissionNo, admissionDate: dto.admissionDate || new Date().toISOString().slice(0, 10), fatherName: dto.fatherName, motherName: dto.motherName, address: dto.address, category: dto.category, religion: dto.religion, bloodGroup: dto.bloodGroup, previousSchool: dto.previousSchool,
+      gender: dto.gender, admissionNo, admissionDate: dto.admissionDate || new Date().toISOString().slice(0, 10), fatherName: dto.fatherName, motherName: dto.motherName, address: dto.address, category: dto.category, religion: dto.religion, bloodGroup: dto.bloodGroup, previousSchool: dto.previousSchool, apaarId: safeId('APAAR', dto.apaarId), pen: safeId('PEN', dto.pen),
     }).returning();
     return { ...row, parentUserId: parent.id };
   }
