@@ -46,10 +46,10 @@ export default function Dashboard() {
       <div className="grid grid-cols-3 gap-4 mt-6">
         <div className="card p-4 col-span-1"><h2 className="font-semibold mb-2">Needs action</h2>
           <ul className="text-sm space-y-2">
-            {can('doubts') && <li><Link className="underline" to="/inbox">{openDoubts.length} open doubt{openDoubts.length === 1 ? '' : 's'}</Link>{openDoubts.some((d) => d.overdue) && <span className="text-brick"> · some over 24 h</span>}</li>}
-            {can('leaves') && <li><Link className="underline" to="/inbox">{pendingLeaves.length} leave request{pendingLeaves.length === 1 ? '' : 's'} pending</Link></li>}
-            {can('enquiries') && <li><Link className="underline" to="/enquiries">{followUps.length} enquiry follow-up{followUps.length === 1 ? '' : 's'} due</Link></li>}
-            {can('homework') && <li><Link className="underline" to="/homework">{dueHw.length} homework due / overdue</Link></li>}
+            {can('doubts') && <li><Link className="underline" to="/inbox">{`${openDoubts.length} open doubt${openDoubts.length === 1 ? '' : 's'}`}</Link>{openDoubts.some((d) => d.overdue) && <span className="text-brick"> · some over 24 h</span>}</li>}
+            {can('leaves') && <li><Link className="underline" to="/inbox">{`${pendingLeaves.length} leave request${pendingLeaves.length === 1 ? '' : 's'} pending`}</Link></li>}
+            {can('enquiries') && <li><Link className="underline" to="/enquiries">{`${followUps.length} enquiry follow-up${followUps.length === 1 ? '' : 's'} due`}</Link></li>}
+            {can('homework') && <li><Link className="underline" to="/homework">{`${dueHw.length} homework due / overdue`}</Link></li>}
             {birthdays.length > 0 && <li>🎂 Birthday today: {birthdays.map((b) => b.name).join(', ')}</li>}
             {low.length > 0 && <li className="text-brick">Below 75%: {low.slice(0, 4).map((a) => a.name).join(', ')}{low.length > 4 ? ` +${low.length - 4}` : ''}</li>}
           </ul>
