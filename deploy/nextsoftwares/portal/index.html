@@ -6,7 +6,7 @@
 <title>NextSoftwares — Login for NextEdge, NextFit, NextGlow, NextCare, Next Era</title>
 <meta name="description" content="One login page for NextEdge (schools and coaching), NextFit (gyms), NextGlow (salons), NextCare (clinics) and Next Era (hotels and resorts). Software by Next Resource.">
 <style>
-  :root { --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f6f8fb; --card:#fff; --edge:#0F766E; --fit:#0A6EDB; --glow:#E0287A; --care:#0FA38A; }
+  :root { --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f6f8fb; --card:#fff; --edge:#009BEE; --fit:#F7AE00; --glow:#EA0090; --care:#1C006F; --era:#F95500; }
   @media (prefers-color-scheme: dark) { :root { --ink:#e5edf7; --muted:#9fb0c7; --line:#25324a; --bg:#0b1220; --card:#121c2f; } }
   * { box-sizing:border-box; } html,body { margin:0; }
   body { font-family:"Segoe UI","Nirmala UI","Noto Sans",system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; display:flex; flex-direction:column; }
@@ -41,6 +41,7 @@
   .grid + .grid { margin-top:14px; } .gridlabel { margin:26px 0 10px; font-size:13px; font-weight:700; letter-spacing:.5px; text-transform:uppercase; color:var(--muted); }
   section.block { margin-top:46px; } section.block h2 { font-size:clamp(22px,3.5vw,28px); margin:0 0 6px; letter-spacing:-.4px; } section.block .intro { color:var(--muted); margin:0 0 18px; max-width:640px; }
   .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; } .card { background:var(--card); border:1.5px solid var(--line); border-radius:16px; padding:18px; border-top:5px solid var(--c,var(--edge)); }
+  .plogo, .tlogo { display:block; height:38px; max-width:100%; object-fit:contain; margin:0 0 8px; background:#fff; border-radius:8px; padding:3px 8px; } .tlogo { height:34px; margin-bottom:6px; } .vh { position:absolute; left:-9999px; }
   .card h3 { margin:0 0 6px; font-size:18px; } .card ul { margin:8px 0 0; padding-left:18px; color:var(--muted); font-size:14.5px; } .card li { margin:3px 0; } .card p { margin:0; color:var(--muted); font-size:14.5px; } .card a { color:var(--ink); font-weight:600; font-size:14px; display:inline-block; margin-top:10px; }
   .steps { counter-reset:s; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:14px; padding:0; list-style:none; margin:0; } .steps li { counter-increment:s; background:var(--card); border:1.5px solid var(--line); border-radius:16px; padding:18px 18px 18px 58px; position:relative; color:var(--muted); font-size:14.5px; }
   .steps li::before { content:counter(s); position:absolute; left:16px; top:16px; width:28px; height:28px; border-radius:50%; background:var(--edge); color:#fff; display:grid; place-items:center; font-weight:800; font-size:14px; } .steps li b { color:var(--ink); display:block; font-size:16px; margin-bottom:2px; }
@@ -79,11 +80,11 @@
     <h2>What each product does</h2>
     <p class="intro">One family of software, built for the way each business actually runs. Every client gets a separate workspace and its own data.</p>
     <div class="cards">
-      <div class="card" style="--c:#0F766E"><h3>NextEdge</h3><p>Schools and coaching centres</p><ul><li>Students, batches, timetable and attendance</li><li>Fees, receipts and payroll</li><li>Exams, report cards and certificates</li><li>Notices, homework, library and messaging</li></ul><a href="/manual/#edge">Read the NextEdge manual →</a></div>
-      <div class="card" style="--c:#0A6EDB"><h3>NextFit</h3><p>Gyms and fitness studios</p><ul><li>Members, plans and renewals</li><li>Fee reminders and instalments</li><li>Leads, referrals and feedback</li><li>Expenses and profit reports</li></ul><a href="/manual/#fit">Read the NextFit manual →</a></div>
-      <div class="card" style="--c:#E0287A"><h3>NextGlow</h3><p>Salons and spas</p><ul><li>Customers, services and staff</li><li>Memberships and packages</li><li>Leads, referrals and feedback</li><li>Expenses and profit reports</li></ul><a href="/manual/#glow">Read the NextGlow manual →</a></div>
-      <div class="card" style="--c:#0FA38A"><h3>NextCare</h3><p>Clinics and labs</p><ul><li>Patients, services and staff</li><li>Plans and follow-up reminders</li><li>Leads, referrals and feedback</li><li>Expenses and profit reports</li></ul><a href="/manual/#care">Read the NextCare manual →</a></div>
-      <div class="card" style="--c:#B7791F"><h3>Next Era</h3><p>Hotels and resorts</p><ul><li>Front desk, housekeeping and restaurant</li><li>Banquet, stores and accounts</li><li>Staff attendance, tasks and approvals</li><li>GST invoices and owner dashboard</li></ul><a href="/manual/#era">Read the Next Era notes →</a></div>
+      <div class="card" style="--c:#009BEE"><img class="plogo" src="/brand/nextedge-sm.png" alt="NextEdge"><h3 class="vh">NextEdge</h3><p>Schools and coaching centres</p><ul><li>Students, batches, timetable and attendance</li><li>Fees, receipts and payroll</li><li>Exams, report cards and certificates</li><li>Notices, homework, library and messaging</li></ul><a href="/manual/#edge">Read the NextEdge manual →</a></div>
+      <div class="card" style="--c:#F7AE00"><img class="plogo" src="/brand/nextfit-sm.png" alt="NextFit"><h3 class="vh">NextFit</h3><p>Gyms and fitness studios</p><ul><li>Members, plans and renewals</li><li>Fee reminders and instalments</li><li>Leads, referrals and feedback</li><li>Expenses and profit reports</li></ul><a href="/manual/#fit">Read the NextFit manual →</a></div>
+      <div class="card" style="--c:#EA0090"><img class="plogo" src="/brand/nextglow-sm.png" alt="NextGlow"><h3 class="vh">NextGlow</h3><p>Salons and spas</p><ul><li>Customers, services and staff</li><li>Memberships and packages</li><li>Leads, referrals and feedback</li><li>Expenses and profit reports</li></ul><a href="/manual/#glow">Read the NextGlow manual →</a></div>
+      <div class="card" style="--c:#1C006F"><img class="plogo" src="/brand/nextcare-sm.png" alt="NextCare"><h3 class="vh">NextCare</h3><p>Clinics and labs</p><ul><li>Patients, services and staff</li><li>Plans and follow-up reminders</li><li>Leads, referrals and feedback</li><li>Expenses and profit reports</li></ul><a href="/manual/#care">Read the NextCare manual →</a></div>
+      <div class="card" style="--c:#F95500"><img class="plogo" src="/brand/nextera-sm.png" alt="Next Era"><h3 class="vh">Next Era</h3><p>Hotels and resorts</p><ul><li>Front desk, housekeeping and restaurant</li><li>Banquet, stores and accounts</li><li>Staff attendance, tasks and approvals</li><li>GST invoices and owner dashboard</li></ul><a href="/manual/#era">Read the Next Era notes →</a></div>
     </div>
   </section>
 
@@ -113,11 +114,11 @@
   var HOST = location.hostname.toLowerCase(); var BASE = HOST.replace(/^www\./, ''); if (!/\./.test(BASE) || /^(localhost|127\.)/.test(BASE)) BASE = 'nextsoftwares.in'; // local testing falls back to the real name
   document.getElementById('dom').textContent = BASE;
   var PRODUCTS = [
-    { key: 'edge', name: 'NextEdge', tag: 'Schools & coaching', colour: '#0F766E', letter: 'E', mode: 'address', who: 'school or coaching' },
-    { key: 'fit', name: 'NextFit', tag: 'Gyms & fitness studios', colour: '#0A6EDB', letter: 'F', mode: 'phone', who: 'gym', host: 'nextfit' },
-    { key: 'glow', name: 'NextGlow', tag: 'Salons & spas', colour: '#E0287A', letter: 'G', mode: 'phone', who: 'salon', host: 'nextglow' },
-    { key: 'care', name: 'NextCare', tag: 'Clinics & labs', colour: '#0FA38A', letter: 'C', mode: 'phone', who: 'clinic', host: 'nextcare' },
-    { key: 'era', name: 'Next Era', tag: 'Hotels & resorts', colour: '#B7791F', letter: 'N', mode: 'link', who: 'hotel', url: 'https://app.nextresource.in/' },
+    { key: 'edge', name: 'NextEdge', tag: 'Schools & coaching', colour: '#009BEE', logo: '/brand/nextedge-sm.png', letter: 'E', mode: 'address', who: 'school or coaching' },
+    { key: 'fit', name: 'NextFit', tag: 'Gyms & fitness studios', colour: '#F7AE00', logo: '/brand/nextfit-sm.png', letter: 'F', mode: 'phone', who: 'gym', host: 'nextfit' },
+    { key: 'glow', name: 'NextGlow', tag: 'Salons & spas', colour: '#EA0090', logo: '/brand/nextglow-sm.png', letter: 'G', mode: 'phone', who: 'salon', host: 'nextglow' },
+    { key: 'care', name: 'NextCare', tag: 'Clinics & labs', colour: '#1C006F', logo: '/brand/nextcare-sm.png', letter: 'C', mode: 'phone', who: 'clinic', host: 'nextcare' },
+    { key: 'era', name: 'Next Era', tag: 'Hotels & resorts', colour: '#F95500', logo: '/brand/nextera-sm.png', letter: 'N', mode: 'link', who: 'hotel', url: 'https://app.nextresource.in/' },
     { key: 'pms', name: 'NextPMS', tag: 'Property management', colour: '#475569', letter: 'P', mode: 'soon', who: 'property' },
     { key: 'stores', name: 'NextStores', tag: 'Shops & retail', colour: '#7C3AED', letter: 'S', mode: 'soon', who: 'store' },
     { key: 'gem', name: 'NextGem', tag: 'Jewellery', colour: '#0E7490', letter: 'G', mode: 'soon', who: 'jeweller' },
@@ -128,7 +129,7 @@
   function go(slug) { location.href = 'https://' + slug + '.' + BASE + '/'; }
   PRODUCTS.forEach(function (p) {
     var b = document.createElement('button'); b.className = 'tile'; b.style.setProperty('--c', p.colour); b.setAttribute('aria-pressed', 'false'); b.type = 'button';
-    if (p.mode === 'soon') b.className += ' soon'; b.innerHTML = (p.mode === 'soon' ? '<span class="pill">Coming soon</span>' : '') + '<div class="dot">' + p.letter + '</div><h3>' + p.name + '</h3><p>' + p.tag + '</p>'; b.onclick = function () { choose(p, b); }; tiles.appendChild(b);
+    if (p.mode === 'soon') b.className += ' soon'; b.innerHTML = (p.mode === 'soon' ? '<span class="pill">Coming soon</span>' : '') + (p.logo ? '<img class="tlogo" src="' + p.logo + '" alt=""><h3 class="vh">' + p.name + '</h3>' : '<div class="dot">' + p.letter + '</div><h3>' + p.name + '</h3>') + '<p>' + p.tag + '</p>'; b.onclick = function () { choose(p, b); }; tiles.appendChild(b);
   });
   function choose(p, el) {
     chosen = p; [].forEach.call(tiles.children, function (t) { t.setAttribute('aria-pressed', t === el ? 'true' : 'false'); });
