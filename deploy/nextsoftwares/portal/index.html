@@ -119,17 +119,18 @@
     { key: 'glow', name: 'NextGlow', tag: 'Salons & spas', colour: '#EA0090', logo: '/brand/nextglow-sm.png', letter: 'G', mode: 'phone', who: 'salon', host: 'nextglow' },
     { key: 'care', name: 'NextCare', tag: 'Clinics & labs', colour: '#1C006F', logo: '/brand/nextcare-sm.png', letter: 'C', mode: 'phone', who: 'clinic', host: 'nextcare' },
     { key: 'era', name: 'Next Era', tag: 'Hotels & resorts', colour: '#F95500', logo: '/brand/nextera-sm.png', letter: 'N', mode: 'link', who: 'hotel', url: 'https://app.nextresource.in/' },
-    { key: 'pms', name: 'NextPMS', tag: 'Property management', colour: '#475569', letter: 'P', mode: 'soon', who: 'property' },
-    { key: 'stores', name: 'NextStores', tag: 'Shops & retail', colour: '#7C3AED', letter: 'S', mode: 'soon', who: 'store' },
-    { key: 'gem', name: 'NextGem', tag: 'Jewellery', colour: '#0E7490', letter: 'G', mode: 'soon', who: 'jeweller' },
-    { key: 'kit', name: 'NextKit', tag: 'Toolkit for small business', colour: '#C2410C', letter: 'K', mode: 'soon', who: 'business' }
+    { key: 'pms', name: 'NextPMS', tag: 'Property management', colour: '#475569', logo: '/brand/nextpms-sm.png', letter: 'P', mode: 'soon', who: 'property' },
+    { key: 'stores', name: 'NextStores', tag: 'Shops & retail', colour: '#7C3AED', logo: '/brand/nextstores-sm.png', letter: 'S', mode: 'soon', who: 'store' },
+    { key: 'gem', name: 'NextGem', tag: 'Jewellery', colour: '#0E7490', logo: '/brand/nextgem-sm.png', letter: 'G', mode: 'soon', who: 'jeweller' },
+    { key: 'kit', name: 'NextKit', tag: 'Toolkit for small business', colour: '#C2410C', logo: '/brand/nextkit-sm.png', letter: 'K', mode: 'soon', who: 'business' }
   ];
   var tiles = document.getElementById('tiles'), panel = document.getElementById('panel'); var chosen = null;
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function loginUrl(p) { return p.mode === 'link' ? p.url : p.mode === 'phone' ? 'https://' + p.host + '.' + BASE + '/' : 'https://nextedge.' + BASE + '/login'; } // a tile opens that product's login in a new tab
   function go(slug) { location.href = 'https://' + slug + '.' + BASE + '/'; }
   PRODUCTS.forEach(function (p) {
     var b = document.createElement('button'); b.className = 'tile'; b.style.setProperty('--c', p.colour); b.setAttribute('aria-pressed', 'false'); b.type = 'button';
-    if (p.mode === 'soon') b.className += ' soon'; b.innerHTML = (p.mode === 'soon' ? '<span class="pill">Coming soon</span>' : '') + (p.logo ? '<img class="tlogo" src="' + p.logo + '" alt=""><h3 class="vh">' + p.name + '</h3>' : '<div class="dot">' + p.letter + '</div><h3>' + p.name + '</h3>') + '<p>' + p.tag + '</p>'; b.onclick = function () { choose(p, b); }; tiles.appendChild(b);
+    if (p.mode === 'soon') b.className += ' soon'; b.innerHTML = (p.mode === 'soon' ? '<span class="pill">Coming soon</span>' : '') + (p.logo ? '<img class="tlogo" src="' + p.logo + '" alt=""><h3 class="vh">' + p.name + '</h3>' : '<div class="dot">' + p.letter + '</div><h3>' + p.name + '</h3>') + '<p>' + p.tag + '</p>'; b.onclick = function () { if (p.mode !== 'soon') window.open(loginUrl(p), '_blank', 'noopener'); choose(p, b); }; tiles.appendChild(b);
   });
   function choose(p, el) {
     chosen = p; [].forEach.call(tiles.children, function (t) { t.setAttribute('aria-pressed', t === el ? 'true' : 'false'); });
@@ -138,9 +139,9 @@
     if (p.mode === 'soon') {
       html += '<p class="sub">' + esc(p.name) + ' is not open yet, so there is nothing to log in to. Want to be among the first? Write to us and we will tell you when it starts.</p><div class="row"><a class="btn" href="mailto:hello@nextresource.in?subject=' + encodeURIComponent(p.name + ' early access') + '">Tell me when it starts</a></div>';
     } else if (p.mode === 'link') {
-      html += '<p class="sub">Next Era has its own app for hotel and resort teams. One login per person; staff only see their own department.</p><div class="row"><a class="btn" href="' + esc(p.url) + '">Open Next Era login</a><a class="btn ghost" href="/manual/#era">Next Era notes</a></div>';
+      html += '<p class="sub">Next Era has its own app for hotel and resort teams. One login per person; staff only see their own department.</p><div class="row"><a class="btn" href="' + esc(p.url) + '" target="_blank" rel="noopener">Open Next Era login</a><a class="btn ghost" href="/manual/#era">Next Era notes</a></div>';
     } else if (p.mode === 'phone') {
-      html += '<p class="sub">Sign in with the mobile number registered at your ' + p.who + '. We will send an OTP.</p><div class="row"><a class="btn" href="https://' + p.host + '.' + esc(BASE) + '/">Login with mobile number</a></div>' +
+      html += '<p class="sub">Sign in with the mobile number registered at your ' + p.who + '. We will send an OTP.</p><div class="row"><a class="btn" href="https://' + p.host + '.' + esc(BASE) + '/" target="_blank" rel="noopener">Login with mobile number</a></div>' +
         '<details><summary>I have my ' + p.who + '’s own address</summary>' + addrBox + '</details>';
     } else {
       html += '<p class="sub">Your school or coaching has its own address. Type it below. If you do not remember it, search by name.</p>' + addrBox +
