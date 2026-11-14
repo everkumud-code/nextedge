@@ -30,9 +30,10 @@ export default function Layout() {
   useEffect(() => { if (isSuper && !viewing && !['/clients', '/platform', '/offers', '/messaging', '/counsellor', '/team', '/onboard'].some((p) => location.pathname.startsWith(p))) go('/clients'); }, [location.pathname]);
   const openCentre = (id: string) => { const c = centres.find((x) => x.id === id); session.viewing(c ? { id: c.id, name: c.name, institutionType: c.institutionType } : null); location.assign(c ? '/' : '/clients'); };
   useEffect(() => { if (user?.role === 'ADMIN' && user.subscriptionStatus === 'suspended' && !location.pathname.startsWith('/subscription')) go('/pay'); }, []);
-  const [bell, setBell] = useState<{ unread: number; items: any[] } | null>(null); const [open, setOpen] = useState(false);
+  const [bell, setBell] = useState<{ unread: number; items: any[] } | null>(null); const [open, setOpen] = useState(false); const [nav, setNav] = useState(false);
   useEffect(() => { const f = () => api('/notifications/mine').then(setBell).catch(() => {}); f(); const t = setInterval(f, 60000); return () => clearInterval(t); }, []);
-  const loc = useLocation(); const [menu, setMenu] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('ne_menu') || '{}'); } catch { return {}; } });
+  const loc = useLocation(); useEffect(() => { setNav(false); setOpen(false); }, [loc.pathname]);
+  const [menu, setMenu] = useState<Record<string, boolean>>(() => { try { return JSON.parse(localStorage.getItem('ne_menu') || '{}'); } catch { return {}; } });
   const toggle = (name: string, now: boolean) => { const next = { ...menu, [name]: !now }; setMenu(next); try { localStorage.setItem('ne_menu', JSON.stringify(next)); } catch { /* ignore */ } };
   const onPage = (to: string) => (to === '/' ? loc.pathname === '/' : loc.pathname === to || loc.pathname.startsWith(to + '/'));
   const owner = ['ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
@@ -43,7 +44,8 @@ export default function Layout() {
   const roleLabel = (school && SCHOOL_ROLE[user?.role || '']) || ROLE[user?.role || ''] || user?.role;
   return (
     <div className="flex min-h-screen">
-      <aside className="w-60 shrink-0 bg-teal-900 text-white flex flex-col max-h-screen sticky top-0">
+      {nav && <div className="fixed inset-0 z-30 bg-black/50 md:hidden" onClick={() => setNav(false)} aria-hidden="true" />}
+      <aside className={`w-64 md:w-60 shrink-0 bg-teal-900 text-white flex flex-col h-screen max-h-screen fixed md:sticky top-0 left-0 z-40 transition-transform duration-200 ${nav ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
         <div className="px-5 py-4 border-b border-teal-800">
           <div className="bg-white rounded-md px-2 py-1 inline-block"><img src="/nextedge-logo.png" alt="NextEdge" className="h-7" /></div>
           <div className="text-xs text-teal-100/80 mt-1">{user?.name} · {roleLabel}</div>
@@ -62,16 +64,22 @@ export default function Layout() {
             </div>;
           })}
         </nav>
-        <DemoSwitch /><div className="px-5 py-2 border-t border-teal-800 text-teal-100"><LangSwitch dark /></div><LangPrompt />
+        <DemoSwitch /><div className="px-5 py-2 border-t border-teal-800 text-teal-100"><LangSwitch dark /></div>
         <ThemePicker />
         <button onClick={() => { session.clear(); go('/login'); }} className="px-5 py-3 text-left text-sm text-teal-100/80 hover:text-white border-t border-teal-800">Log out</button>
       </aside>
-      <main className="flex-1 p-8 max-w-7xl relative min-w-0">
-        <button className="absolute right-8 top-6 btn-quiet" onClick={() => { setOpen(!open); if (!open && bell?.unread) api('/notifications/read-all', { method: 'POST' }).then(() => setBell(bell ? { ...bell, unread: 0 } : bell)); }}>🔔{bell?.unread ? <span className="ml-1 bg-brick text-white text-xs rounded-full px-1.5">{bell.unread}</span> : null}</button>
-        {open && bell && <div className="absolute right-8 top-16 w-96 card p-3 shadow-lg z-10 max-h-96 overflow-y-auto"><div className="font-semibold mb-2">Notifications</div>{bell.items.length ? bell.items.slice(0, 30).map((n) => <div key={n.id} className={`py-2 border-t border-slate-100 text-sm ${!n.readAt ? 'font-semibold' : ''}`}><div>{n.title}</div><div className="text-slate-600 font-normal">{n.body}</div><div className="text-xs text-slate-400">{new Date(n.createdAt).toLocaleString('en-IN')}</div></div>) : <p className="text-sm text-slate-500">Nothing yet.</p>}</div>}
+      <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl relative min-w-0">
+        <header className="md:hidden sticky top-0 z-20 -mx-4 -mt-4 mb-4 bg-teal-900 text-white flex items-center gap-3 px-3 py-2 print:hidden">
+          <button type="button" aria-label="Open menu" aria-expanded={nav} onClick={() => setNav(true)} className="w-10 h-10 grid place-items-center rounded-md hover:bg-teal-800 text-xl">&#9776;</button>
+          <div className="bg-white rounded px-1.5 py-0.5"><img src="/nextedge-logo.png" alt="NextEdge" className="h-6" /></div>
+          <div className="ml-auto text-xs text-teal-100/80 truncate max-w-[40%]">{user?.centreName || user?.name}</div>
+          <button type="button" aria-label="Notifications" className="relative w-10 h-10 grid place-items-center rounded-md hover:bg-teal-800" onClick={() => { setOpen(!open); if (!open && bell?.unread) api('/notifications/read-all', { method: 'POST' }).then(() => setBell(bell ? { ...bell, unread: 0 } : bell)); }}>&#128276;{bell?.unread ? <span className="absolute top-0.5 right-0.5 bg-brick text-white text-[10px] rounded-full px-1">{bell.unread}</span> : null}</button>
+        </header>
+        <button className="hidden md:inline-flex absolute right-8 top-6 btn-quiet" aria-label="Notifications" onClick={() => { setOpen(!open); if (!open && bell?.unread) api('/notifications/read-all', { method: 'POST' }).then(() => setBell(bell ? { ...bell, unread: 0 } : bell)); }}>🔔{bell?.unread ? <span className="ml-1 bg-brick text-white text-xs rounded-full px-1.5">{bell.unread}</span> : null}</button>
+        {open && bell && <div className="fixed md:absolute left-3 right-3 md:left-auto md:right-8 top-14 md:top-16 md:w-96 card p-3 shadow-lg z-30 max-h-96 overflow-y-auto"><div className="font-semibold mb-2">Notifications</div>{bell.items.length ? bell.items.slice(0, 30).map((n) => <div key={n.id} className={`py-2 border-t border-slate-100 text-sm ${!n.readAt ? 'font-semibold' : ''}`}><div>{n.title}</div><div className="text-slate-600 font-normal">{n.body}</div><div className="text-xs text-slate-400">{new Date(n.createdAt).toLocaleString('en-IN')}</div></div>) : <p className="text-sm text-slate-500">Nothing yet.</p>}</div>}
         {isSuper && viewing && <div className="mb-4 -mt-2 p-2.5 rounded bg-marigold-100 border border-marigold-500 text-sm flex items-center gap-3"><b>Support mode</b> You are inside <b>{user?.centreName}</b>. Changes you make are logged and visible to the owner.<button className="btn-quiet ml-auto" onClick={() => { session.viewing(null); location.assign('/clients'); }}>Exit to Clients</button></div>}
         <Outlet /></main>
-      <Assistant />
+      <Assistant /><LangPrompt />
     </div>
   );
 }

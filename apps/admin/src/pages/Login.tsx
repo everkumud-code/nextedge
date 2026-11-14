@@ -35,7 +35,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen grid lg:grid-cols-[1.1fr_1fr] relative" style={{ background: 'radial-gradient(900px 420px at 8% -8%, rgba(94,234,212,.22), transparent), radial-gradient(800px 520px at 100% 112%, rgba(242,169,59,.16), transparent), #0c3a3f' }}>
-      <div className="absolute right-4 top-4 text-white z-10"><LangSwitch dark /></div><div className="absolute top-3 right-3"><ThemePicker floating up={false} /></div>
+      <div className="absolute right-3 top-3 z-10 flex items-center gap-2 text-white"><LangSwitch dark /><ThemePicker floating up={false} /></div>
       <div className="hidden lg:flex flex-col justify-center px-14 text-white">
         <div className="bg-white rounded-xl px-3 py-2 inline-block self-start mb-8"><img src="/nextedge-logo.png" alt="NextEdge" className="h-9" /></div>
         <h1 className="text-4xl font-bold leading-tight tracking-tight max-w-lg">School and coaching management, all in one place.</h1>
