@@ -3,7 +3,6 @@ import Assistant from './Assistant';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import LangSwitch from './LangSwitch';
-import LangPrompt from './LangPrompt';
 import DemoSwitch from './DemoSwitch';
 import { api, session } from '../api';
 
@@ -79,7 +78,7 @@ export default function Layout() {
         {open && bell && <div className="fixed md:absolute left-3 right-3 md:left-auto md:right-8 top-14 md:top-16 md:w-96 card p-3 shadow-lg z-30 max-h-96 overflow-y-auto"><div className="font-semibold mb-2">Notifications</div>{bell.items.length ? bell.items.slice(0, 30).map((n) => <div key={n.id} className={`py-2 border-t border-slate-100 text-sm ${!n.readAt ? 'font-semibold' : ''}`}><div>{n.title}</div><div className="text-slate-600 font-normal">{n.body}</div><div className="text-xs text-slate-400">{new Date(n.createdAt).toLocaleString('en-IN')}</div></div>) : <p className="text-sm text-slate-500">Nothing yet.</p>}</div>}
         {isSuper && viewing && <div className="mb-4 -mt-2 p-2.5 rounded bg-marigold-100 border border-marigold-500 text-sm flex items-center gap-3"><b>Support mode</b> You are inside <b>{user?.centreName}</b>. Changes you make are logged and visible to the owner.<button className="btn-quiet ml-auto" onClick={() => { session.viewing(null); location.assign('/clients'); }}>Exit to Clients</button></div>}
         <Outlet /></main>
-      <Assistant /><LangPrompt />
+      <Assistant />
     </div>
   );
 }
