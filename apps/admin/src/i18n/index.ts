@@ -3,7 +3,7 @@
  *
  * Sentences are translated as whole sentences (see the dictionary files), never word by word. The translator works on the screen itself:
  * any text it has a translation for is replaced, anything else stays in English, so a missing sentence can never break a page.
- * English is the default. The first time someone signs in on a device they are asked once (LangPrompt); after that the choice is remembered on the device
+ * English is the default. Nobody is asked with a pop-up; the choice is remembered on the device
  * and only changes when they change it themselves, from the login page or the side menu.
  */
 import { useEffect, useState } from 'react';
