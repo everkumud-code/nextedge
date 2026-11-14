@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Admin login for every product — NextSoftwares</title>
+<style>
+  :root { --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; --bg:#f6f8fb; --card:#fff; }
+  @media (prefers-color-scheme: dark) { :root { --ink:#e5edf7; --muted:#9fb0c7; --line:#25324a; --bg:#0b1220; --card:#121c2f; } }
+  * { box-sizing:border-box; } html,body { margin:0; }
+  body { font-family:"Segoe UI","Nirmala UI","Noto Sans",system-ui,sans-serif; background:var(--bg); color:var(--ink); min-height:100vh; display:flex; flex-direction:column; }
+  header { padding:18px 24px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .brand { font-weight:800; font-size:22px; letter-spacing:-.3px; color:var(--ink); text-decoration:none; } .brand b { color:#0F766E; } header a.back { color:var(--muted); text-decoration:none; font-size:14px; }
+  main { flex:1; width:100%; max-width:960px; margin:0 auto; padding:10px 20px 40px; }
+  h1 { font-size:clamp(26px,5vw,38px); letter-spacing:-.6px; margin:14px 0 6px; } .lead { color:var(--muted); margin:0 0 22px; max-width:640px; }
+  h2 { font-size:15px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:28px 0 12px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:16px; }
+  .card { background:var(--card); border:1.5px solid var(--line); border-top:5px solid var(--c); border-radius:16px; padding:18px; display:flex; flex-direction:column; gap:10px; }
+  .card img { display:block; height:40px; max-width:100%; object-fit:contain; align-self:flex-start; background:#fff; border-radius:8px; padding:3px 8px; }
+  .card .mark { font-weight:800; font-size:22px; letter-spacing:-.3px; } .card .mark b { color:var(--c); }
+  .card h3 { margin:0; font-size:19px; } .card p { margin:0; color:var(--muted); font-size:14px; line-height:1.45; flex:1; }
+  .btn { display:block; text-align:center; text-decoration:none; background:var(--c); color:#fff; border-radius:12px; padding:12px 14px; font-weight:700; font-size:16px; }
+  .btn.dark { color:#111; } .btn:hover { filter:brightness(1.08); } .btn:focus-visible { outline:3px solid var(--c); outline-offset:2px; }
+  .small { color:var(--muted); font-size:13px; margin-top:22px; } .small a { color:inherit; }
+  footer { text-align:center; color:var(--muted); font-size:13px; padding:18px; } footer a { color:inherit; }
+</style>
+</head>
+<body>
+<header><a class="brand" href="/">Next<b>Softwares</b></a><a class="back" href="/">← Customer login (schools, gyms, salons, clinics)</a></header>
+<main>
+  <h1>Admin login</h1>
+  <p class="lead">One button for each product's admin or platform screen. Each opens in a new tab and asks for a code sent to your e-mail or mobile.</p>
+
+  <h2>One sign-in for the NextSoftwares admin and team</h2>
+  <div class="grid">
+    <div class="card" style="--c:#0F766E">
+      <div class="mark">Next<b>Softwares</b></div>
+      <h3>Portal, admin and team login</h3>
+      <p>Choose NextEdge, NextFit, NextGlow or NextCare on one page, sign in once with a code, and you land in that product's console.</p>
+      <a class="btn" href="/login/" target="_blank" rel="noopener">Open the admin and team login</a>
+    </div>
+  </div>
+
+  <h2>Or go straight to a product</h2>
+  <div class="grid">
+    <div class="card" style="--c:#009BEE">
+      <img src="/brand/nextedge-sm.png" alt="NextEdge">
+      <h3>NextEdge platform</h3>
+      <p>Schools and coaching. Clients, billing and plans, offers, team. Type <b>Platform</b> as the name, then your e-mail or mobile.</p>
+      <a class="btn" href="https://nextedge.nextsoftwares.in/login" target="_blank" rel="noopener">NextEdge platform login</a>
+    </div>
+    <div class="card" style="--c:#F7AE00">
+      <img src="/brand/nextfit-sm.png" alt="NextFit">
+      <h3>NextFit admin</h3>
+      <p>Gyms and fitness studios. Outlets, ads, team, e-mail and login settings, products.</p>
+      <a class="btn dark" href="https://nextfit.nextsoftwares.in/admin" target="_blank" rel="noopener">NextFit admin login</a>
+    </div>
+    <div class="card" style="--c:#EA0090">
+      <img src="/brand/nextglow-sm.png" alt="NextGlow">
+      <h3>NextGlow admin</h3>
+      <p>Salons and spas. Outlets, ads, team, e-mail and login settings, products.</p>
+      <a class="btn" href="https://nextglow.nextsoftwares.in/admin" target="_blank" rel="noopener">NextGlow admin login</a>
+    </div>
+    <div class="card" style="--c:#1C006F">
+      <img src="/brand/nextcare-sm.png" alt="NextCare">
+      <h3>NextCare admin</h3>
+      <p>Clinics and labs. Outlets, ads, team, e-mail and login settings, products.</p>
+      <a class="btn" href="https://nextcare.nextsoftwares.in/admin" target="_blank" rel="noopener">NextCare admin login</a>
+    </div>
+    <div class="card" style="--c:#F95500">
+      <img src="/brand/nextera-sm.png" alt="Next Era">
+      <h3>Next Era</h3>
+      <p>Hotels and resorts. Sign in with the property name, e-mail and password.</p>
+      <a class="btn" href="https://nextera.nextsoftwares.in/login" target="_blank" rel="noopener">Next Era login</a>
+    </div>
+  </div>
+  <p class="small">NextPMS, NextStores, NextGem and NextKit are coming soon and have no login yet. Looking for your own school, gym, salon or clinic? Use the <a href="/">customer login</a>.</p>
+</main>
+<footer>© NextSoftwares · A <a href="https://www.nextresource.in/">Next Resource</a> company · <a href="https://www.nextresource.in/be-the-next">Be the Next</a></footer>
+</body>
+</html>

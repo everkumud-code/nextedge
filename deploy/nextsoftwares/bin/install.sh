@@ -19,7 +19,7 @@ prepare() {
   mkdir -p /var/www/nextsoftwares-portal /var/www/letsencrypt-nextsoftwares /var/lib/nextsoftwares
   chmod 755 /var/www/nextsoftwares-portal /var/www/letsencrypt-nextsoftwares
   sed "s/nextsoftwares\.in/$DOMAIN/g" "$SRC/portal/index.html" > /var/www/nextsoftwares-portal/index.html
-  mkdir -p /var/www/nextsoftwares-portal/manual /var/www/nextsoftwares-portal/login; sed "s/nextsoftwares\.in/$DOMAIN/g" "$SRC/portal/login/index.html" > /var/www/nextsoftwares-portal/login/index.html; sed "s/nextsoftwares\.in/$DOMAIN/g" "$SRC/portal/manual/index.html" > /var/www/nextsoftwares-portal/manual/index.html; chmod -R a+rX /var/www/nextsoftwares-portal
+  mkdir -p /var/www/nextsoftwares-portal/manual /var/www/nextsoftwares-portal/login /var/www/nextsoftwares-portal/admin; sed "s/nextsoftwares\.in/$DOMAIN/g" "$SRC/portal/admin/index.html" > /var/www/nextsoftwares-portal/admin/index.html; sed "s/nextsoftwares\.in/$DOMAIN/g" "$SRC/portal/login/index.html" > /var/www/nextsoftwares-portal/login/index.html; sed "s/nextsoftwares\.in/$DOMAIN/g" "$SRC/portal/manual/index.html" > /var/www/nextsoftwares-portal/manual/index.html; chmod -R a+rX /var/www/nextsoftwares-portal
   cp "$SRC/nginx/nextsoftwares.conf" /etc/nginx/sites-available/nextsoftwares   # written for nextsoftwares.in; for another domain edit it first
   install -m 755 "$HERE/nsw-sync.py" /usr/local/sbin/nsw-sync.py
   mkdir -p /etc/nginx/snippets; install -m 644 "$SRC/nginx/nsw-workspace.conf" /etc/nginx/snippets/nsw-workspace.conf
