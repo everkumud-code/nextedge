@@ -14,6 +14,7 @@ import fcntl, json, os, re, socket, subprocess, sys, time, urllib.request
 ENV_FILE = os.environ.get("NSW_ENV", "/etc/nextsoftwares.env")
 STATE_DIR = "/var/lib/nextsoftwares"; HOSTS_FILE = "/etc/nginx/nextsoftwares-hosts.conf"; LIVE_DIR = "/etc/letsencrypt/live"; WEBROOT = "/var/www/letsencrypt-nextsoftwares"
 FIXED = {"nextedge": "edge", "nextfit": "brands", "nextglow": "brands", "nextcare": "brands"}        # nextedge = the NextEdge login (platform team and schools); the three separate brand logins
+HAND = {"nextera"}        # addresses with a hand-written nginx block (Next Era: web app served here, API on Render); never given to a client
 ALIASES = {"fit": "nextfit", "glow": "nextglow", "care": "nextcare", "admin": "nextedge"}                                 # the first short addresses: they now only redirect to the full product name
 UPSTREAM = {"edge": ("http://127.0.0.1:3013", "http://127.0.0.1:3012"), "brands": ("http://127.0.0.1:4000", "http://127.0.0.1:4000")}   # (web app, api)
 PRODUCTS = [("edge", "http://127.0.0.1:3012/api/workspace/internal/list"), ("brands", "http://127.0.0.1:4000/internal/workspaces")]
@@ -50,7 +51,7 @@ def main():
             except Exception: slugs = []; log(f"{product}: not answering and nothing known yet ({e})")
         for s in slugs:
             if not isinstance(s, str) or not SLUG.match(s): log(f"ignored a bad address from {product}: {str(s)[:40]!r}"); continue   # never let a strange name into the nginx config
-            if s in FIXED or s in ALIASES: log(f"ignored {s} from {product}: reserved for a brand login"); continue
+            if s in FIXED or s in ALIASES or s in HAND: log(f"ignored {s} from {product}: reserved for a brand login"); continue
             if s in mapping and mapping[s] != product: log(f"CONFLICT: {s} exists in {mapping[s]} and {product}; {mapping[s]} keeps it"); continue
             mapping[s] = product
     # certificates first (a block is only written for an address whose certificate exists)
