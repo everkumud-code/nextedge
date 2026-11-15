@@ -37,7 +37,7 @@ export default function Study() {
       </div>
       {Object.entries(grouped).map(([sub, list]) => <div key={sub} className="card p-4 mt-4"><h2 className="font-semibold mb-2">{sub}</h2>
         {list.map((r) => <div key={r.id} className="flex items-center justify-between py-2 border-t border-slate-100 text-sm"><div><b>{r.title}</b> <span className="text-slate-500">{r.chapter} · {bn(r.batchId)} · {new Date(r.createdAt).toLocaleDateString('en-IN')}</span>{r.body && <div className="text-slate-700 whitespace-pre-wrap mt-1">{r.body}</div>}</div>
-          <div className="flex gap-2">{(r.url || r.fileKey) && <button className="btn-quiet" onClick={() => open(r)}>Open</button>}<button className="btn-quiet" onClick={async () => { await api(`/content/${r.id}`, { method: 'DELETE' }); load(); }}>Delete</button></div></div>)}</div>)}
+          <div className="flex gap-2">{(r.url || r.fileKey) && <button className="btn-quiet" onClick={() => open(r)}>Open</button>}<button data-destroy className="btn-quiet" onClick={async () => { await api(`/content/${r.id}`, { method: 'DELETE' }); load(); }}>Delete</button></div></div>)}</div>)}
       {!rows.length && <p className="text-slate-500 text-sm mt-6">Nothing published yet.</p>}
     </div>
   );

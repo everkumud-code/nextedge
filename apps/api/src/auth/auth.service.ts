@@ -90,8 +90,8 @@ export class AuthService {
   }
 
   private async issue(user: { id: string; name: string; role: any; centreId: string | null }, demoFrom?: string) {
-    let modules: string[] = [];
-    if (user.role === 'SUPER_ADMIN') { const [t] = await this.dbs.db.select().from(platformTeam).where(eq(platformTeam.userId, user.id)); if (t && !t.active) throw new UnauthorizedException('Your account is deactivated. Contact the platform owner.'); }
+    let modules: string[] = []; let canDelete = false; // only the platform owner (not the team, not a client's people) may delete
+    if (user.role === 'SUPER_ADMIN') { const [t] = await this.dbs.db.select().from(platformTeam).where(eq(platformTeam.userId, user.id)); if (t && !t.active) throw new UnauthorizedException('Your account is deactivated. Contact the platform owner.'); canDelete = !t; }
     if (user.role === 'ADMIN' || user.role === 'SUPER_ADMIN') {
       modules = [...MODULES];
       if (user.role === 'ADMIN') { const [p] = await this.dbs.db.select().from(staffPermissions).where(eq(staffPermissions.userId, user.id)); if (p && !p.active) throw new UnauthorizedException('Your account is deactivated. Contact the owner.'); }
@@ -104,7 +104,7 @@ export class AuthService {
     let features: string[] = [...MODULES], status = 'active', institutionType = 'coaching', centreName = '';
     if (user.centreId) { const [ce] = await this.dbs.db.select({ t: centres.institutionType, n: centres.name }).from(centres).where(eq(centres.id, user.centreId)); institutionType = ce?.t || 'coaching'; centreName = ce?.n || ''; const s = await this.platform.settings(user.centreId); features = s.features.length ? s.features : [...MODULES]; status = s.status; modules = modules.filter((m) => features.includes(m)); }
     const token = await this.jwt.signAsync({ id: user.id, role: user.role, centreId: user.centreId, name: user.name, modules, ...(demoFrom ? { demoFrom } : {}) }, demoFrom ? { expiresIn: '12h' } : undefined); // a demo view never lasts longer than half a day
-    return { token, user: { id: user.id, name: user.name, role: user.role, centreId: user.centreId, modules, features, subscriptionStatus: status, institutionType, centreName, ...(demoFrom ? { demoFrom } : {}) } };
+    return { token, user: { id: user.id, name: user.name, role: user.role, centreId: user.centreId, modules, features, subscriptionStatus: status, institutionType, centreName, canDelete, ...(demoFrom ? { demoFrom } : {}) } };
   }
 
   // ---------- DEMO ONLY: look at the demo through each person's login (no OTP) ----------
