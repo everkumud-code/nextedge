@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import ActivityList from '../components/ActivityList';
 import { Link, useParams } from 'react-router-dom';
 import { api, session } from '../api';
 const dt = (d?: string) => (d ? new Date(d).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
@@ -20,7 +21,7 @@ export default function ClientDetail() {
       <div className="flex items-start justify-between flex-wrap gap-3"><div><Link to="/clients" className="text-sm underline text-slate-500">← Clients</Link><h1 className="text-2xl font-bold mt-1">{c.name} <span className="tag ml-1">{school ? 'School' : 'Coaching'}</span></h1><p className="text-sm text-slate-600">{[c.city, `Owner: ${c.owner?.name || '—'}`, c.owner?.email, c.owner?.mobile, `${c.plan} plan · ${c.settings.status}`].filter(Boolean).join(' · ')}</p></div>
         <button className="btn" onClick={open}>Open full panel (support mode)</button></div>
       <div className="grid grid-cols-4 gap-4 mt-4">{[['Active students', active], ['Left / inactive', p.students.length - active], [school ? 'Teachers & staff' : 'Teachers & staff', p.staff.length], [school ? 'Classes & sections' : 'Batches', classes.length]].map(([l, v]) => <div key={l as string} className="card p-4"><div className="text-sm text-slate-600">{l}</div><div className="text-2xl font-bold mt-1">{v}</div></div>)}</div>
-      <div className="flex gap-2 mt-5 items-center flex-wrap">{(['students', 'staff', 'activity'] as const).map((t) => <button key={t} className={tab === t ? 'btn' : 'btn-quiet'} onClick={() => setTab(t)}>{t === 'students' ? `Students (${p.students.length})` : t === 'staff' ? `Teachers & staff (${p.staff.length})` : `Support activity (${audit.length})`}</button>)}
+      <div className="flex gap-2 mt-5 items-center flex-wrap">{(['students', 'staff', 'activity'] as const).map((t) => <button key={t} className={tab === t ? 'btn' : 'btn-quiet'} onClick={() => setTab(t)}>{t === 'students' ? `Students (${p.students.length})` : t === 'staff' ? `Teachers & staff (${p.staff.length})` : 'Activity log'}</button>)}
         {tab !== 'activity' && <input className="input w-64 ml-auto" placeholder="Search name, mobile…" value={q} onChange={(e) => setQ(e.target.value)} />}</div>
 
       {tab === 'students' && <>
@@ -36,7 +37,7 @@ export default function ClientDetail() {
           <tbody>{stf.map((s: any) => <tr key={s.id} className={s.active ? '' : 'opacity-60'}><td className="td font-medium">{s.name}{s.title && <div className="text-xs text-slate-500 font-normal">{s.title}</div>}</td><td className="td"><span className="tag">{roleLabel(s.role)}</span></td><td className="td"><a className="underline" href={`tel:${s.mobile}`}>{s.mobile}</a></td><td className="td">{s.email || <span className="text-brick">no email</span>}</td><td className="td">{s.classTeacherOf.join(', ') || '—'}</td><td className="td text-xs">{s.teaches.join(', ') || '—'}</td><td className="td text-xs">{s.role === 'ADMIN' ? 'Everything' : s.modules === null ? 'Default' : `${s.modules} modules`}{!s.active && <span className="text-brick"> · deactivated</span>}</td></tr>)}
             {!stf.length && <tr><td className="td text-slate-500" colSpan={7}>No staff match.</td></tr>}</tbody></table></div></>}
 
-      {tab === 'activity' && <div className="card mt-3 p-4"><p className="text-sm text-slate-600 mb-3">Every time you view this client’s people or change something in support mode, it is recorded here. The client’s owner can see this list too.</p><table className="w-full text-sm"><tbody>{audit.map((a) => <tr key={a.id}><td className="td whitespace-nowrap text-slate-500">{new Date(a.at).toLocaleString('en-IN')}</td><td className="td">{a.userName}</td><td className="td"><span className="tag">{a.method}</span></td><td className="td font-mono text-xs break-all">{a.path}</td></tr>)}</tbody></table>{!audit.length && <p className="text-sm text-slate-500">Nothing yet.</p>}</div>}
+      {tab === 'activity' && <div className="mt-3"><p className="text-sm text-slate-600">Everything done in this client: by their own people, by the NextEdge team in support mode, and every sign-in. It is kept for good.</p><ActivityList scope="client" centre={id} /></div>}
     </div>
   );
 }
