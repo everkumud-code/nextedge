@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { and, eq, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { centreSettings, centres, couponRedemptions, coupons, planCatalog, students, subscriptionInvoices, users } from '../db/schema';
+import { centreSettings, centres, couponRedemptions, coupons, planCatalog, platformSettings, students, subscriptionInvoices, users } from '../db/schema';
 import { discountFor, label as couponLabel, whyNot, type CouponRow } from './coupons';
 import { featuresFor, MODULES } from '../common/permissions';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -35,6 +35,23 @@ export class PlatformService {
     if (!s) { await db.insert(centreSettings).values({ centreId, trialEndsAt: addDays(today(), 30), features: JSON.stringify(PLAN_PRESETS.core.features) }).onConflictDoNothing(); [s] = await db.select().from(centreSettings).where(eq(centreSettings.centreId, centreId)); }
     return { ...s, features: JSON.parse(s.features) as string[] };
   }
+  // ---------- Trial: everything open ----------
+  private trialOpenAt = 0; private trialOpenVal = true;
+  /** The owner's switch: while a client is on its free trial, every module and every person in it is open. Default on. */
+  async trialOpen(): Promise<boolean> {
+    if (Date.now() - this.trialOpenAt < 20000) return this.trialOpenVal;
+    try { const [r] = await this.dbs.db.select({ v: platformSettings.trialOpen }).from(platformSettings).where(eq(platformSettings.id, 'platform')); this.trialOpenVal = r ? r.v : true; this.trialOpenAt = Date.now(); } catch { /* keep the last answer */ }
+    return this.trialOpenVal;
+  }
+  async setTrialOpen(on: boolean) {
+    await this.dbs.db.insert(platformSettings).values({ id: 'platform' }).onConflictDoNothing();
+    await this.dbs.db.update(platformSettings).set({ trialOpen: on, updatedAt: new Date() }).where(eq(platformSettings.id, 'platform')); this.trialOpenVal = on; this.trialOpenAt = Date.now(); return on;
+  }
+  /** What the client really gets right now: the stored settings, except that a trial with the switch on has every module. Never written back, so the plan's own list returns when the trial ends. */
+  async effective(centreId: string) {
+    const s = await this.settings(centreId); const open = s.status === 'trial' && (await this.trialOpen());
+    return open ? { ...s, features: [...MODULES] as string[], trialOpen: true } : { ...s, trialOpen: false };
+  }
   /** The price list. Created on first use. */
   async packs() {
     const db = this.dbs.db; let rows = await db.select().from(planCatalog).orderBy(planCatalog.sortOrder);
@@ -51,6 +68,7 @@ export class PlatformService {
   /** Boot-time catch-up: centres created before a module existed get it if their type includes it (a coaching centre never gets school-only modules). */
   async migrateFeatures() {
     const db = this.dbs.db; await this.packs();
+    await db.execute(sql.raw('alter table platform_settings add column if not exists trial_open boolean not null default true')).catch(() => {});
     await db.update(centres).set({ plan: 'core' }).where(sql`${centres.plan} in ('starter', 'standard')`); // old plan names become Edge Core
     // The two built-in demo clients run on the demo package so their logins never expire.
     for (const name of DEMO_CENTRE_NAMES) { const [c] = await db.select().from(centres).where(eq(centres.name, name)); if (c && c.plan !== 'demo') await db.update(centres).set({ plan: 'demo' }).where(eq(centres.id, c.id)); }
@@ -61,7 +79,7 @@ export class PlatformService {
     }
   }
   /** Modules this centre may use; empty list means everything. */
-  async enabledModules(centreId: string): Promise<string[]> { const s = await this.settings(centreId); return s.features.length ? s.features : [...MODULES]; }
+  async enabledModules(centreId: string): Promise<string[]> { const s = await this.effective(centreId); return s.features.length ? s.features : [...MODULES]; }
 
   async activeStudents(centreId: string) { const [{ n }] = await this.dbs.db.select({ n: sql<number>`count(*)` }).from(students).where(and(eq(students.centreId, centreId), eq(students.active, true))); return Number(n); }
 

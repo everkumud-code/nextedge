@@ -46,14 +46,16 @@ export class AuthGuard implements CanActivate {
       // a delete that is allowed is written to the activity log by ActivityInterceptor (the Recycle bin reads "who pressed delete" from there)
     }
     const mod = this.reflector.getAllAndOverride<string>('module', [ctx.getHandler(), ctx.getClass()]);
+    // A client on its free trial (with the owner's switch on) has every module open to everyone in it; the plan's own list applies again once the trial ends.
+    const eff = u.centreId && u.role !== 'SUPER_ADMIN' ? await this.platform.effective(u.centreId) : null;
     const mods: string[] = u.modules || [];
     // Reading the student/batch list is needed by every teaching module (roll call, marks, homework), so a GET on 'students' passes when any of those is granted.
     const studentRead = mod === 'students' && req.method === 'GET' && mods.some((m) => ['students', 'attendance', 'tests', 'homework', 'fees', 'live', 'study', 'doubts', 'leaves', 'chat', 'timetable'].includes(m));
-    if (mod && (u.role === 'FACULTY' || u.role === 'STAFF') && !mods.includes(mod) && !studentRead) throw new ForbiddenException(`You do not have access to ${mod}. Ask the owner.`);
+    if (mod && (u.role === 'FACULTY' || u.role === 'STAFF') && !eff?.trialOpen && !mods.includes(mod) && !studentRead) throw new ForbiddenException(`You do not have access to ${mod}. Ask the owner.`);
     if (u.role === 'EXPERT' && mod && mod !== 'wellbeing' && mod !== 'notices') throw new ForbiddenException('Counsellors can only use the wellbeing console.');
     // Platform-level switches: feature off for this centre, or centre suspended (read-only for everyone but the owner's subscription page).
     if (u.centreId && u.role !== 'SUPER_ADMIN') {
-      const s = await this.platform.settings(u.centreId);
+      const s = eff!;
       if (s.status === 'suspended' && req.method !== 'GET' && !req.url.includes('/subscription')) throw new ForbiddenException('This centre’s subscription is suspended. The owner needs to renew.');
       if (mod && s.features.length && !s.features.includes(mod)) throw new ForbiddenException(`${mod} is not included in this centre’s plan.`);
     }

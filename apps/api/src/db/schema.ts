@@ -450,6 +450,7 @@ export const platformSettings = pgTable('platform_settings', {
   id: text('id').primaryKey(), // 'platform'
   smtpHost: text('smtp_host'), smtpPort: integer('smtp_port'), smtpUser: text('smtp_user'), smtpPass: text('smtp_pass'), smtpFrom: text('smtp_from'), smtpVerifiedAt: timestamp('smtp_verified_at'),
   otpEnabled: boolean('otp_enabled').default(false).notNull(),
+  trialOpen: boolean('trial_open').default(true).notNull(), // while a client is on its free trial, everything is open to everyone in it
   payuKey: text('payu_key'), payuSalt: text('payu_salt'), payuTest: boolean('payu_test').default(true).notNull(),
   manualPayInfo: text('manual_pay_info'), // shown on the payment wall: UPI id, bank details, WhatsApp number
   channels: text('channels').default('{}').notNull(), // JSON: { sms: SmsCfg, whatsapp: WaCfg } platform defaults

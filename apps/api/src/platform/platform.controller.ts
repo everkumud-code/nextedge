@@ -32,6 +32,9 @@ export class PlatformController {
     await this.dbs.db.update(platformSettings).set({ smtpHost: host, smtpPort: port, smtpUser: smtp.user, smtpPass: smtp.pass, smtpFrom: smtp.from, smtpVerifiedAt: new Date(), updatedAt: new Date() }).where(eq(platformSettings.id, 'platform'));
     this.mail.invalidate(); return { ok: true };
   }
+  /** The owner's switch: while a client is on its free trial, every module and every person in it is open. */
+  @Get('trial-open') async trialOpen() { return { on: await this.svc.trialOpen() }; }
+  @Put('trial-open') async setTrialOpen(@CurrentUser() u: JwtUser, @Body() b: { on: boolean }) { await this.ownerOnly(u); return { on: await this.svc.setTrialOpen(!!b?.on) }; }
   @Put('otp') async setOtp(@CurrentUser() u: JwtUser, @Body() b: { enabled: boolean }) {
     await this.ownerOnly(u);
     if (b.enabled && !(await this.mail.platformMailbox())) return { ok: false, error: 'Connect the platform mailbox first, so OTPs have a way to go out.' };
