@@ -19,7 +19,7 @@ export class RecordsController {
   constructor(private dbs: DbService, private notify: NotificationsService, private platform: PlatformService, private msg: MessagingService) {}
 
   private kind(k: string) { const kd = KINDS[k]; if (!kd) throw new BadRequestException(`Unknown record kind ${k}`); return kd; }
-  private async features(u: JwtUser): Promise<string[] | null> { if (!u.centreId || u.role === 'SUPER_ADMIN') return null; const s = await this.platform.settings(u.centreId); return s.features.length ? s.features : null; }
+  private async features(u: JwtUser): Promise<string[] | null> { if (!u.centreId || u.role === 'SUPER_ADMIN') return null; const s = await this.platform.effective(u.centreId); return s.features.length ? s.features : null; }
   private async allowed(u: JwtUser, k: string) {
     const kd = this.kind(k);
     if (u.role === 'SUPER_ADMIN') return kd;
