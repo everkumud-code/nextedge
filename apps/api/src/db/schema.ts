@@ -1,5 +1,5 @@
 // Every table that holds centre data carries centre_id. No query may cross centres.
-import { pgTable, uuid, text, timestamp, integer, boolean, date, pgEnum, numeric } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, timestamp, integer, boolean, date, pgEnum, numeric, jsonb } from 'drizzle-orm/pg-core';
 
 export const roleEnum = pgEnum('role', ['SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF', 'STUDENT', 'PARENT', 'EXPERT']);
 export const attendanceStatus = pgEnum('attendance_status', ['PRESENT', 'ABSENT', 'LATE', 'LEAVE']);
@@ -506,6 +506,22 @@ export const auditLog = pgTable('audit_log', {
   method: text('method').notNull(),
   path: text('path').notNull(),
   at: timestamp('at').defaultNow().notNull(),
+});
+
+// ---------- Recycle bin: a copy of every row that was deleted. Nothing is erased for good until the platform owner approves it. ----------
+// Filled by a database trigger (see recycle/recycle.service.ts), so every delete is covered, whoever or whatever made it.
+export const deletedRows = pgTable('deleted_rows', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  tableName: text('table_name').notNull(),
+  rowId: text('row_id'),
+  centreId: uuid('centre_id'),
+  label: text('label'), // a readable name for the list (name, title, receipt no …)
+  data: jsonb('data'), // the whole row; emptied once the owner approves erasing it
+  tx: text('tx'), // rows deleted in the same database transaction (a student and its marks) come back together
+  status: text('status').notNull().default('pending'), // pending (waiting for approval) | restored | erased
+  deletedAt: timestamp('deleted_at').defaultNow().notNull(),
+  decidedAt: timestamp('decided_at'),
+  decidedBy: text('decided_by'),
 });
 
 // ---------- Files (photos, admission documents, gallery). Small files stored in the database; photos/gallery are public-by-link, documents need login. ----------

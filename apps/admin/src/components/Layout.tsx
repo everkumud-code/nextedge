@@ -1,10 +1,9 @@
-import ThemePicker from './ThemePicker';
 import Assistant from './Assistant';
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import LangSwitch from './LangSwitch';
-import DemoSwitch from './DemoSwitch';
-import { api, session } from '../api';
+import SettingsMenu from './SettingsMenu';
+import { useDemo, RoleView, BackToOwnLogin } from './DemoSwitch';
+import { api, canDelete, session } from '../api';
 
 const ROLE: Record<string, string> = { SUPER_ADMIN: 'Platform admin', ADMIN: 'Owner', FACULTY: 'Teacher', STAFF: 'Staff', STUDENT: 'Student', PARENT: 'Parent', EXPERT: 'Counsellor' };
 const SCHOOL_ROLE: Record<string, string> = { ADMIN: 'Principal', FACULTY: 'Teacher' };
@@ -24,9 +23,12 @@ const groups: { name: string; items: Item[] }[] = [
 const adminOnly = new Set(['/subscription', '/school-profile', '/payroll', '/insights', '/access', '/messaging']);
 
 export default function Layout() {
+  const demo = useDemo();
+  // Delete and Void buttons are marked data-destroy; only the platform owner sees them (the server refuses everyone else as well)
+  useEffect(() => { document.body.classList.toggle('ne-no-delete', !canDelete()); return () => document.body.classList.remove('ne-no-delete'); }, [session.user?.canDelete, session.user?.role]);
   const user = session.user; const go = useNavigate(); const school = user?.institutionType === 'school'; const isSuper = user?.role === 'SUPER_ADMIN'; const viewing = isSuper ? session.viewCentre : null; const [centres, setCentres] = useState<any[]>([]);
   useEffect(() => { if (isSuper) api('/platform/centres').then(setCentres).catch(() => {}); }, []);
-  useEffect(() => { if (isSuper && !viewing && !['/clients', '/platform', '/offers', '/messaging', '/counsellor', '/team', '/onboard'].some((p) => location.pathname.startsWith(p))) go('/clients'); }, [location.pathname]);
+  useEffect(() => { if (isSuper && !viewing && !['/clients', '/platform', '/offers', '/messaging', '/counsellor', '/team', '/onboard', '/recycle-bin'].some((p) => location.pathname.startsWith(p))) go('/clients'); }, [location.pathname]);
   const openCentre = (id: string) => { const c = centres.find((x) => x.id === id); session.viewing(c ? { id: c.id, name: c.name, institutionType: c.institutionType } : null); location.assign(c ? '/' : '/clients'); };
   useEffect(() => { if (user?.role === 'ADMIN' && user.subscriptionStatus === 'suspended' && !location.pathname.startsWith('/subscription')) go('/pay'); }, []);
   const [bell, setBell] = useState<{ unread: number; items: any[] } | null>(null); const [open, setOpen] = useState(false); const [nav, setNav] = useState(false);
@@ -37,7 +39,7 @@ export default function Layout() {
   const onPage = (to: string) => (to === '/' ? loc.pathname === '/' : loc.pathname === to || loc.pathname.startsWith(to + '/'));
   const owner = ['ADMIN', 'SUPER_ADMIN'].includes(user?.role || '');
   const allowed = (it: Item) => { const [to, , m] = it; if (to === '/compliance') return school && owner; if (to === '/messaging' && user?.role === 'SUPER_ADMIN') return false; if (adminOnly.has(to) && !owner && to !== '/insights') return false; if (to === '/insights' && !owner && !(user?.modules || []).includes('reports')) return false; if (to === '/timetable') return user?.role !== 'PARENT' && user?.role !== 'STUDENT' && (user?.role === 'SUPER_ADMIN' || !user?.features || user.features.includes('timetable')); if (to === '/alerts') return owner || user?.role === 'STAFF'; if (!m) return true; return (owner || !user?.modules || user.modules.includes(m)) && (user?.role === 'SUPER_ADMIN' || !user?.features || user.features.includes(m)); };
-  const platform: Item[] = user?.role === 'SUPER_ADMIN' ? [['/', 'Overview', ''], ['/clients', 'Clients', ''], ['/platform', 'Billing & plans', ''], ['/offers', 'Offers & discounts', ''], ['/messaging', 'Messaging', ''], ['/counsellor', 'Counsellors', ''], ['/team', 'Team & demo logins', ''], ['/onboard', 'Onboard a client', '']] : [];
+  const platform: Item[] = user?.role === 'SUPER_ADMIN' ? [['/', 'Overview', ''], ['/clients', 'Clients', ''], ['/platform', 'Billing & plans', ''], ['/offers', 'Offers & discounts', ''], ['/messaging', 'Messaging', ''], ['/counsellor', 'Counsellors', ''], ['/team', 'Team & demo logins', ''], ['/recycle-bin', 'Recycle bin', ''], ['/onboard', 'Onboard a client', '']] : [];
   const platformOnly = isSuper && !viewing;
   const visible = user?.role === 'EXPERT' ? [{ name: '', items: [['/counsellor', 'Counsellor console', ''] as Item] }] : [...(platformOnly ? [] : groups.map((g) => ({ ...g, items: g.items.filter(allowed) })).filter((g) => g.items.length)), ...(platform.length ? [{ name: 'Platform', items: platform }] : [])];
   const roleLabel = (school && SCHOOL_ROLE[user?.role || '']) || ROLE[user?.role || ''] || user?.role;
@@ -50,6 +52,7 @@ export default function Layout() {
           <div className="text-xs text-teal-100/80 mt-1">{user?.name} · {roleLabel}</div>
           {user?.centreName && <div className="text-xs text-teal-100/60">{user.centreName}{school ? ' · School' : ''}</div>}
           {isSuper && <div className="mt-3"><label className="text-[10px] uppercase tracking-wider text-teal-100/60">Open centre</label><select className="w-full mt-1 rounded bg-teal-800 text-white text-sm px-2 py-1.5 border border-teal-700" value={viewing || ''} onChange={(e) => openCentre(e.target.value)}><option value="">— none (platform view) —</option>{centres.map((c) => <option key={c.id} value={c.id}>{c.name}{c.institutionType === 'school' ? ' (school)' : ''}</option>)}</select>{!viewing && <div className="text-[11px] text-teal-100/60 mt-1">Choose a centre to see its students, fees, exams…</div>}</div>}
+          <RoleView demo={demo} />
         </div>
         <nav className="flex-1 py-2 overflow-y-auto">
           {visible.map((g) => {
@@ -63,8 +66,7 @@ export default function Layout() {
             </div>;
           })}
         </nav>
-        <DemoSwitch /><div className="px-5 py-2 border-t border-teal-800 text-teal-100"><LangSwitch dark /></div>
-        <ThemePicker />
+        <SettingsMenu />
         <button onClick={() => { session.clear(); go('/login'); }} className="px-5 py-3 text-left text-sm text-teal-100/80 hover:text-white border-t border-teal-800">Log out</button>
       </aside>
       <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-7xl relative min-w-0">
@@ -76,7 +78,8 @@ export default function Layout() {
         </header>
         <button className="hidden md:inline-flex absolute right-8 top-6 btn-quiet" aria-label="Notifications" onClick={() => { setOpen(!open); if (!open && bell?.unread) api('/notifications/read-all', { method: 'POST' }).then(() => setBell(bell ? { ...bell, unread: 0 } : bell)); }}>🔔{bell?.unread ? <span className="ml-1 bg-brick text-white text-xs rounded-full px-1.5">{bell.unread}</span> : null}</button>
         {open && bell && <div className="fixed md:absolute left-3 right-3 md:left-auto md:right-8 top-14 md:top-16 md:w-96 card p-3 shadow-lg z-30 max-h-96 overflow-y-auto"><div className="font-semibold mb-2">Notifications</div>{bell.items.length ? bell.items.slice(0, 30).map((n) => <div key={n.id} className={`py-2 border-t border-slate-100 text-sm ${!n.readAt ? 'font-semibold' : ''}`}><div>{n.title}</div><div className="text-slate-600 font-normal">{n.body}</div><div className="text-xs text-slate-400">{new Date(n.createdAt).toLocaleString('en-IN')}</div></div>) : <p className="text-sm text-slate-500">Nothing yet.</p>}</div>}
-        {isSuper && viewing && <div className="mb-4 -mt-2 p-2.5 rounded bg-marigold-100 border border-marigold-500 text-sm flex items-center gap-3"><b>Support mode</b> You are inside <b>{user?.centreName}</b>. Changes you make are logged and visible to the owner.<button className="btn-quiet ml-auto" onClick={() => { session.viewing(null); location.assign('/clients'); }}>Exit to Clients</button></div>}
+        <BackToOwnLogin demo={demo} />
+        {isSuper && viewing && <div className="sticky top-14 md:top-0 z-20 mb-4 -mt-2 p-2.5 rounded bg-marigold-100 border border-marigold-500 text-sm flex items-center gap-3"><b>Support mode</b> You are inside <b>{user?.centreName}</b>. Changes you make are logged and visible to the owner.<button className="btn-quiet ml-auto" onClick={() => { session.viewing(null); location.assign('/clients'); }}>← Back to my own login</button></div>}
         <Outlet /></main>
       <Assistant />
     </div>

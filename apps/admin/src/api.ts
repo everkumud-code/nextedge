@@ -1,5 +1,5 @@
 const BASE = (import.meta.env.VITE_API_URL ?? '') + '/api';
-export type User = { id: string; name: string; role: string; centreId: string | null; modules?: string[]; features?: string[]; subscriptionStatus?: string; institutionType?: string; centreName?: string; demoFrom?: string };
+export type User = { id: string; name: string; role: string; centreId: string | null; modules?: string[]; features?: string[]; subscriptionStatus?: string; institutionType?: string; centreName?: string; canDelete?: boolean; demoFrom?: string };
 export const session = {
   get token() { return localStorage.getItem('token'); },
   get user(): User | null { const u = localStorage.getItem('user'); return u ? JSON.parse(u) : null; },
@@ -18,7 +18,7 @@ export async function api<T = any>(path: string, opts: RequestInit = {}): Promis
   const res = await fetch(BASE + path, { ...opts, headers: { 'Content-Type': 'application/json', ...(session.token ? { Authorization: `Bearer ${session.token}` } : {}), ...(opts.headers || {}) } });
   if (res.status === 401) { session.clear(); location.href = '/login'; }
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Request failed');
+  if (!res.ok) { const msg = Array.isArray(data.message) ? data.message.join(', ') : data.message || 'Request failed'; if (res.status === 403 && String(opts.method || '').toUpperCase() === 'DELETE') alert(msg); throw new Error(msg); }
   return data;
 }
 
@@ -43,3 +43,5 @@ export async function downloadFile(path: string, filename: string, err = 'Could 
 }
 /** Downloading data (backups, CSV/Excel lists) is for the owner/principal and the platform team. Staff and teachers never see these buttons, and the server refuses them too. */
 export const canDownload = () => ['ADMIN', 'SUPER_ADMIN'].includes(session.user?.role || '');
+/** Deleting belongs to the platform owner only (the server enforces it). Login payloads from before this rule have no flag: the platform owner keeps it. */
+export const canDelete = (): boolean => { const u = session.user; return u ? (u.canDelete ?? u.role === 'SUPER_ADMIN') : false; };

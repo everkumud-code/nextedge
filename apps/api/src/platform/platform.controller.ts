@@ -133,6 +133,8 @@ export class PlatformController {
     if (!/^[0-9a-f-]{36}$/i.test(id)) throw new BadRequestException('Bad id');
     const fks = await this.fkGraph(); const tr: any = await this.dbs.db.execute(sql`select table_name from information_schema.columns where table_schema = 'public' and column_name = 'centre_id'`); const tables: string[] = (tr.rows || tr).map((x: any) => x.table_name);
     await this.dbs.db.transaction(async (tx: any) => {
+      // removing a whole client is the owner's own typed-name decision (and last night's backup exists): do not copy the whole school into the Recycle bin
+      await tx.execute(sql`select set_config('ne.archive', 'off', true)`);
       const del = async (table: string, where: string, path: string[]) => {
         for (const fk of fks.filter((f) => f.parent === table)) {
           const sub = `${fk.child_col} in (select ${fk.parent_col} from ${table} where ${where})`;

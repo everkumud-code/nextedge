@@ -51,7 +51,7 @@ function Detail({ g, tab, setTab, owner, reload, after, setMsg }: any) {
   return (
     <div>
       <div className="flex items-start justify-between flex-wrap gap-2"><div><h2 className="text-lg font-semibold">{e.name} <span className="text-sm font-normal text-slate-500">· {e.term} · {dt(e.date)}</span></h2><div className="text-xs text-slate-500">Maximum marks: {subj.map((s) => `${s.name} ${s.max}`).join(' · ')}</div></div>
-        <div className="flex gap-2">{owner && <button className={e.published ? 'btn-quiet' : 'btn'} onClick={() => publish(!e.published)}>{e.published ? 'Unpublish' : 'Publish results'}</button>}{owner && <button className="btn-quiet" onClick={remove}>Delete</button>}</div></div>
+        <div className="flex gap-2">{owner && <button className={e.published ? 'btn-quiet' : 'btn'} onClick={() => publish(!e.published)}>{e.published ? 'Unpublish' : 'Publish results'}</button>}{owner && <button data-destroy className="btn-quiet" onClick={remove}>Delete</button>}</div></div>
       <div className="flex gap-2 mt-3">{(['marks', 'analysis', 'cards'] as const).map((t) => <button key={t} className={tab === t ? 'btn' : 'btn-quiet'} onClick={() => setTab(t)}>{t === 'marks' ? 'Enter marks' : t === 'analysis' ? 'Analysis & ranks' : 'Report cards'}</button>)}</div>
       {tab === 'marks' && <>
         <p className="text-xs text-slate-500 mt-2">Type marks and press Tab to move on. Type <b>A</b> for absent. Marks above the maximum are rejected. {e.published ? 'Results are published — changes show to parents immediately.' : ''}</p>
