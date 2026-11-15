@@ -1,6 +1,9 @@
 import { RedisService } from './common/redis.service';
 import { Controller, Get, Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { ActivityController } from './activity/activity.controller';
+import { ActivityService } from './activity/activity.service';
+import { ActivityInterceptor } from './activity/activity.interceptor';
 import { DbModule } from './db/db.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard, Public } from './common/auth.guard';
@@ -69,7 +72,7 @@ class HealthController { @Public() @Get('health') health() { return { ok: true, 
 
 @Module({
   imports: [DbModule, PlatformModule, AuthModule],
-  controllers: [RecycleController, BackupController, IclockController, TransportController, AssistantController, ImportController, SiteController, MessagingController, AlertsController, AccessController, FilesController, IdCardsController, HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController, NotificationsController, ChatController, ContentController, TimetableController, AutoTimetableController, CentresController, PlatformTeamController, CouponsController, LibraryController, TestsController, HomeworkController, DashboardController, HousesController, WorkspaceController, LiveController, ReportsController, StaffController, DoubtsController, LeavesController, FeedbackController, EnquiriesController, WishesController, PlatformController, SubscriptionController, StaffAttendanceController, WellbeingController, NewsController, PaymentsController, RecordsController, ExamsController, CertificatesController, AdmissionsController, PayrollController, BiometricController, InsightsController, DossierController],
-  providers: [RecycleService, WorkspaceService, LiveService, BiometricController, AlertsController, StudentsService, RedisService, ChatGateway, ReportsService, SchedulerService, FeesController, ExamsController, WishesController, { provide: APP_GUARD, useClass: AuthGuard }],
+  controllers: [ActivityController, RecycleController,BackupController, IclockController, TransportController, AssistantController, ImportController, SiteController, MessagingController, AlertsController, AccessController, FilesController, IdCardsController, HealthController, StudentsController, BatchesController, AttendanceController, FeesController, NoticesController, NotificationsController, ChatController, ContentController, TimetableController, AutoTimetableController, CentresController, PlatformTeamController, CouponsController, LibraryController, TestsController, HomeworkController, DashboardController, HousesController, WorkspaceController, LiveController, ReportsController, StaffController, DoubtsController, LeavesController, FeedbackController, EnquiriesController, WishesController, PlatformController, SubscriptionController, StaffAttendanceController, WellbeingController, NewsController, PaymentsController, RecordsController, ExamsController, CertificatesController, AdmissionsController, PayrollController, BiometricController, InsightsController, DossierController],
+  providers: [ActivityService, { provide: APP_INTERCEPTOR, useClass: ActivityInterceptor }, RecycleService,WorkspaceService, LiveService, BiometricController, AlertsController, StudentsService, RedisService, ChatGateway, ReportsService, SchedulerService, FeesController, ExamsController, WishesController, { provide: APP_GUARD, useClass: AuthGuard }],
 })
 export class AppModule {}

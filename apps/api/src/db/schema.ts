@@ -500,11 +500,17 @@ export const examMarks = pgTable('exam_marks', {
 // ---------- Audit of platform support access (super admin acting inside a centre) ----------
 export const auditLog = pgTable('audit_log', {
   id: uuid('id').primaryKey().defaultRandom(),
-  centreId: uuid('centre_id').notNull(),
+  centreId: uuid('centre_id'), // empty for platform-level work that belongs to no single client
   userId: uuid('user_id').notNull(),
   userName: text('user_name'),
+  role: text('role'),
+  scope: text('scope').default('client').notNull(), // client | platform
   method: text('method').notNull(),
   path: text('path').notNull(),
+  action: text('action'), // plain words: "Added · Students"
+  detail: text('detail'), // what it was about (a name, an amount); never a password or code
+  via: text('via'), // support | demo
+  ip: text('ip'),
   at: timestamp('at').defaultNow().notNull(),
 });
 

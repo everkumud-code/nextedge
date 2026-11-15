@@ -14,6 +14,7 @@ import Team from './pages/Team';
 import Onboard from './pages/Onboard';
 import Clients from './pages/Clients';
 import RecycleBin from './pages/RecycleBin';
+import Activity from './pages/Activity';
 import TimetableSchool from './pages/TimetableSchool';
 import Alerts from './pages/Alerts';
 import Site from './pages/Site';
@@ -100,6 +101,7 @@ export default function App() {
         <Route path="team" element={<Team />} />
         <Route path="onboard" element={<Onboard />} />
         <Route path="recycle-bin" element={<RecycleBin />} />
+        <Route path="activity" element={<Activity />} />
         <Route path="subscription" element={<Subscription />} />
         <Route path="staff-attendance" element={<StaffAttendance />} />
         <Route path="counsellor" element={<Counsellor />} />

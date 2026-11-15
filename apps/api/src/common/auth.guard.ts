@@ -4,7 +4,8 @@ import { Reflector } from '@nestjs/core';
 import { eq } from 'drizzle-orm';
 import { PlatformService } from '../platform/platform.service';
 import { DbService } from '../db/db.service';
-import { auditLog, platformTeam, staffPermissions } from '../db/schema';
+import { platformTeam, staffPermissions } from '../db/schema';
+import { ActivityService } from '../activity/activity.service';
 import { isDestructive } from './destructive';
 
 export const Roles = (...roles: string[]) => SetMetadata('roles', roles);
@@ -18,7 +19,7 @@ export const Public = () => SetMetadata('public', true);
 // Verifies the JWT, attaches req.user, enforces @Roles(). Every tenant query must then filter by user.centreId.
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private jwt: JwtService, private reflector: Reflector, private platform: PlatformService, private dbs: DbService) {}
+  constructor(private jwt: JwtService, private reflector: Reflector, private platform: PlatformService, private dbs: DbService, private act: ActivityService) {}
   async canActivate(ctx: ExecutionContext) {
     if (this.reflector.getAllAndOverride<boolean>('public', [ctx.getHandler(), ctx.getClass()])) return true;
     const req = ctx.switchToHttp().getRequest();
@@ -29,7 +30,7 @@ export class AuthGuard implements CanActivate {
     try { req.user = await this.jwt.verifyAsync(token); } catch { throw new UnauthorizedException('Session expired, login again'); }
     const roles = this.reflector.getAllAndOverride<string[]>('roles', [ctx.getHandler(), ctx.getClass()]);
     // Support mode: a platform super admin who names a centre (?centreId=) acts inside it with owner rights. Every change is written to the audit log (visible to that centre's owner).
-    if (req.user.role === 'SUPER_ADMIN') { const qc = req.query?.centreId as string | undefined; if (qc && /^[0-9a-f-]{36}$/i.test(qc)) { req.user = { ...req.user, centreId: qc, support: true }; if (req.method !== 'GET') this.dbs.db.insert(auditLog).values({ centreId: qc, userId: req.user.id, userName: req.user.name, method: req.method, path: String(req.url).replace(/([?&])(t|token)=[^&]*/g, '$1').slice(0, 300) }).catch(() => {}); } }
+    if (req.user.role === 'SUPER_ADMIN') { const qc = req.query?.centreId as string | undefined; if (qc && /^[0-9a-f-]{36}$/i.test(qc)) { req.user = { ...req.user, centreId: qc, support: true }; } } // the change itself is written to the activity log (ActivityInterceptor)
     if (Date.now() - blockedAt > 20000) { try { const a = await this.dbs.db.select({ id: staffPermissions.userId }).from(staffPermissions).where(eq(staffPermissions.active, false)); const b = await this.dbs.db.select({ id: platformTeam.userId, active: platformTeam.active }).from(platformTeam); blocked = new Set([...a, ...b.filter((x) => !x.active)].map((x) => x.id)); teamIds = new Set(b.map((x) => x.id)); blockedAt = Date.now(); } catch { /* keep the old list */ } }
     if (req.user?.id && blocked.has(req.user.id)) throw new UnauthorizedException('Your account has been deactivated. Contact the owner.');
     const u = req.user;
@@ -40,10 +41,9 @@ export class AuthGuard implements CanActivate {
     if (isDestructive(req.method, req.originalUrl || req.url)) {
       // DESTRUCTIVE_POLICY: block (default) = only the platform owner deletes; approval = a client's own people may delete too, and the copy waits in the Recycle bin
       const policy = (process.env.DESTRUCTIVE_POLICY || 'block').toLowerCase(); const isOwner = u.role === 'SUPER_ADMIN' && !teamIds.has(u.id);
-      if (u.role === 'SUPER_ADMIN' && !isOwner) throw new ForbiddenException('Platform team members cannot delete client data. Ask the platform owner. Anything that is deleted can be brought back from the Recycle bin.');
-      if (policy === 'block' && !isOwner) throw new ForbiddenException('Deleting is kept with the NextEdge platform owner so nothing is lost by mistake. You can add and edit; if something must be removed, ask the NextEdge team.');
-      // who pressed delete: kept for the Recycle bin list (the platform owner's own support-mode changes are already logged above)
-      if (u.centreId && u.role !== 'SUPER_ADMIN') this.dbs.db.insert(auditLog).values({ centreId: u.centreId, userId: u.id, userName: u.name || null, method: req.method, path: String(req.originalUrl || req.url).split('?')[0].slice(0, 200) }).catch(() => {});
+      if (u.role === 'SUPER_ADMIN' && !isOwner) { this.act.denied(req, u, 'platform team cannot delete'); throw new ForbiddenException('Platform team members cannot delete client data. Ask the platform owner. Anything that is deleted can be brought back from the Recycle bin.'); }
+      if (policy === 'block' && !isOwner) { this.act.denied(req, u, 'deleting is kept with the platform owner'); throw new ForbiddenException('Deleting is kept with the NextEdge platform owner so nothing is lost by mistake. You can add and edit; if something must be removed, ask the NextEdge team.'); }
+      // a delete that is allowed is written to the activity log by ActivityInterceptor (the Recycle bin reads "who pressed delete" from there)
     }
     const mod = this.reflector.getAllAndOverride<string>('module', [ctx.getHandler(), ctx.getClass()]);
     const mods: string[] = u.modules || [];
