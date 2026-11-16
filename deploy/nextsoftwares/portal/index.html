@@ -35,6 +35,7 @@
   .found { display:grid; gap:8px; margin-top:12px; } .found button { text-align:left; background:var(--bg); border:1.5px solid var(--line); border-radius:12px; padding:11px 14px; font:inherit; color:var(--ink); cursor:pointer; } .found button:hover { border-color:var(--c); }
   .found small { color:var(--muted); display:block; }
   details { margin-top:16px; } summary { cursor:pointer; color:var(--muted); font-size:14px; }
+ .brandlogo { display:block; height:46px; width:auto; background:#fff; border-radius:8px; padding:3px 10px; }
   .brand small { display:block; font-size:11px; font-weight:600; color:var(--muted); letter-spacing:.3px; margin-top:-2px; }
   header nav { display:flex; gap:16px; flex-wrap:wrap; align-items:center; } header nav a.team { border:1.5px solid var(--line); border-radius:999px; padding:6px 14px; color:var(--ink); font-weight:600; }
   .tile.soon { opacity:.78; } .tile .pill { position:absolute; right:12px; top:16px; font-size:11px; font-weight:700; letter-spacing:.3px; text-transform:uppercase; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:2px 8px; background:var(--bg); }
@@ -57,7 +58,7 @@
 <body>
 <a class="adbar" id="adTop" hidden><small>Ad</small><img alt=""></a>
 <header>
-  <div class="brand">Next<b>Softwares</b><small>by Next Resource</small></div>
+  <a class="brand" href="/" aria-label="NextSoftwares home"><img class="brandlogo" src="/brand/nextsoftwares.png" alt="NextSoftwares, a Next Resource company" width="520" height="173"></a>
   <nav><a href="#login">Login</a><a href="#products">Products</a><a href="/manual/">User manual</a><a href="#help">Help</a><a href="https://www.nextresource.in/">Next Resource</a><a href="https://www.nextresource.in/be-the-next">Be the Next</a><a class="team" href="/login">Team login</a></nav>
 </header>
 <main>
@@ -122,6 +123,7 @@
     { key: 'pms', name: 'NextPMS', tag: 'Property management', colour: '#475569', logo: '/brand/nextpms-sm.png', letter: 'P', mode: 'soon', who: 'property' },
     { key: 'stores', name: 'NextStores', tag: 'Shops & retail', colour: '#7C3AED', logo: '/brand/nextstores-sm.png', letter: 'S', mode: 'soon', who: 'store' },
     { key: 'gem', name: 'NextGem', tag: 'Jewellery', colour: '#0E7490', logo: '/brand/nextgem-sm.png', letter: 'G', mode: 'soon', who: 'jeweller' },
+    { key: 'wave', name: 'NextWave', tag: 'Bulk WhatsApp messaging', colour: '#0A84E0', logo: '/brand/nextwave-sm.png', letter: 'W', mode: 'soon', who: 'business' },
     { key: 'kit', name: 'NextKit', tag: 'Toolkit for small business', colour: '#C2410C', logo: '/brand/nextkit-sm.png', letter: 'K', mode: 'soon', who: 'business' }
   ];
   var tiles = document.getElementById('tiles'), panel = document.getElementById('panel'); var chosen = null;
