@@ -18,8 +18,11 @@ describe('Free trial: everything open for everyone (owner\'s switch)', () => {
     const a = api('auth/auth.service.ts'); expect(a).toContain('this.platform.effective(user.centreId)'); expect(a).toContain("if (s.trialOpen && (user.role === 'FACULTY' || user.role === 'STAFF')) modules = [...MODULES]");
     expect(api('records/records.controller.ts')).toContain('this.platform.effective(u.centreId)');
   });
-  it('deleting is not part of it: the delete rule is untouched by the trial', () => {
-    const g = api('common/auth.guard.ts'); const del = g.slice(g.indexOf('isDestructive(req.method'), g.indexOf("const mod = this.reflector")); expect(del).not.toContain('trialOpen'); expect(del).not.toContain('eff');
+  it('on trial the client’s own people may delete too (the Recycle bin keeps the copy); the platform team still may not', () => {
+    const g = api('common/auth.guard.ts'); expect(g).toContain("policy === 'block' && !isOwner && !eff?.trialOpen");
+    expect(g.indexOf('const eff =')).toBeLessThan(g.indexOf('isDestructive(req.method')); // decided before the delete rule runs
+    const team = g.indexOf("platform team cannot delete"); expect(team).toBeGreaterThan(0); expect(g.slice(g.indexOf('isDestructive(req.method'), team)).not.toContain('trialOpen');
+    expect(api('auth/auth.service.ts')).toContain("if (s.trialOpen && user.role !== 'SUPER_ADMIN') canDelete = true;");
   });
   it('the Billing & plans page shows the switch', () => {
     const p = fs.readFileSync(path.resolve(__dirname, '../src/pages/Platform.tsx'), 'utf8'); expect(p).toContain('data-testid="trial-open"'); expect(p).toContain("'/platform/trial-open'");

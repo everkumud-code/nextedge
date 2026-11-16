@@ -37,17 +37,18 @@ export class AuthGuard implements CanActivate {
     // STAFF counts as FACULTY for role checks; what they may actually touch is decided by their module list.
     const effRole = u.role === 'STAFF' ? 'FACULTY' : u.role;
     if (roles?.length && !roles.includes(effRole) && !roles.includes(u.role) && !(u.support && roles.includes('ADMIN'))) throw new ForbiddenException('Not allowed for your role');
+    // A client on its free trial (with the owner's switch on) has every module open to everyone in it; the plan's own list applies again once the trial ends.
+    const eff = u.centreId && u.role !== 'SUPER_ADMIN' ? await this.platform.effective(u.centreId) : null;
     // Deleting. Never by the platform team; by a client's own people only with the copy kept in the Recycle bin (a database trigger does that), until the platform owner approves erasing it.
     if (isDestructive(req.method, req.originalUrl || req.url)) {
       // DESTRUCTIVE_POLICY: block (default) = only the platform owner deletes; approval = a client's own people may delete too, and the copy waits in the Recycle bin
       const policy = (process.env.DESTRUCTIVE_POLICY || 'block').toLowerCase(); const isOwner = u.role === 'SUPER_ADMIN' && !teamIds.has(u.id);
       if (u.role === 'SUPER_ADMIN' && !isOwner) { this.act.denied(req, u, 'platform team cannot delete'); throw new ForbiddenException('Platform team members cannot delete client data. Ask the platform owner. Anything that is deleted can be brought back from the Recycle bin.'); }
-      if (policy === 'block' && !isOwner) { this.act.denied(req, u, 'deleting is kept with the platform owner'); throw new ForbiddenException('Deleting is kept with the NextEdge platform owner so nothing is lost by mistake. You can add and edit; if something must be removed, ask the NextEdge team.'); }
+      if (policy === 'block' && !isOwner && !eff?.trialOpen) { this.act.denied(req, u, 'deleting is kept with the platform owner'); throw new ForbiddenException('Deleting is kept with the NextEdge platform owner so nothing is lost by mistake. You can add and edit; if something must be removed, ask the NextEdge team.'); }
+      // (a client on its free trial with the owner's switch on may delete too: the copy waits in the Recycle bin either way)
       // a delete that is allowed is written to the activity log by ActivityInterceptor (the Recycle bin reads "who pressed delete" from there)
     }
     const mod = this.reflector.getAllAndOverride<string>('module', [ctx.getHandler(), ctx.getClass()]);
-    // A client on its free trial (with the owner's switch on) has every module open to everyone in it; the plan's own list applies again once the trial ends.
-    const eff = u.centreId && u.role !== 'SUPER_ADMIN' ? await this.platform.effective(u.centreId) : null;
     const mods: string[] = u.modules || [];
     // Reading the student/batch list is needed by every teaching module (roll call, marks, homework), so a GET on 'students' passes when any of those is granted.
     const studentRead = mod === 'students' && req.method === 'GET' && mods.some((m) => ['students', 'attendance', 'tests', 'homework', 'fees', 'live', 'study', 'doubts', 'leaves', 'chat', 'timetable'].includes(m));
