@@ -8,6 +8,7 @@ import { PlatformService } from '../platform/platform.service';
 import { RedisService } from '../common/redis.service';
 import { MailService } from '../notifications/mail.service';
 import { MessagingService } from '../messaging/messaging.service';
+import { checkParentCode, cleanMobile } from '../common/parent-code';
 import { dashKind, type DashKind } from '../dashboard/dash-kind';
 import type { JwtUser } from '../common/current-user.decorator';
 
@@ -65,6 +66,18 @@ export class AuthService {
     }
     const mask = (e?: string | null) => e ? e.replace(/^(.{2}).*(@.*)$/, '$1***$2') : undefined;
     return { sent: true, via: delivered, to: delivered === 'email' ? mask(acct.email) : delivered === 'sms' || delivered === 'whatsapp' ? `******${acct.mobile.slice(-4)}` : undefined, expiresIn: OTP_TTL, devHint: process.env.OTP_MODE === 'dev' ? '123456' : undefined };
+  }
+
+  /** A parent signs in with the mobile number the school has and the 6-digit code the school office gave (no SMS or WhatsApp needed). Only PARENT accounts; the answer is the same for every kind of failure. */
+  async loginWithParentCode(mobile: string | undefined, code: string, centreId?: string) {
+    const bad = () => new UnauthorizedException('That code is not correct or has expired. Ask the school for a new code.');
+    const m = cleanMobile(mobile); if (!centreId || centreId === 'platform' || m.length !== 10) throw bad();
+    const acct = await this.account(centreId, m, undefined);
+    if (!acct || acct.role !== 'PARENT') throw bad();
+    const result = await checkParentCode(this.redis, centreId, m, String(code || ''));
+    if (result === 'locked') throw new UnauthorizedException('Too many wrong tries. Ask the school for a new code.');
+    if (result !== 'ok') throw bad();
+    return this.issue(acct);
   }
 
   async verifyOtp(mobile: string | undefined, code: string, centreId?: string, email?: string) {

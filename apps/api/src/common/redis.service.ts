@@ -5,7 +5,9 @@ import Redis from 'ioredis';
 @Injectable()
 export class RedisService implements OnModuleDestroy {
   private client: Redis | null = process.env.REDIS_URL ? new Redis(process.env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 2 }) : null;
-  private mem = new Map<string, { v: string; exp: number }>();
+  // shared by every instance, so the no-Redis fallback behaves like one Redis for the whole app (local development and tests)
+  private static shared = new Map<string, { v: string; exp: number }>();
+  private mem = RedisService.shared;
 
   async get(key: string): Promise<string | null> {
     if (this.client) return this.client.get(key);

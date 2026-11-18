@@ -13,7 +13,7 @@ const isEmail = (v: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v.trim());
 export default function Login() {
   const [centreName, setCentreName] = useState(''); const [ident, setIdent] = useState(''); const [otp, setOtp] = useState(''); const [channel, setChannel] = useState<Channel | ''>('');
   const [mode, setMode] = useState<{ otpEnabled: boolean; channels: Record<Channel, boolean> } | null>(null);
-  const [step, setStep] = useState<'login' | 'otp' | 'choose'>('login'); const [choice, setChoice] = useState<{ choiceToken: string; options: any[] } | null>(null);
+  const [step, setStep] = useState<'login' | 'otp' | 'choose' | 'code'>('login'); const [pmobile, setPmobile] = useState(''); const [pcode, setPcode] = useState(''); const [choice, setChoice] = useState<{ choiceToken: string; options: any[] } | null>(null);
   const [ws, setWs] = useState<{ id: string; name: string; city?: string } | null>(null); // set when the page is opened on <client>.nextsoftwares.in
   const [hint, setHint] = useState(''); const [err, setErr] = useState(''); const [busy, setBusy] = useState(false); const go = useNavigate();
   useEffect(() => { api('/auth/mode').then(setMode).catch(() => {}); api('/workspace/by-host').then((w) => { if (w?.found) { setWs({ id: w.id, name: w.name, city: w.city }); setCentreName(w.name); } }).catch(() => {}); }, []);
@@ -31,6 +31,14 @@ export default function Login() {
     } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
   }
   async function verify() { setErr(''); setBusy(true); try { const r = await api('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ ...(ws ? { centreId: ws.id } : { centreName: centreName.trim() }), ...who(), otp }) }); if (r.choose) { setChoice(r); setStep('choose'); return; } session.set(r.token, r.user); go('/'); } catch (e: any) { setErr(e.message); } finally { setBusy(false); } }
+  /** A parent signs in with the mobile number the school has and the 6-digit code the school office gave. */
+  async function signInWithCode() {
+    setErr(''); setBusy(true);
+    try {
+      const r = await api('/auth/parent-code', { method: 'POST', body: JSON.stringify({ ...(ws ? { centreId: ws.id } : { centreName: centreName.trim() }), mobile: pmobile.replace(/\D/g, '').slice(-10), code: pcode }) });
+      session.set(r.token, r.user); go('/');
+    } catch (e: any) { setErr(e.message); } finally { setBusy(false); }
+  }
   async function pick(userId: string) { setBusy(true); try { const r = await api('/auth/choose', { method: 'POST', body: JSON.stringify({ choiceToken: choice!.choiceToken, userId }) }); session.set(r.token, r.user); go('/'); } catch (e: any) { setErr(e.message); } finally { setBusy(false); } }
 
   return (
@@ -56,7 +64,20 @@ export default function Login() {
           <input className="input" placeholder="you@example.com or 10-digit mobile" value={ident} onChange={(e) => setIdent(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && valid && send()} />
           {mode?.otpEnabled && options.length > 1 && <div className="mt-3"><div className="text-sm font-medium mb-1">Send my OTP by</div><div className="flex gap-2">{options.map((c) => <button key={c} type="button" className={chosen === c ? 'btn sm' : 'btn-quiet'} onClick={() => setChannel(c)}>{LABEL[c]}</button>)}</div></div>}
           <button className="btn w-full justify-center mt-4" disabled={!valid || busy} onClick={() => send()}>{busy ? 'Sending...' : 'Login'}</button>
+          <button type="button" className="text-sm underline text-slate-600 mt-3 block" onClick={() => { setErr(''); setStep('code'); }}>Parent with a code from the school? Sign in here</button>
           <p className="text-xs text-slate-500 mt-3">Platform admin? Type <b>Platform</b> as the name.</p>
+        </>}
+        {step === 'code' && <>
+          <p className="text-slate-600 mt-1 mb-4">Sign in with the mobile number the school has for you and the 6-digit code the school gave you.</p>
+          {ws ? <div className="rounded-md border border-teal-200 bg-teal-50 px-3 py-2 mb-3"><div className="text-xs text-slate-500">Signing in to</div><div className="font-semibold">{ws.name}</div></div>
+            : <><label className="block text-sm font-medium mb-1">Coaching / school name</label><input className="input mb-3" placeholder="e.g. Sharma Classes" value={centreName} onChange={(e) => setCentreName(e.target.value)} /></>}
+          <label className="block text-sm font-medium mb-1">Mobile number the school has</label>
+          <input className="input" inputMode="numeric" placeholder="10-digit mobile" value={pmobile} onChange={(e) => setPmobile(e.target.value.replace(/[^\d+ ]/g, ''))} autoFocus />
+          <label className="block text-sm font-medium mb-1 mt-3">6-digit code from the school</label>
+          <input className="input tracking-widest text-lg" inputMode="numeric" maxLength={6} value={pcode} onChange={(e) => setPcode(e.target.value.replace(/\D/g, ''))} onKeyDown={(e) => e.key === 'Enter' && pcode.length === 6 && pmobile.replace(/\D/g, '').length >= 10 && centreName.trim().length > 1 && signInWithCode()} />
+          <p className="text-xs text-slate-500 mt-2">The code works once and lasts 24 hours. If it has expired, ask the school office for a new one.</p>
+          <button className="btn w-full justify-center mt-4" disabled={busy || pcode.length !== 6 || pmobile.replace(/\D/g, '').length < 10 || centreName.trim().length < 2} onClick={signInWithCode}>{busy ? 'Signing in...' : 'Sign in with code'}</button>
+          <button className="text-sm text-slate-600 mt-3 underline block" onClick={() => { setStep('login'); setErr(''); }}>Use OTP instead</button>
         </>}
         {step === 'otp' && <>
           <p className="text-slate-600 mt-1 mb-4">{centreName} · {ident}</p>
