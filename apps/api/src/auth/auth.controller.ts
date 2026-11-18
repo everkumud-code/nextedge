@@ -11,6 +11,7 @@ import { Public } from '../common/auth.guard';
 
 class SendOtpDto { @IsOptional() @IsString() @Length(10, 10) mobile?: string; @IsOptional() @IsEmail() email?: string; @IsOptional() @IsString() centreId?: string; @IsOptional() @IsString() centreName?: string; @IsOptional() @IsIn(['sms', 'email', 'whatsapp']) channel?: 'sms' | 'email' | 'whatsapp'; }
 class VerifyOtpDto { @IsOptional() @IsString() @Length(10, 10) mobile?: string; @IsOptional() @IsEmail() email?: string; @IsString() @Length(6, 6) otp: string; @IsOptional() @IsString() centreId?: string; @IsOptional() @IsString() centreName?: string; }
+class ParentCodeDto { @IsString() @Length(10, 14) mobile: string; @IsString() @Length(6, 6) code: string; @IsOptional() @IsString() centreId?: string; @IsOptional() @IsString() centreName?: string; }
 class ChooseDto { @IsString() choiceToken: string; @IsString() userId: string; }
 
 @Controller('auth')
@@ -32,6 +33,13 @@ export class AuthController {
     const ip = String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim(); const device = String(req.headers['user-agent'] || '').slice(0, 160); const centreId = await this.auth.resolveCentre(dto.centreName, dto.centreId);
     try { const r: any = await this.auth.verifyOtp(dto.mobile, dto.otp, centreId, dto.email); ;
       if (r?.user) this.dbs.db.insert(loginLog).values({ centreId: r.user.centreId, userId: r.user.id, name: r.user.name, role: r.user.role, channel: 'otp', ok: true, ip, device }).catch(() => {}); return r;
+    } catch (e: any) { this.dbs.db.insert(loginLog).values({ centreId, name: String(dto.mobile || '').slice(0, 40), ok: false, note: String(e?.message || 'failed').slice(0, 120), ip, device }).catch(() => {}); throw e; }
+  }
+  /** Parent login with the school's code: mobile + 6-digit code (from the school office). */
+  @Public() @Post('parent-code') async parentCode(@Body() dto: ParentCodeDto, @Req() req: any) {
+    const ip = String(req.headers['x-forwarded-for'] || req.ip || '').split(',')[0].trim(); const device = String(req.headers['user-agent'] || '').slice(0, 160); const centreId = await this.auth.resolveCentre(dto.centreName, dto.centreId);
+    try { const r: any = await this.auth.loginWithParentCode(dto.mobile, dto.code, centreId);
+      if (r?.user) this.dbs.db.insert(loginLog).values({ centreId: r.user.centreId, userId: r.user.id, name: r.user.name, role: r.user.role, channel: 'code', ok: true, ip, device }).catch(() => {}); return r;
     } catch (e: any) { this.dbs.db.insert(loginLog).values({ centreId, name: String(dto.mobile || '').slice(0, 40), ok: false, note: String(e?.message || 'failed').slice(0, 120), ip, device }).catch(() => {}); throw e; }
   }
   @Public() @Post('choose') choose(@Body() dto: ChooseDto) { return this.auth.choose(dto.choiceToken, dto.userId); }

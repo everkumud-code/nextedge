@@ -4,7 +4,9 @@ import { BadRequestException } from '@nestjs/common';
 import { IsBoolean, IsOptional, IsString, Length } from 'class-validator';
 import { and, eq } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { batches, students, users } from '../db/schema';
+import { batches, centres, loginLog, students, users } from '../db/schema';
+import { RedisService } from '../common/redis.service';
+import { cleanMobile, issueParentCode, parentCodeMessage } from '../common/parent-code';
 import { Roles } from '../common/auth.guard';
 import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
@@ -40,7 +42,7 @@ class UpdateStudentDto {
 @Mod('students')
 @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF')
 export class StudentsController {
-  constructor(private dbs: DbService, private svc: StudentsService) {}
+  constructor(private dbs: DbService, private svc: StudentsService, private redis: RedisService) {}
 
   @Get() list(@CurrentUser() u: JwtUser, @Query('centreId') c?: string, @Query('batchId') batchId?: string) {
     const centreId = centreOf(u, c);
@@ -51,6 +53,36 @@ export class StudentsController {
   /** Data for printable ID cards (QR = student id, scanned at the gate). */
   @Get('id-cards') @Roles('SUPER_ADMIN', 'ADMIN') async idCards(@CurrentUser() u: JwtUser, @Query('batchId') batchId?: string, @Query('centreId') c?: string) {
     const rows = await this.list(u, c, batchId); return rows.filter((r) => r.active).map((r) => ({ id: r.id, name: r.name, rollNo: r.rollNo, className: r.className, batchId: r.batchId, parentMobile: r.parentMobile, qr: r.id }));
+  }
+
+  /**
+   * The office gives parents a login code (the school's own way in, no SMS provider needed): for one student, several, or a whole class.
+   * Body: { studentIds?: string[], batchId? }. Brothers and sisters share one parent, so one code covers all of them.
+   */
+  @Post('parent-codes') @Roles('SUPER_ADMIN', 'ADMIN', 'STAFF')
+  async parentCodes(@CurrentUser() u: JwtUser, @Body() b: { studentIds?: string[]; batchId?: string }, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c);
+    let rows = (await this.list(u, c, b?.batchId)).filter((r) => r.active);
+    if (Array.isArray(b?.studentIds) && b.studentIds.length) rows = rows.filter((r) => b.studentIds!.includes(r.id));
+    if (!rows.length) throw new BadRequestException('Choose a student or a class first.');
+    const parents = new Map<string, { mobile: string; parentName: string; children: string[] }>();
+    for (const r of rows) {
+      const mobile = cleanMobile(r.parentMobile); if (mobile.length !== 10) continue;
+      const p = parents.get(mobile) || { mobile, parentName: r.parentName || 'Parent', children: [] }; p.children.push(r.name); parents.set(mobile, p);
+    }
+    if (!parents.size) throw new BadRequestException('These students have no valid parent mobile number. Add it to the student first.');
+    if (parents.size > 500) throw new BadRequestException('Choose a smaller group (up to 500 parents at a time).');
+    const [ce] = await this.dbs.db.select({ name: centres.name, slug: centres.slug }).from(centres).where(eq(centres.id, centreId));
+    const domain = (process.env.WORKSPACE_DOMAIN || '').trim(); const link = ce?.slug && domain ? `https://${ce.slug}.${domain}` : (process.env.PUBLIC_API_URL || 'https://nextedge.nextsoftwares.in');
+    const out: any[] = [];
+    for (const p of parents.values()) {
+      await this.svc.ensureUser(centreId, p.mobile, p.parentName, 'PARENT');
+      const code = await issueParentCode(this.redis, centreId, p.mobile);
+      out.push({ ...p, code, message: parentCodeMessage(ce?.name || 'School', link, p.mobile, code) });
+    }
+    // only the fact that codes were issued is recorded, never the codes themselves
+    this.dbs.db.insert(loginLog).values({ centreId, userId: u.id, name: u.name, role: u.role, channel: 'code-issued', ok: true, note: `${out.length} parent code(s)` }).catch(() => {});
+    return { school: ce?.name || '', link, validHours: 24, parents: out };
   }
 
   @Post() @Roles('SUPER_ADMIN', 'ADMIN')

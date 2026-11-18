@@ -1,3 +1,4 @@
+import ParentCodes from '../components/ParentCodes';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import * as XLSX from 'xlsx';
@@ -59,7 +60,7 @@ export default function Students() {
   return (
     <div>
       <div className="flex items-center justify-between flex-wrap gap-3"><div><h1 className="text-2xl font-bold">Students</h1><p className="text-sm text-slate-600">{activeCount} active{rows.length - activeCount > 0 ? ` · ${rows.length - activeCount} left/inactive` : ''}</p></div>
-        <div className="flex gap-2"><button className="btn" onClick={() => setForm(blank())}>+ Add student</button><button className="btn-quiet" onClick={() => setShowImport(!showImport)}>Import from Excel</button>{canDownload() && <button className="btn-quiet" onClick={exportCsv}>Export</button>}</div></div>
+        <div className="flex gap-2"><button className="btn" onClick={() => setForm(blank())}>+ Add student</button><ParentCodes batchId={batchF || undefined} label={batchF ? 'Parent codes: this class' : 'Parent codes: all parents'} /><button className="btn-quiet" onClick={() => setShowImport(!showImport)}>Import from Excel</button>{canDownload() && <button className="btn-quiet" onClick={exportCsv}>Export</button>}</div></div>
       <div className="flex gap-3 mt-4 flex-wrap items-center">
         <input className="input w-72" placeholder="Search name, roll, admission no, parent, mobile" value={q} onChange={(e) => setQ(e.target.value)} />
         <select className="input w-52" value={batchF} onChange={(e) => setBatchF(e.target.value)}><option value="">{school ? 'All classes' : 'All batches'}</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select>
@@ -68,7 +69,7 @@ export default function Students() {
         <span className="text-sm text-slate-500 ml-auto">{filtered.length} shown</span>
       </div>
       {msg && <p className="text-sm mt-2 text-moss">{msg}</p>}
-      {sel.size > 0 && <div className="card p-3 mt-3 flex items-center gap-3 flex-wrap bg-edge-100"><b>{sel.size} selected</b><select className="input w-52 py-1" value={moveTo} onChange={(e) => setMoveTo(e.target.value)}><option value="">Move to…</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select><button className="btn sm" disabled={!moveTo} onClick={bulkMove}>Move</button><button className="btn-quiet" onClick={bulkDeactivate}>Deactivate</button><button className="btn-quiet" onClick={bulkReactivate}>Bring back</button><button className="underline text-sm ml-auto" onClick={() => setSel(new Set())}>Clear</button></div>}
+      {sel.size > 0 && <div className="card p-3 mt-3 flex items-center gap-3 flex-wrap bg-edge-100"><b>{sel.size} selected</b><ParentCodes ids={[...sel]} label="Parent codes: selected" /><select className="input w-52 py-1" value={moveTo} onChange={(e) => setMoveTo(e.target.value)}><option value="">Move to…</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select><button className="btn sm" disabled={!moveTo} onClick={bulkMove}>Move</button><button className="btn-quiet" onClick={bulkDeactivate}>Deactivate</button><button className="btn-quiet" onClick={bulkReactivate}>Bring back</button><button className="underline text-sm ml-auto" onClick={() => setSel(new Set())}>Clear</button></div>}
 
       {showImport && <div className="card p-4 mt-4">
         <div className="flex items-center gap-4 flex-wrap"><div><div className="font-semibold">Import from Excel / CSV</div><div className="text-sm text-slate-600">Columns (any order): Name, Roll No, Class, Father, Mother, Parent Mobile, Email, Gender, DOB, Address, Category, Religion, Blood Group, Admission No. Extra columns are ignored.</div></div><input type="file" accept=".xlsx,.xls,.csv" onChange={onFile} className="text-sm" /><select className="input w-56" value={impBatch} onChange={(e) => setImpBatch(e.target.value)}><option value="">{school ? 'Class' : 'Batch'}: not assigned</option>{batches.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}</select></div>

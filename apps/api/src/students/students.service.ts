@@ -51,7 +51,7 @@ export class StudentsService {
     return { created: created.length, skipped };
   }
 
-  private async ensureUser(centreId: string, mobile: string, name: string, role: 'PARENT' | 'STUDENT', email?: string) {
+  async ensureUser(centreId: string, mobile: string, name: string, role: 'PARENT' | 'STUDENT', email?: string) {
     const db = this.dbs.db; const em = email?.trim().toLowerCase() || undefined;
     const found = await db.query.users.findFirst({ where: and(eq(users.mobile, mobile), eq(users.centreId, centreId)) });
     if (found) { if (em && !found.email) await db.update(users).set({ email: em }).where(eq(users.id, found.id)); return found; }
