@@ -20,4 +20,14 @@ Copied | कॉपी हो गया | Copy ho gaya
 Parent | अभिभावक | Parent
 Children | बच्चे | Bachche
 Code | कोड | Code
+Tell the parents | अभिभावकों को बताएँ | Parents ko batayein
+One tap sends a message to every parent on the route. They see it on their phone and on their bus card for 12 hours. | एक टैप से रूट के हर अभिभावक को संदेश जाता है। वे इसे अपने फ़ोन और बस कार्ड पर 12 घंटे तक देखते हैं। | Ek tap se route ke har parent ko message jaata hai. Wo ise apne phone aur bus card par 12 ghante tak dekhte hain.
+Bus is running late | बस देर से चल रही है | Bus late chal rahi hai
+Bus has broken down | बस ख़राब हो गई है | Bus kharab ho gayi hai
+Route changed today | आज रूट बदला है | Aaj route badla hai
+Reached the school | स्कूल पहुँच गई | School pahunch gayi
+Other message | दूसरा संदेश | Doosra message
+About how many minutes late? | लगभग कितने मिनट देर? | Lagbhag kitne minute late?
+Send to parents | अभिभावकों को भेजें | Parents ko bhejein
+Sending… | भेज रहे हैं… | Bhej rahe hain…
 `;

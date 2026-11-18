@@ -1,8 +1,11 @@
-import { BadRequestException, Body, Controller, Delete, Get, Headers, Post, Query, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, ForbiddenException, Get, Headers, HttpException, Post, Query, UnauthorizedException } from '@nestjs/common';
 import { randomBytes } from 'crypto';
-import { and, eq } from 'drizzle-orm';
+import { and, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import { DbService } from '../db/db.service';
-import { busLocations, centreSettings, records, users } from '../db/schema';
+import { busLocations, centreSettings, records, students, users } from '../db/schema';
+import { NotificationsService } from '../notifications/notifications.service';
+import { RedisService } from '../common/redis.service';
+import { busAlertText, isAlertKind } from '../common/bus-alert';
 import { Public, Roles } from '../common/auth.guard';
 import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
@@ -17,7 +20,42 @@ const valid = (f: Fix) => Number.isFinite(Number(f.lat)) && Number.isFinite(Numb
 /** Live bus: GPS trackers (or the driver's phone) send the position; owners see all buses, parents see the bus of their child's route. */
 @Controller('transport')
 export class TransportController {
-  constructor(private dbs: DbService, private platform: PlatformService) {}
+  constructor(private dbs: DbService, private platform: PlatformService, private notify: NotificationsService, private redis: RedisService) {}
+
+  /** The newest bus alert of a route in the last 12 hours (parents see it on their bus card). */
+  private async latestAlert(centreId: string, routeId: string) {
+    const [al] = await this.dbs.db.select().from(records).where(and(eq(records.centreId, centreId), eq(records.kind, 'bus-alert'), eq(records.refId, routeId), gt(records.createdAt, sql`now() - interval '12 hours'`))).orderBy(desc(records.createdAt)).limit(1);
+    return al ? { title: al.title, text: (JSON.parse(al.data || '{}').text as string) || '', at: al.createdAt } : null;
+  }
+
+  /**
+   * One tap from the driver (or the office): tell every parent on this route that the bus is late, broken down, on another route or has arrived.
+   * Push to each parent, and the message shows on their bus card for 12 hours. One alert per bus every 2 minutes.
+   */
+  @Post('alert') @Roles('SUPER_ADMIN', 'ADMIN', 'FACULTY', 'STAFF') @Mod('transport')
+  async alert(@CurrentUser() u: JwtUser, @Body() b: { routeId: string; kind: string; minutes?: number; note?: string }, @Query('centreId') c?: string) {
+    const centreId = centreOf(u, c); const db = this.dbs.db;
+    if (!isAlertKind(b?.kind)) throw new BadRequestException('Choose what happened.');
+    const [rt] = await db.select().from(records).where(and(eq(records.id, String(b.routeId || '')), eq(records.centreId, centreId), eq(records.kind, 'transport-route')));
+    if (!rt) throw new BadRequestException('Route not found.');
+    const d = JSON.parse(rt.data || '{}'); const tail = (x?: string | null) => String(x || '').replace(/\D/g, '').slice(-10);
+    if (u.role !== 'ADMIN' && u.role !== 'SUPER_ADMIN') {
+      const [me] = await db.select({ mobile: users.mobile, name: users.name }).from(users).where(eq(users.id, u.id));
+      const mine = (tail(me?.mobile) && tail(d.driverMobile) === tail(me?.mobile)) || (me?.name && String(d.driver || '').toLowerCase() === me.name.toLowerCase());
+      if (!mine) throw new ForbiddenException("Only this route's driver or the office can send a bus alert.");
+    }
+    if (b.kind === 'other' && !String(b.note || '').trim()) throw new BadRequestException('Write the message for the parents.');
+    if ((await this.redis.hit(`busalert:${rt.id}`, 120)) > 1) throw new HttpException('An alert for this bus was sent a moment ago. Wait 2 minutes before sending another.', 429);
+    const assigns = await db.select({ studentId: records.studentId }).from(records).where(and(eq(records.centreId, centreId), eq(records.kind, 'transport-assign'), eq(records.refId, rt.id), eq(records.status, 'active')));
+    const ids = assigns.map((a) => a.studentId).filter(Boolean) as string[];
+    const kids = ids.length ? await db.select({ parentMobile: students.parentMobile }).from(students).where(and(eq(students.centreId, centreId), inArray(students.id, ids))) : [];
+    const mobiles = [...new Set(kids.map((k) => tail(k.parentMobile)).filter((m) => m.length === 10))];
+    const parents = mobiles.length ? await db.select({ id: users.id }).from(users).where(and(eq(users.centreId, centreId), eq(users.role, 'PARENT'), inArray(users.mobile, mobiles))) : [];
+    const text = busAlertText({ kind: b.kind, route: rt.title, vehicle: d.vehicle, minutes: b.minutes, note: b.note, contact: d.driverMobile });
+    await db.insert(records).values({ centreId, kind: 'bus-alert', refId: rt.id, title: text.title, status: 'active', data: JSON.stringify({ kind: b.kind, text: text.body, by: u.name, minutes: b.minutes || null }), createdBy: u.id });
+    this.notify.notifyUsers(centreId, parents.map((p) => p.id), text.title, text.body, { urgent: b.kind !== 'arrived', data: { type: 'bus', routeId: rt.id } });
+    return { ok: true, parents: parents.length, students: ids.length, title: text.title };
+  }
 
   private async save(centreId: string, fixes: Fix[], source: string) {
     const db = this.dbs.db; const routes = await db.select().from(records).where(and(eq(records.centreId, centreId), eq(records.kind, 'transport-route'))); let saved = 0; const unknown: string[] = [];
@@ -54,7 +92,7 @@ export class TransportController {
     const centreId = centreOf(u, c); const db = this.dbs.db; const kids = await myStudents(db, u, centreId); if (!kids.length) return [];
     const assigns = (await db.select().from(records).where(and(eq(records.centreId, centreId), eq(records.kind, 'transport-assign'), eq(records.status, 'active')))).filter((a) => kids.some((k) => k.id === a.studentId) && a.refId);
     const out: any[] = []; for (const a of assigns) { const [rt] = await db.select().from(records).where(eq(records.id, a.refId!)); const [l] = await db.select().from(busLocations).where(eq(busLocations.routeId, a.refId!)); if (!rt) continue; const d = JSON.parse(rt.data || '{}'); const k = kids.find((x) => x.id === a.studentId) as any;
-      out.push({ studentId: a.studentId, student: k?.name, route: rt.title, vehicle: d.vehicle || null, driver: d.driver || null, driverMobile: d.driverMobile || null, stop: a.title, pickupTime: JSON.parse(a.data || '{}').pickupTime || null, position: l ? { lat: Number(l.lat), lng: Number(l.lng), speed: l.speed === null ? null : Number(l.speed), at: l.at, ageMin: Math.round((Date.now() - l.at.getTime()) / 60000), maps: mapsUrl(l.lat, l.lng) } : null }); }
+      out.push({ alert: await this.latestAlert(centreId, a.refId!), studentId: a.studentId, student: k?.name, route: rt.title, vehicle: d.vehicle || null, driver: d.driver || null, driverMobile: d.driverMobile || null, stop: a.title, pickupTime: JSON.parse(a.data || '{}').pickupTime || null, position: l ? { lat: Number(l.lat), lng: Number(l.lng), speed: l.speed === null ? null : Number(l.speed), at: l.at, ageMin: Math.round((Date.now() - l.at.getTime()) / 60000), maps: mapsUrl(l.lat, l.lng) } : null }); }
     return out;
   }
 }
