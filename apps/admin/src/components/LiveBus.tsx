@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api';
+import BusAlert from './BusAlert';
 
 /** Live bus panel on the Transport page: where each bus was last seen, and how a GPS tracker or the driver's phone sends its position. */
 export default function LiveBus() {
@@ -9,6 +10,7 @@ export default function LiveBus() {
   const copy = (k: string, v: string) => { navigator.clipboard?.writeText(v); setCopied(k); setTimeout(() => setCopied(''), 1500); };
   const age = (m: number) => (m < 1 ? 'just now' : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`);
   return (
+    <>
     <div className="card p-4 mb-4" data-testid="live-bus">
       <div className="flex items-center justify-between"><h2 className="font-semibold">Live bus</h2><button className="btn-quiet" onClick={() => setOpen(!open)}>{open ? 'Hide' : 'Connect a GPS tracker'}</button></div>
       <table className="w-full text-sm mt-2"><thead><tr><th className="th">Route</th><th className="th">Vehicle</th><th className="th">Driver</th><th className="th">Last seen</th><th className="th">Speed</th><th className="th"></th></tr></thead>
@@ -19,5 +21,7 @@ export default function LiveBus() {
           <span className="text-slate-500">Body</span><span className="font-mono text-xs bg-slate-50 p-2 rounded">{JSON.stringify(tk.sample)}</span><span /></div>
         <button className="btn mt-3" onClick={newKey}>{tk.key ? 'Create a new key' : 'Create key'}</button></div>}
     </div>
+    <div className="mb-4"><BusAlert routes={rows.map((r: any) => ({ id: r.routeId, title: r.route }))} /></div>
+    </>
   );
 }
