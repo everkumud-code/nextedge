@@ -49,6 +49,7 @@ import Offers from './pages/Offers';
 import Library from './pages/Library';
 import SchoolProfile from './pages/SchoolProfile';
 import Apply, { ApplyStatus } from './pages/Apply';
+import { Progress, AttendancePage, HomeworkPage, TimetablePage, FeesPage, NoticesPage, MorePage } from './pages/Parent';
 
 function TimetableSwitch() { return session.user?.institutionType === 'school' ? <TimetableSchool /> : <Timetable />; }
 function Private({ children }: { children: JSX.Element }) { return session.token ? children : <Navigate to="/login" replace />; }
@@ -63,6 +64,13 @@ export default function App() {
       <Route path="/pay" element={<Private><PayWall /></Private>} />
       <Route path="/" element={<Private><Layout /></Private>}>
         <Route index element={<Dashboard />} />
+        <Route path="p/progress" element={<Progress />} />
+        <Route path="p/attendance" element={<AttendancePage />} />
+        <Route path="p/homework" element={<HomeworkPage />} />
+        <Route path="p/timetable" element={<TimetablePage />} />
+        <Route path="p/fees" element={<FeesPage />} />
+        <Route path="p/notices" element={<NoticesPage />} />
+        <Route path="p/more" element={<MorePage />} />
         <Route path="students" element={<Students />} />
         <Route path="students/:id" element={<StudentProfile />} />
         <Route path="exams" element={<Exams />} />

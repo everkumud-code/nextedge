@@ -20,6 +20,8 @@ const groups: { name: string; items: Item[] }[] = [
   { name: 'Staff & payroll', items: [['/staff', 'Staff & privileges', 'staff'], ['/records/employee', 'Employees', 'hr'], ['/staff-attendance', 'Staff attendance', 'staff'], ['/records/staff-leave', 'Staff leave', 'hr'], ['/payroll', 'Payroll', 'hr'], ['/records/job-opening', 'Recruitment', 'hr'], ['/records/duty', 'Duties & services', 'duties']] },
   { name: 'Reports & settings', items: [['/insights', 'Reports & graphs', 'reports'], ['/compliance', 'Board compliance', 'reports'], ['/school-profile', 'School profile', 'students'], ['/biometric', 'Biometric', 'biometric'], ['/access', 'Access & security', ''], ['/activity', 'Activity log', ''], ['/messaging', 'Messaging', ''], ['/subscription', 'Subscription & email', '']] },
 ];
+// A parent gets their own small menu (read-only screens built for parents); the staff screens are not for them.
+const parentMenu: Item[] = [['/', 'Today', ''], ['/p/progress', 'Progress', 'exams'], ['/p/attendance', 'Attendance & leave', 'attendance'], ['/p/homework', 'Homework & study', 'homework'], ['/p/timetable', 'Timetable', 'timetable'], ['/p/fees', 'Fees', 'fees'], ['/p/notices', 'Notices & events', 'notices'], ['/p/more', 'Teachers & school', '']];
 const adminOnly = new Set(['/subscription', '/school-profile', '/payroll', '/insights', '/access', '/messaging', '/activity']);
 
 export default function Layout() {
@@ -41,7 +43,9 @@ export default function Layout() {
   const allowed = (it: Item) => { const [to, , m] = it; if (to === '/compliance') return school && owner; if (to === '/messaging' && user?.role === 'SUPER_ADMIN') return false; if (adminOnly.has(to) && !owner && to !== '/insights') return false; if (to === '/insights' && !owner && !(user?.modules || []).includes('reports')) return false; if (to === '/timetable') return user?.role !== 'PARENT' && user?.role !== 'STUDENT' && (user?.role === 'SUPER_ADMIN' || !user?.features || user.features.includes('timetable')); if (to === '/alerts') return owner || user?.role === 'STAFF'; if (!m) return true; return (owner || !user?.modules || user.modules.includes(m)) && (user?.role === 'SUPER_ADMIN' || !user?.features || user.features.includes(m)); };
   const platform: Item[] = user?.role === 'SUPER_ADMIN' ? [['/', 'Overview', ''], ['/clients', 'Clients', ''], ['/platform', 'Billing & plans', ''], ['/offers', 'Offers & discounts', ''], ['/messaging', 'Messaging', ''], ['/counsellor', 'Counsellors', ''], ['/team', 'Team & demo logins', ''], ['/activity', 'Activity log', ''], ['/recycle-bin', 'Recycle bin', ''], ['/onboard', 'Onboard a client', '']] : [];
   const platformOnly = isSuper && !viewing;
-  const visible = user?.role === 'EXPERT' ? [{ name: '', items: [['/counsellor', 'Counsellor console', ''] as Item] }] : [...(platformOnly ? [] : groups.map((g) => ({ ...g, items: g.items.filter(allowed) })).filter((g) => g.items.length)), ...(platform.length ? [{ name: 'Platform', items: platform }] : [])];
+  const parent = user?.role === 'PARENT';
+  useEffect(() => { if (parent && loc.pathname !== '/' && !loc.pathname.startsWith('/p/')) go('/', { replace: true }); }, [parent, loc.pathname]);
+  const visible = parent ? [{ name: '', items: parentMenu.filter(([, , m]) => !m || !user?.features || user.features.includes(m)) }] : user?.role === 'EXPERT' ? [{ name: '', items: [['/counsellor', 'Counsellor console', ''] as Item] }] : [...(platformOnly ? [] : groups.map((g) => ({ ...g, items: g.items.filter(allowed) })).filter((g) => g.items.length)), ...(platform.length ? [{ name: 'Platform', items: platform }] : [])];
   const roleLabel = (school && SCHOOL_ROLE[user?.role || '']) || ROLE[user?.role || ''] || user?.role;
   return (
     <div className="flex min-h-screen">

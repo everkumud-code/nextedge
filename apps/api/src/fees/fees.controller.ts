@@ -9,6 +9,7 @@ import { Public, Roles } from '../common/auth.guard';
 import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
+import { myStudents } from '../common/scope';
 import { NotificationsService } from '../notifications/notifications.service';
 import { createPaymentLink, razorpayReady, verifyWebhook } from '../integrations/razorpay';
 import { PlatformService } from '../platform/platform.service';
@@ -147,6 +148,7 @@ export class FeesController {
   }
   /** Receipts for one student (parent/student app). */
   @Get('receipts') async receipts(@CurrentUser() u: JwtUser, @Query('studentId') studentId: string, @Query('centreId') c?: string) {
+    if (u.role === 'PARENT' || u.role === 'STUDENT') { const own = await myStudents(this.dbs.db, u, centreOf(u, c)); if (!own.some((s) => s.id === studentId)) return []; } // a parent sees only their own children's receipts
     return this.dbs.db.select().from(feePayments).where(and(eq(feePayments.centreId, centreOf(u, c)), eq(feePayments.studentId, studentId))).orderBy(desc(feePayments.paidOn));
   }
 
