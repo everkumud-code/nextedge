@@ -8,6 +8,7 @@ import { Roles } from '../common/auth.guard';
 import { Mod } from '../common/permissions';
 import { CurrentUser, JwtUser } from '../common/current-user.decorator';
 import { centreOf } from '../common/tenant';
+import { myStudents } from '../common/scope';
 import { NotificationsService } from '../notifications/notifications.service';
 import { LiveService } from '../live/live.service';
 
@@ -120,6 +121,7 @@ export class AttendanceController {
   /** Day-wise history for one student (parent/student app). */
   @Get('history') async history(@CurrentUser() u: JwtUser, @Query('studentId') studentId: string, @Query('centreId') c?: string) {
     const centreId = centreOf(u, c);
+    if (u.role === 'PARENT' || u.role === 'STUDENT') { const own = await myStudents(this.dbs.db, u, centreId); if (!own.some((s) => s.id === studentId)) return []; } // a parent sees only their own children's days
     return this.dbs.db.select({ date: attendance.date, status: attendance.status }).from(attendance).where(and(eq(attendance.centreId, centreId), eq(attendance.studentId, studentId))).orderBy(sql`${attendance.date} desc`).limit(90);
   }
 }
