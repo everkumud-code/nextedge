@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, openPdf } from '../api';
+import { getLang, t, useLang } from '../i18n';
 
 // ---------- the parent portal: read-only screens for the children linked to this mobile number ----------
 const inr = (n: number) => '₹' + Math.round(Number(n || 0)).toLocaleString('en-IN');
 const ymd = (d?: string | null) => String(d || '').slice(0, 10);
-const dlong = (d?: string | null) => (d ? new Date(ymd(d) + 'T00:00:00Z').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '');
-const dshort = (d?: string | null) => (d ? new Date(ymd(d) + 'T00:00:00Z').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '');
-const monthName = (m: string) => new Date(m + '-01T00:00:00Z').toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+// dates follow the language chosen in the menu (Hindi script in Hindi; Roman letters in English and Hinglish)
+const LOC = () => (getLang() === 'hi' ? 'hi-IN' : 'en-IN');
+const dlong = (d?: string | null) => (d ? new Date(ymd(d) + 'T00:00:00Z').toLocaleDateString(LOC(), { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : '');
+const dshort = (d?: string | null) => (d ? new Date(ymd(d) + 'T00:00:00Z').toLocaleDateString(LOC(), { day: 'numeric', month: 'short', timeZone: 'UTC' }) : '');
+const monthName = (m: string) => new Date(m + '-01T00:00:00Z').toLocaleDateString(LOC(), { month: 'long', year: 'numeric', timeZone: 'UTC' });
 const istToday = () => new Date(Date.now() + 5.5 * 3600e3).toISOString().slice(0, 10);
+const classLine = (k: any) => [k.className, k.section && `Section ${k.section}`, k.rollNo && `Roll ${k.rollNo}`].filter(Boolean).join(' · ');
+const range = (a: string, b: string) => (ymd(a) === ymd(b) ? dshort(a) : `${dshort(a)} – ${dshort(b)}`);
 const tone = (pct: number | null) => (pct === null ? 'text-slate-400' : pct >= 75 ? 'text-moss' : pct >= 50 ? 'text-amber-700' : 'text-brick');
 const bg = (pct: number | null) => (pct === null ? '#E2E8F0' : pct >= 75 ? '#2E7D32' : pct >= 50 ? '#F9A825' : '#C62828');
 export const ST_COLOUR: Record<string, string> = { PRESENT: '#2E7D32', LATE: '#F9A825', ABSENT: '#C62828', LEAVE: '#90A4AE' };
@@ -41,14 +46,14 @@ export function ChildPicker({ kids, cur, pick }: { kids: any[]; cur: any; pick: 
 
 /** Every parent screen is this shell: the child picker on top, the screen's own title, then its content for the chosen child. */
 function Shell({ title, sub, children }: { title: string; sub?: string; children: (k: any, d: any, reload: () => void) => any }) {
-  const { kids, cur, pick, err: e1, ov } = useFamily(); const { d, err: e2, reload } = useChild(cur?.id);
+  useLang(); const { kids, cur, pick, err: e1, ov } = useFamily(); const { d, err: e2, reload } = useChild(cur?.id);
   if (e1) return <p className="text-brick">{e1}</p>;
   if (!ov) return <p className="text-slate-500">Loading…</p>;
   if (!kids.length) return <p className="text-slate-500">No student is linked to this login yet. Please ask the school office to add your mobile number to your child's record.</p>;
   return <div className="space-y-4">
     <div><h1 className="text-xl font-bold">{title}</h1>{sub && <p className="text-sm text-slate-500">{sub}</p>}</div>
     <ChildPicker kids={kids} cur={cur} pick={pick} />
-    {cur && <div className="text-sm text-slate-600"><b>{cur.name}</b> · {[cur.className, cur.section && `Section ${cur.section}`, cur.rollNo && `Roll ${cur.rollNo}`].filter(Boolean).join(' · ')}</div>}
+    {cur && <div className="text-sm text-slate-600"><b>{cur.name}</b>{' · '}<span>{classLine(cur)}</span></div>}
     {e2 ? <p className="text-brick">{e2}</p> : !d ? <p className="text-slate-500">Loading…</p> : children(cur, d, reload)}
   </div>;
 }
@@ -76,17 +81,17 @@ function ProgressBody({ k, d }: { k: any; d: any }) {
   return <div className="space-y-4">
     {last ? <Card title={`Latest result: ${last.examName}`} right={<button className="btn-quiet" onClick={() => openPdf(`/exams/report-card/${k.id}.pdf`)}>Download report card (PDF)</button>}>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div><div className="text-xs uppercase text-slate-500">Percentage</div><div className={`text-3xl font-bold ${tone(last.pct)}`}>{last.pct}%</div>{delta !== null && <div className={`text-xs ${delta >= 0 ? 'text-moss' : 'text-brick'}`}>{delta >= 0 ? '▲' : '▼'} {Math.abs(delta)} points since {prev.examName}</div>}</div>
+        <div><div className="text-xs uppercase text-slate-500">Percentage</div><div className={`text-3xl font-bold ${tone(last.pct)}`}>{last.pct}%</div>{delta !== null && <div className={`text-xs ${delta >= 0 ? 'text-moss' : 'text-brick'}`}>{`${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta)} points since ${prev.examName}`}</div>}</div>
         <div><div className="text-xs uppercase text-slate-500">Grade</div><div className="text-3xl font-bold">{last.grade}</div></div>
         <div><div className="text-xs uppercase text-slate-500">Marks</div><div className="text-3xl font-bold">{last.total}<span className="text-base font-normal text-slate-500">/{last.maxTotal}</span></div></div>
-        <div><div className="text-xs uppercase text-slate-500">Class position</div><div className="text-3xl font-bold">{last.rank ? `#${last.rank}` : '—'}</div>{last.of > 0 && <div className="text-xs text-slate-500">of {last.of} students</div>}</div>
+        <div><div className="text-xs uppercase text-slate-500">Class position</div><div className="text-3xl font-bold">{last.rank ? `#${last.rank}` : '—'}</div>{last.of > 0 && <div className="text-xs text-slate-500">{`of ${last.of} students`}</div>}</div>
       </div>
-      {lastSubs.length > 1 && <p className="text-sm mt-3 text-slate-700">Strongest: <b>{lastSubs[0].name}</b> ({lastSubs[0].pct}%). {lastSubs[lastSubs.length - 1].pct < 60 ? <>Needs more help: <b className="text-brick">{lastSubs[lastSubs.length - 1].name}</b> ({lastSubs[lastSubs.length - 1].pct}%).</> : <>Weakest: <b>{lastSubs[lastSubs.length - 1].name}</b> ({lastSubs[lastSubs.length - 1].pct}%).</>}</p>}
+      {lastSubs.length > 1 && <p className="text-sm mt-3 text-slate-700"><span className="font-semibold">{`Strongest: ${lastSubs[0].name} (${lastSubs[0].pct}%).`}</span>{' '}<span className={lastSubs[lastSubs.length - 1].pct < 60 ? 'font-semibold text-brick' : 'font-semibold'}>{`${lastSubs[lastSubs.length - 1].pct < 60 ? 'Needs more help' : 'Weakest'}: ${lastSubs[lastSubs.length - 1].name} (${lastSubs[lastSubs.length - 1].pct}%).`}</span></p>}
     </Card> : <Card><Empty t="No result has been published yet. You will see marks, grades and the class position here as soon as the school publishes them." /></Card>}
     {ok.length > 1 && <Card title="Trend across exams"><div className="flex items-end gap-3 h-36">{ok.map((c) => <div key={c.id} className="flex-1 flex flex-col items-center justify-end h-full"><div className="text-xs font-semibold">{c.pct}%</div><div className="w-full max-w-[56px] rounded-t" style={{ height: `${Math.max(4, c.pct)}%`, background: bg(c.pct) }} /><div className="text-[11px] text-slate-500 mt-1 text-center leading-tight">{c.examName}</div></div>)}</div></Card>}
     {subjects.length > 0 && <Card title="Subject by subject"><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-left text-xs text-slate-500"><th className="py-1 pr-3">Subject</th>{ok.map((c) => <th key={c.id} className="py-1 px-2 whitespace-nowrap">{c.examName}</th>)}</tr></thead><tbody>{subjects.map((sub) => <tr key={sub} className="border-t"><td className="py-1.5 pr-3 font-medium">{sub}</td>{ok.map((c) => { const s = c.subjects.find((x: any) => x.name === sub); const p = s && s.marks !== null && s.max ? Math.round((s.marks / s.max) * 100) : null; return <td key={c.id} className="py-1.5 px-2 whitespace-nowrap">{!s ? '—' : s.absent ? <Chip t="Absent" c="bg-slate-200" /> : s.marks === null ? '—' : <span><b className={tone(p)}>{s.marks}</b><span className="text-slate-500">/{s.max}</span> <span className="text-xs text-slate-500">{s.grade}</span></span>}</td>; })}</tr>)}</tbody></table></div></Card>}
-    {d.upcomingExams?.length > 0 && <Card title="Coming up">{d.upcomingExams.map((e: any) => <div key={e.id} className="flex justify-between text-sm py-1"><span>{e.name}{e.term ? ` · ${e.term}` : ''}</span><b>{dlong(e.date)}</b></div>)}</Card>}
-    <RecordList kind="report-remark" child={k} title="Teacher's remarks on the report card" none="" pick={(r) => ({ head: r.title, text: [r.data.remark, r.data.discipline && `Discipline: ${r.data.discipline}`].filter(Boolean).join(' · ') })} />
+    {d.upcomingExams?.length > 0 && <Card title="Coming up">{d.upcomingExams.map((e: any) => <div key={e.id} className="flex justify-between text-sm py-1"><span>{`${e.name}${e.term ? ` · ${e.term}` : ''}`}</span><b>{dlong(e.date)}</b></div>)}</Card>}
+    <RecordList kind="report-remark" child={k} title="Teacher's remarks on the report card" none="" pick={(r) => ({ head: r.title, text: r.data.remark, extra: [r.data.discipline && `Discipline: ${r.data.discipline}`] })} />
   </div>;
 }
 
@@ -103,17 +108,17 @@ function AttendanceBody({ k, d, reload }: { k: any; d: any; reload: () => void }
   return <div className="space-y-4">
     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
       <Card><div className="text-xs uppercase text-slate-500">Overall (last 6 months)</div><div className={`text-3xl font-bold ${tone(a.overallPct)}`}>{a.overallPct === null ? '—' : a.overallPct + '%'}</div></Card>
-      {months[0] && <><Card><div className="text-xs uppercase text-slate-500">{monthName(months[0].month).split(' ')[0]}</div><div className={`text-3xl font-bold ${tone(months[0].pct)}`}>{months[0].pct === null ? '—' : months[0].pct + '%'}</div><div className="text-xs text-slate-500">{months[0].present + months[0].late} present of {months[0].marked}</div></Card>
+      {months[0] && <><Card><div className="text-xs uppercase text-slate-500">{monthName(months[0].month).split(' ')[0]}</div><div className={`text-3xl font-bold ${tone(months[0].pct)}`}>{months[0].pct === null ? '—' : months[0].pct + '%'}</div><div className="text-xs text-slate-500">{`${months[0].present + months[0].late} present of ${months[0].marked}`}</div></Card>
         <Card><div className="text-xs uppercase text-slate-500">Absent this month</div><div className={`text-3xl font-bold ${months[0].absent ? 'text-brick' : 'text-moss'}`}>{months[0].absent}</div></Card>
         <Card><div className="text-xs uppercase text-slate-500">Late arrivals</div><div className="text-3xl font-bold">{months[0].late}</div></Card></>}
     </div>
     <Card title={monthName(month)} right={<div className="flex gap-2"><button className="btn-quiet" aria-label="Previous month" onClick={() => setMonth(new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() - 1, 1)).toISOString().slice(0, 7))}>‹</button><button className="btn-quiet" aria-label="Next month" disabled={month >= istToday().slice(0, 7)} onClick={() => setMonth(new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 1)).toISOString().slice(0, 7))}>›</button></div>}>
-      <div className="grid grid-cols-7 gap-1.5 text-center text-xs max-w-md">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((x) => <div key={x} className="text-slate-500">{x}</div>)}{cells.map((c, i) => c === null ? <div key={i} /> : <div key={i} title={`${dshort(c)} · ${byDay.get(c) || 'no record'}`} className="aspect-square rounded grid place-items-center" style={{ background: byDay.get(c) ? ST_COLOUR[byDay.get(c)!] : '#F1F5F9', color: byDay.get(c) ? '#fff' : '#94A3B8' }}>{Number(c.slice(8))}</div>)}</div>
+      <div className="grid grid-cols-7 gap-1.5 text-center text-xs max-w-md">{['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((x) => <div key={x} className="text-slate-500">{x}</div>)}{cells.map((c, i) => c === null ? <div key={i} /> : <div key={i} title={`${dshort(c)} · ${byDay.get(c) ? t(byDay.get(c)![0] + byDay.get(c)!.slice(1).toLowerCase()) : t('no record')}`} className="aspect-square rounded grid place-items-center" style={{ background: byDay.get(c) ? ST_COLOUR[byDay.get(c)!] : '#F1F5F9', color: byDay.get(c) ? '#fff' : '#94A3B8' }}>{Number(c.slice(8))}</div>)}</div>
       <div className="flex gap-3 text-xs text-slate-500 mt-3 flex-wrap">{Object.entries(ST_COLOUR).map(([s, c]) => <span key={s}><i className="inline-block w-2.5 h-2.5 rounded mr-1" style={{ background: c }} />{s[0] + s.slice(1).toLowerCase()}</span>)}<span><i className="inline-block w-2.5 h-2.5 rounded mr-1 bg-slate-200" />No class / not marked</span></div>
     </Card>
     {months.length > 0 && <Card title="Month by month"><table className="w-full text-sm"><thead><tr className="text-left text-xs text-slate-500"><th className="py-1">Month</th><th>Present</th><th>Late</th><th>Absent</th><th>Leave</th><th className="w-1/3">Attendance</th></tr></thead><tbody>{months.map((m) => <tr key={m.month} className="border-t"><td className="py-1.5">{monthName(m.month)}</td><td>{m.present}</td><td>{m.late}</td><td className={m.absent ? 'text-brick font-medium' : ''}>{m.absent}</td><td>{m.leave}</td><td><div className="flex items-center gap-2"><div className="flex-1 h-2.5 bg-slate-100 rounded"><div className="h-2.5 rounded" style={{ width: `${m.pct ?? 0}%`, background: bg(m.pct) }} /></div><b className={`w-10 text-right ${tone(m.pct)}`}>{m.pct === null ? '—' : m.pct + '%'}</b></div></td></tr>)}</tbody></table></Card>}
     <Card title="Apply for leave"><div className="grid sm:grid-cols-3 gap-3"><label className="text-sm">From<input type="date" className="input w-full" value={f.fromDate} onChange={(e) => setF({ ...f, fromDate: e.target.value, toDate: e.target.value > f.toDate ? e.target.value : f.toDate })} /></label><label className="text-sm">To<input type="date" className="input w-full" min={f.fromDate} value={f.toDate} onChange={(e) => setF({ ...f, toDate: e.target.value })} /></label><label className="text-sm sm:col-span-3">Reason<input className="input w-full" value={f.reason} maxLength={300} placeholder="For example: fever, family function" onChange={(e) => setF({ ...f, reason: e.target.value })} /></label></div><div className="mt-3 flex items-center gap-3"><button className="btn" disabled={busy} onClick={send}>Send to school</button>{msg && <span className="text-sm text-slate-600" role="status">{msg}</span>}</div>
-      {d.leaves.length > 0 && <div className="mt-4 border-t pt-3 text-sm space-y-1">{d.leaves.map((l: any) => <div key={l.id} className="flex justify-between gap-2"><span>{dshort(l.fromDate)}{l.toDate !== l.fromDate ? ` to ${dshort(l.toDate)}` : ''} · {l.reason}{l.note ? <span className="text-slate-500"> — {l.note}</span> : null}</span><Chip t={l.status} c={l.status === 'approved' ? 'bg-moss text-white' : l.status === 'rejected' ? 'bg-brick text-white' : 'bg-amber-200 text-amber-900'} /></div>)}</div>}
+      {d.leaves.length > 0 && <div className="mt-4 border-t pt-3 text-sm space-y-1">{d.leaves.map((l: any) => <div key={l.id} className="flex justify-between gap-2"><span>{`${range(l.fromDate, l.toDate)} · ${l.reason}`}{l.note ? <span className="text-slate-500">{` — ${l.note}`}</span> : null}</span><Chip t={t(l.status)} c={l.status === 'approved' ? 'bg-moss text-white' : l.status === 'rejected' ? 'bg-brick text-white' : 'bg-amber-200 text-amber-900'} /></div>)}</div>}
     </Card>
   </div>;
 }
@@ -131,9 +136,9 @@ function HomeworkBody({ k, d }: { k: any; d: any }) {
   const open = mine.filter((h) => h.status !== 'done').sort((a, b) => a.dueAt.localeCompare(b.dueAt)); const done = mine.filter((h) => h.status === 'done');
   const mat = study.filter((c) => !c.batchId || c.batchId === batch).slice(0, 30);
   return <div className="space-y-4">
-    <Card title={`To do (${open.length})`}>{open.length ? <ul className="divide-y text-sm">{open.map((h) => <li key={h.id} className="py-2 flex justify-between gap-3"><span><b>{h.title}</b>{h.subject && <span className="text-slate-500"> · {h.subject}</span>}{h.description && <div className="text-slate-600">{h.description}</div>}{h.attachmentUrl && <a className="underline text-xs" href={h.attachmentUrl} target="_blank" rel="noreferrer">Open the attachment</a>}</span><span className="text-right shrink-0"><div className="text-xs text-slate-500">due {dlong(h.dueAt)}</div><Chip t={h.status === 'overdue' ? 'Overdue' : 'Pending'} c={h.status === 'overdue' ? 'bg-brick text-white' : 'bg-marigold-500'} /></span></li>)}</ul> : <Empty t="Nothing pending. All homework is handed in." />}</Card>
-    {done.length > 0 && <Card title="Handed in">{<ul className="divide-y text-sm">{done.slice(0, 12).map((h) => <li key={h.id} className="py-2 flex justify-between gap-3"><span><b>{h.title}</b>{h.subject && <span className="text-slate-500"> · {h.subject}</span>}{h.sub?.remark && <div className="text-slate-600">Teacher: {h.sub.remark}</div>}</span><span className="shrink-0">{h.sub?.checkedAt ? <Chip t={h.sub.grade ? `Checked · ${h.sub.grade}` : 'Checked'} c="bg-moss text-white" /> : <Chip t="Waiting for teacher" />}</span></li>)}</ul>}</Card>}
-    <RecordList kind="lesson" child={k} batch={d.profile} title="What was taught recently" none="The teachers have not added a lesson diary yet." limit={8} pick={(r) => ({ head: r.title, meta: [r.data.subject, dshort(r.date)].filter(Boolean).join(' · '), text: [r.data.details, r.data.homework && `Homework: ${r.data.homework}`].filter(Boolean).join(' — ') })} />
+    <Card title={`To do (${open.length})`}>{open.length ? <ul className="divide-y text-sm">{open.map((h) => <li key={h.id} className="py-2 flex justify-between gap-3"><span><b>{h.title}</b>{h.subject && <span className="text-slate-500"> · {h.subject}</span>}{h.description && <div className="text-slate-600">{h.description}</div>}{h.attachmentUrl && <a className="underline text-xs" href={h.attachmentUrl} target="_blank" rel="noreferrer">Open the attachment</a>}</span><span className="text-right shrink-0"><div className="text-xs text-slate-500">{`due ${dlong(h.dueAt)}`}</div><Chip t={h.status === 'overdue' ? 'Overdue' : 'Pending'} c={h.status === 'overdue' ? 'bg-brick text-white' : 'bg-marigold-500'} /></span></li>)}</ul> : <Empty t="Nothing pending. All homework is handed in." />}</Card>
+    {done.length > 0 && <Card title="Handed in">{<ul className="divide-y text-sm">{done.slice(0, 12).map((h) => <li key={h.id} className="py-2 flex justify-between gap-3"><span><b>{h.title}</b>{h.subject && <span className="text-slate-500"> · {h.subject}</span>}{h.sub?.remark && <div className="text-slate-600">{`Teacher: ${h.sub.remark}`}</div>}</span><span className="shrink-0">{h.sub?.checkedAt ? <Chip t={h.sub.grade ? `Checked · ${h.sub.grade}` : 'Checked'} c="bg-moss text-white" /> : <Chip t="Waiting for teacher" />}</span></li>)}</ul>}</Card>}
+    <RecordList kind="lesson" child={k} batch={d.profile} title="What was taught recently" none="The teachers have not added a lesson diary yet." limit={8} pick={(r) => ({ head: r.title, meta: [r.data.subject, dshort(r.date)].filter(Boolean).join(' · '), text: r.data.details, extra: [r.data.homework && `Homework: ${r.data.homework}`] })} />
     <Card title="Study material">{mat.length ? <ul className="divide-y text-sm">{mat.map((c) => <li key={c.id} className="py-2 flex justify-between gap-3"><span><b>{c.title}</b><span className="text-slate-500"> · {c.subject}{c.chapter ? ` · ${c.chapter}` : ''}</span>{c.body && <div className="text-slate-600">{String(c.body).slice(0, 160)}</div>}</span>{c.url ? <a className="underline shrink-0" href={c.url} target="_blank" rel="noreferrer">Open</a> : c.fileKey ? <button className="underline shrink-0" onClick={() => api(`/content/${c.id}/file`).then((r) => r?.url && window.open(r.url, '_blank')).catch(() => {})}>Download</button> : null}</li>)}</ul> : <Empty t="No study material has been shared yet." />}</Card>
   </div>;
 }
@@ -171,9 +176,9 @@ function FeesBody({ k, d }: { k: any; d: any }) {
       <Card><div className="text-xs uppercase text-slate-500">Paid</div><div className="text-2xl font-bold text-moss">{inr(f.paid)}</div></Card>
       <Card><div className="text-xs uppercase text-slate-500">Balance</div><div className={`text-2xl font-bold ${f.balance > 0 ? 'text-brick' : 'text-moss'}`}>{f.balance > 0 ? inr(f.balance) : 'All clear ✓'}</div></Card>
     </div> : <Card><Empty t="No fee plan has been set for this student yet." /></Card>}
-    {f && f.balance > 0 && <Card><div className="flex flex-wrap items-center gap-3"><button className="btn" disabled={busy} onClick={pay}>Pay {inr(f.balance)} online</button><span className="text-sm text-slate-600">or pay at the school office</span>{msg && <span className="text-sm text-brick" role="alert">{msg}</span>}</div></Card>}
+    {f && f.balance > 0 && <Card><div className="flex flex-wrap items-center gap-3"><button className="btn" disabled={busy} onClick={pay}>{`Pay ${inr(f.balance)} online`}</button><span className="text-sm text-slate-600">or pay at the school office</span>{msg && <span className="text-sm text-brick" role="alert">{msg}</span>}</div></Card>}
     <Card title="Payments and receipts">{d.receipts.length ? <table className="w-full text-sm"><thead><tr className="text-left text-xs text-slate-500"><th className="py-1">Date</th><th>Receipt</th><th>Mode</th><th className="text-right">Amount</th><th /></tr></thead><tbody>{d.receipts.map((r: any) => <tr key={r.id} className="border-t"><td className="py-1.5">{dlong(r.paidOn)}</td><td>{r.receiptNo || '—'}</td><td>{/^[A-Z]{2,5}$/.test(String(r.mode)) ? r.mode : String(r.mode).charAt(0) + String(r.mode).slice(1).toLowerCase()}</td><td className="text-right font-medium">{inr(r.amount)}</td><td className="text-right"><button className="underline" onClick={() => openPdf(`/fees/receipt/${r.id}.pdf`)}>PDF</button></td></tr>)}</tbody></table> : <Empty t="No payment has been recorded yet." />}</Card>
-    <RecordList kind="fee-fine" child={k} title="Late fee fines" none="" pick={(r) => ({ head: r.title, meta: dshort(r.date), text: r.data.amount ? inr(r.data.amount) + (r.status === 'waived' ? ' (waived)' : '') : '' })} />
+    <RecordList kind="fee-fine" child={k} title="Late fee fines" none="" pick={(r) => ({ head: r.title, meta: dshort(r.date), text: r.data.amount ? inr(r.data.amount) : '', extra: [r.status === 'waived' && 'Waived'] })} />
   </div>;
 }
 
@@ -186,7 +191,7 @@ export function NoticesPage() {
     <Card title="Notices">{!items ? <Empty t="Loading…" /> : items.length ? <ul className="divide-y text-sm">{items.slice(0, 40).map((n) => <li key={n.id} className="py-2"><button className="w-full text-left flex justify-between gap-3" aria-expanded={open === n.id} onClick={() => show(n)}><span>{!n.read && <span className="inline-block w-2 h-2 rounded-full bg-teal-600 mr-2" aria-label="unread" />}{n.pinned && '📌 '}<b>{n.title}</b>{(n.type === 'URGENT') && <Chip t="Urgent" c="bg-brick text-white ml-2" />}{(n.type === 'HOLIDAY') && <Chip t="Holiday" c="bg-sky-200 text-sky-900 ml-2" />}</span><span className="text-xs text-slate-500 shrink-0">{dshort(n.publishedAt)}</span></button>{open === n.id && <p className="mt-1 text-slate-700 whitespace-pre-wrap">{n.body}</p>}</li>)}</ul> : <Empty t="No notices yet." />}</Card>
     <Ptm child={k} onDone={reload} />
     <RecordList kind="event" child={k} title="Events" none="No events are planned right now." future pick={(r) => ({ head: r.title, meta: [dlong(r.date), r.data.time, r.data.venue].filter(Boolean).join(' · '), text: r.data.details })} />
-    <RecordList kind="holiday" child={k} title="Holidays and school calendar" none="" future limit={12} pick={(r) => ({ head: r.title, meta: `${dlong(r.date)}${r.status ? ' · ' + r.status : ''}`, text: r.data.details })} />
+    <RecordList kind="holiday" child={k} title="Holidays and school calendar" none="" future limit={12} pick={(r) => ({ head: r.title, meta: `${dlong(r.date)}${r.status ? ' · ' + t(r.status) : ''}`, text: r.data.details })} />
     <RecordList kind="gallery" child={k} title="Photos and videos" none="" limit={6} pick={(r) => ({ head: r.title, meta: dshort(r.date), text: r.data.description, link: r.data.url })} />
   </div>}</Shell>;
 }
@@ -198,8 +203,8 @@ function Ptm({ child, onDone }: { child: any; onDone: () => void }) {
   const today = istToday(); const open = (slots || []).filter((s) => s.status === 'open' && (!s.date || ymd(s.date) >= today)); const mine = (slots || []).filter((s) => s.status === 'booked' && s.studentId === child.id && (!s.date || ymd(s.date) >= today));
   if (!slots || (!open.length && !mine.length && !msg)) return null;
   return <Card title="Parent–teacher meeting">{msg && <p className="text-sm mb-2" role="status">{msg}</p>}
-    {mine.length > 0 && <div className="mb-3 text-sm">{mine.map((s) => <div key={s.id}>✅ Booked: <b>{dlong(s.date)} {s.data.time}</b> with {s.staffName || 'the teacher'}{s.data.venue ? ` · ${s.data.venue}` : ''}{s.data.mode && s.data.mode !== 'In person' ? ` · ${s.data.mode}` : ''}</div>)}</div>}
-    {open.length > 0 && <div className="grid sm:grid-cols-2 gap-2">{open.slice(0, 12).map((s) => <div key={s.id} className="border rounded-lg px-3 py-2 text-sm flex justify-between items-center gap-2"><span><b>{s.staffName || s.title}</b><div className="text-xs text-slate-500">{dlong(s.date)} · {s.data.time}{s.data.venue ? ` · ${s.data.venue}` : ''}</div></span><button className="btn" onClick={() => book(s)}>Book</button></div>)}</div>}
+    {mine.length > 0 && <div className="mb-3 text-sm">{mine.map((s) => <div key={s.id}>{`✅ Booked: ${dlong(s.date)} ${s.data.time || ''} with ${s.staffName || t('the teacher')}`}{s.data.venue ? ` · ${s.data.venue}` : ''}</div>)}</div>}
+    {open.length > 0 && <div className="grid sm:grid-cols-2 gap-2">{open.slice(0, 12).map((s) => <div key={s.id} className="border rounded-lg px-3 py-2 text-sm flex justify-between items-center gap-2"><span><b>{s.staffName || s.title}</b><div className="text-xs text-slate-500">{`${dlong(s.date)} · ${s.data.time}${s.data.venue ? ` · ${s.data.venue}` : ''}`}</div></span><button className="btn" onClick={() => book(s)}>Book</button></div>)}</div>}
   </Card>;
 }
 
@@ -215,9 +220,9 @@ function MoreBody({ k, d }: { k: any; d: any }) {
   return <div className="space-y-4">
     <Card title="Teachers">{d.teachers.length ? <ul className="divide-y text-sm">{d.teachers.map((t: any) => <li key={t.id} className="py-1.5 flex justify-between"><b>{t.name}</b><span className="text-slate-500">{t.classTeacher ? 'Class teacher' : ''}{t.classTeacher && t.subject ? ' · ' : ''}{t.subject}</span></li>)}</ul> : <Empty t="The school has not listed the teachers for this class yet." />}</Card>
     <RecordList kind="achievement" child={k} title="Achievements and talents" none="Nothing recorded yet." pick={(r) => ({ head: r.title, meta: [r.data.area, r.data.level, r.data.position, dshort(r.date)].filter(Boolean).join(' · '), text: r.data.details })} />
-    <RecordList kind="discipline" child={k} title="Notes from the school: discipline" none="" pick={(r) => ({ head: r.title, meta: [r.data.category, dshort(r.date)].filter(Boolean).join(' · '), text: [r.data.details, r.data.action && `Action: ${r.data.action}`].filter(Boolean).join(' — ') })} />
-    <RecordList kind="behaviour" child={k} title="Notes from the school: behaviour" none="" pick={(r) => ({ head: r.title, meta: [r.data.type, dshort(r.date)].filter(Boolean).join(' · '), text: [r.data.details, r.data.intervention && `Support: ${r.data.intervention}`].filter(Boolean).join(' — ') })} />
-    <RecordList kind="health" child={k} title="Health and medical notes" none="" pick={(r) => ({ head: r.title, meta: [r.data.type, dshort(r.date)].filter(Boolean).join(' · '), text: [r.data.details, r.data.treatment].filter(Boolean).join(' — ') })} />
+    <RecordList kind="discipline" child={k} title="Notes from the school: discipline" none="" pick={(r) => ({ head: r.title, meta: [r.data.category, dshort(r.date)].filter(Boolean).join(' · '), text: r.data.details, extra: [r.data.action && `Action: ${r.data.action}`] })} />
+    <RecordList kind="behaviour" child={k} title="Notes from the school: behaviour" none="" pick={(r) => ({ head: r.title, meta: [r.data.type, dshort(r.date)].filter(Boolean).join(' · '), text: r.data.details, extra: [r.data.intervention && `Support: ${r.data.intervention}`] })} />
+    <RecordList kind="health" child={k} title="Health and medical notes" none="" pick={(r) => ({ head: r.title, meta: [r.data.type, dshort(r.date)].filter(Boolean).join(' · '), text: r.data.details, extra: [r.data.treatment] })} />
     <RecordList kind="certificate" child={k} title="Certificates issued" none="" pick={(r) => ({ head: r.title, meta: [r.data.type, r.data.serial && `No. ${r.data.serial}`, dshort(r.date)].filter(Boolean).join(' · '), text: r.data.purpose })} />
     <div className="grid lg:grid-cols-2 gap-4">
       <Card title="Rate a teacher or tell the school"><div className="space-y-3 text-sm">
@@ -229,13 +234,13 @@ function MoreBody({ k, d }: { k: any; d: any }) {
         <select className="input w-full" value={rq.type} onChange={(e) => setRq({ ...rq, type: e.target.value })} aria-label="Type of request">{['Certificate copy', 'Bus change', 'Change of mobile or address', 'Fee question', 'Other'].map((t) => <option key={t}>{t}</option>)}</select>
         <textarea className="input w-full" rows={3} maxLength={500} placeholder="What do you need?" value={rq.details} onChange={(e) => setRq({ ...rq, details: e.target.value })} />
         <div className="flex items-center gap-3"><button className="btn" onClick={sendRq}>Send request</button>{rqMsg && <span role="status" className="text-slate-600">{rqMsg}</span>}</div>
-        <RecordList key={tick} kind="service-request" child={k} title="Your requests" none="" bare limit={5} pick={(r) => ({ head: r.title, meta: `${dshort(r.date)} · ${r.status}`, text: r.data.details })} /></div></Card>
+        <RecordList key={tick} kind="service-request" child={k} title="Your requests" none="" bare limit={5} pick={(r) => ({ head: r.title, meta: `${dshort(r.date)} · ${t(r.status)}`, text: r.data.details })} /></div></Card>
     </div>
   </div>;
 }
 
 /** A list of the school's parent-visible records of one kind, for this child and the child's class. Renders nothing when there are none and no message is given. */
-function RecordList({ kind, child, batch, title, none, pick, future, limit = 10, bare }: { kind: string; child: any; batch?: any; title: string; none: string; pick: (r: any) => { head: string; meta?: string; text?: string; link?: string }; future?: boolean; limit?: number; bare?: boolean }) {
+function RecordList({ kind, child, batch, title, none, pick, future, limit = 10, bare }: { kind: string; child: any; batch?: any; title: string; none: string; pick: (r: any) => { head: string; meta?: string; text?: string; link?: string; extra?: (string | false | null | undefined)[] }; future?: boolean; limit?: number; bare?: boolean }) {
   const [rows, setRows] = useState<any[] | null>(null);
   useEffect(() => { setRows(null); api('/records/mine/all?kind=' + kind).then(setRows).catch(() => setRows([])); }, [kind, child.id]);
   if (!rows) return null; const today = istToday();
@@ -244,6 +249,6 @@ function RecordList({ kind, child, batch, title, none, pick, future, limit = 10,
   if (future) list = list.filter((r) => !r.date || ymd(r.date) >= today).sort((a, b) => ymd(a.date).localeCompare(ymd(b.date)));
   list = list.slice(0, limit);
   if (!list.length && !none) return null;
-  const body = list.length ? <ul className="divide-y text-sm">{list.map((r) => { const p = pick(r); return <li key={r.id} className="py-2"><b>{p.head}</b>{p.meta && <div className="text-xs text-slate-500">{p.meta}</div>}{p.text && <div className="text-slate-700">{p.text}</div>}{p.link && <a className="underline text-xs" href={p.link} target="_blank" rel="noreferrer">Open</a>}</li>; })}</ul> : <Empty t={none} />;
+  const body = list.length ? <ul className="divide-y text-sm">{list.map((r) => { const p = pick(r); return <li key={r.id} className="py-2"><b>{p.head}</b>{p.meta && <div className="text-xs text-slate-500">{p.meta}</div>}{p.text && <div className="text-slate-700">{p.text}</div>}{(p.extra || []).filter(Boolean).map((x, i) => <div key={i} className="text-slate-700">{x}</div>)}{p.link && <a className="underline text-xs" href={p.link} target="_blank" rel="noreferrer">Open</a>}</li>; })}</ul> : <Empty t={none} />;
   return bare ? <div className="border-t pt-2"><div className="text-xs uppercase text-slate-500 mb-1">{title}</div>{body}</div> : <Card title={title}>{body}</Card>;
 }
