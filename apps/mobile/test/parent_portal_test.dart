@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -73,5 +74,72 @@ void main() {
     await t.pumpWidget(const MaterialApp(home: Scaffold(body: ParentPortal())));
     await settle(t);
     expect(find.textContaining('No student is linked to this login yet'), findsOneWidget);
+  });
+
+  // The same answers the real server gave for a demo family (two children, one mobile): every screen is walked through.
+  testWidgets('parent portal: every screen opens with real server data', (t) async {
+    final fx = jsonDecode(File('test/fixtures/parent_api.json').readAsStringSync()) as Map<String, dynamic>;
+    Api.testClient = MockClient((req) async {
+      final path = req.url.path.replaceFirst('/api', '') + (req.url.hasQuery ? '?${req.url.query}' : '');
+      return ok(fx.containsKey(path) ? fx[path] : []);
+    });
+    await t.pumpWidget(const MaterialApp(home: Scaffold(body: ParentPortal())));
+    await settle(t);
+    expect(find.textContaining('is marked absent today'), findsOneWidget);
+    expect(find.textContaining('fees are due for Yash'), findsOneWidget);
+
+    await t.tap(find.text('Progress').last);
+    await settle(t);
+    expect(find.text('Latest result: Half Yearly'), findsOneWidget);
+    expect(find.textContaining('Class position #1'), findsOneWidget);
+    expect(find.text('Download report card (PDF)'), findsOneWidget);
+
+    await t.tap(find.text('Attendance').last);
+    await settle(t);
+    expect(find.text('Apply for leave'), findsOneWidget);
+    expect(find.text('Month by month'), findsOneWidget);
+
+    await t.tap(find.text('Homework').last);
+    await settle(t);
+    expect(find.text('To do (2)'), findsOneWidget);
+    expect(find.text('Table of 12 and 13'), findsOneWidget);
+    expect(find.text('Water cycle: evaporation and rain'), findsOneWidget);
+    expect(find.text('Practice sheet: tables 2 to 15'), findsOneWidget);
+
+    await t.tap(find.text('Fees').last);
+    await settle(t);
+    expect(find.textContaining('Pay ₹'), findsOneWidget);
+
+    await t.tap(find.text('More').last);
+    await settle(t);
+    await t.tap(find.text('Timetable'));
+    await settle(t);
+    expect(find.textContaining('Monday'), findsOneWidget);
+    await t.pageBack();
+    await settle(t);
+    await t.tap(find.textContaining('Notices & events'));
+    await settle(t);
+    expect(find.text('Winter uniform from 1 December'), findsOneWidget);
+    expect(find.text('Annual Day'), findsOneWidget);
+    expect(find.text('Book'), findsWidgets);
+  });
+
+  testWidgets('parent portal: the second child has no result, homework or timetable yet and the screens say so', (t) async {
+    final fx = jsonDecode(File('test/fixtures/parent_api.json').readAsStringSync()) as Map<String, dynamic>;
+    Api.testClient = MockClient((req) async {
+      final path = req.url.path.replaceFirst('/api', '') + (req.url.hasQuery ? '?${req.url.query}' : '');
+      return ok(fx.containsKey(path) ? fx[path] : []);
+    });
+    await t.pumpWidget(const MaterialApp(home: Scaffold(body: ParentPortal())));
+    await settle(t);
+    await t.tap(find.text('Meera Singh'));
+    await settle(t);
+    await t.tap(find.text('Progress').last);
+    await settle(t);
+    expect(find.textContaining('No result has been published yet'), findsOneWidget);
+    await t.tap(find.text('Homework').last);
+    await settle(t);
+    expect(find.text('To do (0)'), findsOneWidget);
+    expect(find.textContaining('Nothing pending'), findsOneWidget);
   });
 }
