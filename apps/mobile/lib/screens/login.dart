@@ -12,7 +12,7 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final coaching = TextEditingController(), email = TextEditingController(), otp = TextEditingController();
+  final coaching = TextEditingController(), email = TextEditingController(), otp = TextEditingController(), pmobile = TextEditingController(), pcode = TextEditingController();
   int step = 0; bool busy = false; String? error, hint; Map? mode; String channel = '';
   bool get isMobile => RegExp(r'^\d{10}$').hasMatch(email.text.trim().replaceAll(' ', ''));
   bool get valid => (AppConfig.whiteLabel || coaching.text.trim().length > 1) && (isMobile || RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$').hasMatch(email.text.trim()));
@@ -48,6 +48,18 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) { setState(() => error = e.toString().replaceFirst('Exception: ', '')); } finally { if (mounted) setState(() => busy = false); }
   }
 
+  /// A parent signs in with the mobile number the school has and the 6-digit code the school office gave (no OTP needed).
+  Future<void> signInWithCode() async {
+    setState(() { busy = true; error = null; });
+    try {
+      final digits = pmobile.text.replaceAll(RegExp(r'\D'), '');
+      final r = await Api.post('/auth/parent-code', {if (AppConfig.whiteLabel) 'centreId': AppConfig.centreId else 'centreName': coaching.text.trim(), 'mobile': digits.length > 10 ? digits.substring(digits.length - 10) : digits, 'code': pcode.text.trim()}, auth: false);
+      await _finish(r);
+    } catch (e) { setState(() => error = e.toString().replaceFirst('Exception: ', '')); } finally { if (mounted) setState(() => busy = false); }
+  }
+
+  bool get codeValid => (AppConfig.whiteLabel || coaching.text.trim().length > 1) && pmobile.text.replaceAll(RegExp(r'\D'), '').length >= 10 && pcode.text.trim().length == 6;
+
   Future<void> _finish(Map r) async {
     try {
       final p = await SharedPreferences.getInstance();
@@ -73,6 +85,17 @@ class _LoginScreenState extends State<LoginScreen> {
             FilledButton(onPressed: busy || !valid ? null : () => send(), child: Text(busy ? 'Sending…' : 'Login')),
             const SizedBox(height: 8),
             if (!AppConfig.whiteLabel) const Text('Platform admin? Type "Platform" as the coaching name.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            TextButton(onPressed: () => setState(() { step = 2; error = null; }), child: const Text('Parent with a code from the school? Sign in here')),
+          ],
+          if (step == 2) ...[
+            const Text('Sign in with the mobile number the school has for you and the 6-digit code the school gave you.', style: TextStyle(fontSize: 15)),
+            const SizedBox(height: 16),
+            if (!AppConfig.whiteLabel) ...[TextField(controller: coaching, textCapitalization: TextCapitalization.words, decoration: const InputDecoration(labelText: 'Coaching / school name', hintText: 'e.g. Sharma Classes', border: OutlineInputBorder()), onChanged: (_) => setState(() {})), const SizedBox(height: 12)],
+            TextField(controller: pmobile, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Mobile number the school has', border: OutlineInputBorder()), onChanged: (_) => setState(() {})),
+            const SizedBox(height: 12),
+            TextField(controller: pcode, keyboardType: TextInputType.number, maxLength: 6, decoration: const InputDecoration(labelText: '6-digit code from the school', helperText: 'The code works once and lasts 24 hours. If it has expired, ask the school office for a new one.', helperMaxLines: 3, border: OutlineInputBorder()), onChanged: (_) => setState(() {}), onSubmitted: (_) { if (codeValid) signInWithCode(); }),
+            FilledButton(onPressed: busy || !codeValid ? null : signInWithCode, child: Text(busy ? 'Signing in…' : 'Sign in with code')),
+            TextButton(onPressed: () => setState(() { step = 0; error = null; }), child: const Text('Use OTP instead')),
           ],
           if (step == 1) ...[
             Text('${AppConfig.whiteLabel ? AppConfig.centreName : coaching.text.trim()} · ${email.text.trim()}', style: const TextStyle(fontWeight: FontWeight.w600)),
