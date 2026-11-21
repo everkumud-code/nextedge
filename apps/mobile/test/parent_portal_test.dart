@@ -78,6 +78,8 @@ void main() {
 
   // The same answers the real server gave for a demo family (two children, one mobile): every screen is walked through.
   testWidgets('parent portal: every screen opens with real server data', (t) async {
+    await t.binding.setSurfaceSize(const Size(800, 3200)); // a tall screen, so the long lists are built down to the last button
+    addTearDown(() => t.binding.setSurfaceSize(null));
     final fx = jsonDecode(File('test/fixtures/parent_api.json').readAsStringSync()) as Map<String, dynamic>;
     Api.testClient = MockClient((req) async {
       final path = req.url.path.replaceFirst('/api', '') + (req.url.hasQuery ? '?${req.url.query}' : '');
